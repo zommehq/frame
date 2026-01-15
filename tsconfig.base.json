@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "paths": {
+      "@micro-fe/fragment-elements": ["./packages/fragment-elements/src/index.ts"],
+      "@micro-fe/fragment-elements/*": ["./packages/fragment-elements/src/*"]
+    }
+  },
+  "exclude": ["node_modules", "dist", "build"]
+}

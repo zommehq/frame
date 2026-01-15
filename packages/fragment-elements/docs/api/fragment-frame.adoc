@@ -1,0 +1,225 @@
+= `<fragment-frame>` API
+
+Custom element for embedding micro-frontend fragments.
+
+== Attributes
+
+=== Required Attributes
+
+==== `name`
+
+Fragment identifier. Used as default base path if `base` not provided.
+
+[source,html]
+----
+<fragment-frame name="my-app"></fragment-frame>
+----
+
+==== `src`
+
+Fragment URL. Must be a complete URL including protocol.
+
+[source,html]
+----
+<fragment-frame src="http://localhost:3000"></fragment-frame>
+----
+
+=== Optional Attributes
+
+==== `base`
+
+Base path for fragment router. Defaults to `/${name}`.
+
+[source,html]
+----
+<fragment-frame base="/custom-path"></fragment-frame>
+----
+
+==== `sandbox`
+
+iframe sandbox permissions. Defaults to:
+`allow-scripts allow-same-origin allow-forms allow-popups allow-modals`
+
+[source,html]
+----
+<fragment-frame sandbox="allow-scripts allow-same-origin"></fragment-frame>
+----
+
+==== Dynamic Attributes
+
+Any other attribute is passed to the fragment:
+
+[source,html]
+----
+<fragment-frame
+  api-url="https://api.com"
+  theme="dark"
+  user-id="123"
+></fragment-frame>
+----
+
+== Properties
+
+All attributes can be set as properties:
+
+[source,typescript]
+----
+const fragment = document.querySelector('fragment-frame');
+
+// Set via property (supports objects)
+fragment.userData = { name: 'John', role: 'admin' };
+fragment.apiUrl = 'https://api.com';
+fragment.theme = 'dark';
+----
+
+NOTE: Properties support complex objects, while attributes are limited to strings.
+
+== Methods
+
+=== `callMethod(method, params)`
+
+Call a method registered in the fragment.
+
+[source,typescript]
+----
+const result = await fragment.callMethod('getUserData', { id: 123 });
+console.log(result); // { name: 'John', email: '...' }
+----
+
+**Parameters:**
+* `method` (string) - Method name
+* `params` (unknown) - Method parameters
+
+**Returns:** `Promise<unknown>` - Method result
+
+**Throws:** Error if method not found or times out (10s)
+
+=== `emitEvent(eventName, data)`
+
+Send event to the fragment.
+
+[source,typescript]
+----
+fragment.emitEvent('theme-changed', { theme: 'dark' });
+----
+
+**Parameters:**
+* `eventName` (string) - Event name
+* `data` (unknown, optional) - Event data
+
+== Events
+
+The `<fragment-frame>` element emits custom events:
+
+=== `ready`
+
+Fired when fragment is initialized and ready.
+
+[source,typescript]
+----
+fragment.addEventListener('ready', () => {
+  console.log('Fragment is ready');
+});
+----
+
+=== `navigate`
+
+Fired when fragment requests navigation.
+
+[source,typescript]
+----
+fragment.addEventListener('navigate', (event) => {
+  console.log(event.detail.path);     // "/app/settings"
+  console.log(event.detail.replace);  // false
+  console.log(event.detail.state);    // { from: 'home' }
+});
+----
+
+=== `error`
+
+Fired when fragment reports an error.
+
+[source,typescript]
+----
+fragment.addEventListener('error', (event) => {
+  console.log(event.detail.message);  // "Something went wrong"
+  console.log(event.detail.stack);    // Stack trace
+});
+----
+
+=== `state-change`
+
+Fired when fragment notifies state change.
+
+[source,typescript]
+----
+fragment.addEventListener('state-change', (event) => {
+  console.log(event.detail);  // { user: {...}, theme: 'dark' }
+});
+----
+
+=== `custom-event`
+
+Fired for custom events from fragment.
+
+[source,typescript]
+----
+fragment.addEventListener('custom-event', (event) => {
+  console.log(event.detail.name);  // "user-action"
+  console.log(event.detail.data);  // { type: 'click', id: 123 }
+});
+----
+
+Or listen directly by event name:
+
+[source,typescript]
+----
+fragment.addEventListener('user-action', (event) => {
+  console.log(event.detail);  // { type: 'click', id: 123 }
+});
+----
+
+== TypeScript
+
+[source,typescript]
+----
+import { FragmentHost } from '@micro-fe/fragment-elements';
+
+const fragment = document.querySelector('fragment-frame') as FragmentHost;
+
+// Type-safe method call
+interface UserData {
+  name: string;
+  email: string;
+}
+
+const user = await fragment.callMethod<UserData>('getUserData', { id: 123 });
+console.log(user.name);
+----
+
+== Lifecycle
+
+[source]
+----
+1. Element connected to DOM (connectedCallback)
+2. Read fixed attributes (name, src, base, sandbox)
+3. Create iframe with sandbox
+4. Setup message listener
+5. Wait for iframe load
+6. Collect dynamic attributes
+7. Send __INIT__ message to fragment
+8. Setup MutationObserver for attribute changes
+9. Wait for __READY__ message from fragment
+10. Element ready, bidirectional communication enabled
+----
+
+== Cleanup
+
+[source]
+----
+1. Element disconnected from DOM (disconnectedCallback)
+2. Stop MutationObserver
+3. Remove iframe from DOM
+4. Reject pending method calls
+5. Clear timeout timers
+----

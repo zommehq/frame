@@ -1,0 +1,178 @@
+= Architecture
+
+Fragment Elements uses a three-layer architecture for micro-frontend communication:
+
+== Layers
+
+[cols="1,2,2"]
+|===
+| Layer | Component | Responsibility
+
+| Parent
+| Host Application
+| Creates and manages fragment instances
+
+| Bridge
+| `<fragment-frame>` Web Component
+| Manages iframe, handles communication, validates messages
+
+| Child
+| Fragment Application + SDK
+| Receives messages, exposes API, emits events
+|===
+
+== Communication Protocol
+
+All communication uses **PostMessage** with structured messages:
+
+[source,typescript]
+----
+interface BaseMessage {
+  type: MessageType;
+  // ... additional fields
+}
+----
+
+=== Message Types
+
+[cols="1,2"]
+|===
+| Type | Direction | Purpose
+
+| `__INIT__`
+| Parent → Fragment
+| Initialize fragment with configuration
+
+| `__READY__`
+| Fragment → Parent
+| Signal fragment is initialized
+
+| `ATTRIBUTE_CHANGE`
+| Parent → Fragment
+| Notify attribute/property change
+
+| `NAVIGATE`
+| Fragment → Parent
+| Request parent route navigation
+
+| `CUSTOM_EVENT`
+| Fragment → Parent
+| Custom event from fragment
+
+| `CALL`
+| Parent → Fragment
+| Call fragment method
+
+| `CALL_RESPONSE`
+| Fragment → Parent
+| Method call result or error
+
+| `EVENT`
+| Parent → Fragment
+| Send event to fragment
+
+| `ERROR`
+| Fragment → Parent
+| Report error to parent
+
+| `STATE_CHANGE`
+| Fragment → Parent
+| Notify state change
+|===
+
+== Security Model
+
+=== iframe Sandbox
+
+Fragments run in sandboxed iframes with configurable permissions:
+
+[source,html]
+----
+<fragment-frame
+  sandbox="allow-scripts allow-same-origin allow-forms"
+></fragment-frame>
+----
+
+**Default sandbox:** `allow-scripts allow-same-origin allow-forms allow-popups allow-modals`
+
+=== Origin Validation
+
+All messages are validated against the fragment's origin:
+
+[source,typescript]
+----
+window.addEventListener('message', (event) => {
+  if (event.origin !== this._targetOrigin) return;  // Reject
+  if (event.source !== this._iframe.contentWindow) return;  // Reject
+  // Process message
+});
+----
+
+=== No Shared State
+
+* Each fragment runs in isolated iframe
+* No direct DOM access between parent and fragment
+* No shared JavaScript context
+* Communication only via PostMessage
+
+== Attribute System
+
+=== Fixed Attributes
+
+These control the fragment instance:
+
+* `name` - Fragment identifier
+* `src` - Fragment URL
+* `base` - Base path for fragment router
+* `sandbox` - iframe sandbox permissions
+
+=== Dynamic Attributes
+
+Any other attribute is passed to the fragment:
+
+[source,html]
+----
+<fragment-frame
+  name="app"
+  src="http://localhost:3000"
+  api-url="https://api.com"
+  theme="dark"
+  user-id="123"
+></fragment-frame>
+----
+
+The fragment receives:
+
+[source,json]
+----
+{
+  "name": "app",
+  "base": "/app",
+  "apiUrl": "https://api.com",
+  "theme": "dark",
+  "userId": "123"
+}
+----
+
+== Observation Mechanisms
+
+Fragment Elements uses multiple mechanisms to detect changes:
+
+[cols="1,2,2"]
+|===
+| Mechanism | Detects | Use Case
+
+| `MutationObserver`
+| `setAttribute()` calls
+| Framework updates via DOM
+
+| `Proxy`
+| Property assignments
+| Direct property updates, complex objects
+
+| `observedAttributes`
+| (Not used)
+| Fixed attributes only read once
+|===
+
+TIP: The combination of MutationObserver + Proxy ensures all changes are captured, regardless of how they're made.

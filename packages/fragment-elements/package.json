@@ -1,0 +1,21 @@
+{
+  "name": "@micro-fe/fragment-elements",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js",
+    "./constants": "./dist/constants.js",
+    "./fragment-frame": "./dist/fragment-frame.js",
+    "./sdk": "./dist/sdk.js",
+    "./types": "./dist/types.js"
+  },
+  "scripts": {
+    "build": "bun build src/index.ts --outdir dist --target browser --format esm --splitting && tsc --emitDeclarationOnly",
+    "dev": "bun build src/index.ts --outdir dist --target browser --format esm --watch"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3"
+  }
+}
