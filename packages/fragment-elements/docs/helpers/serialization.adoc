@@ -1,0 +1,526 @@
+= Serialization Module
+
+The serialization module provides utilities for serializing and deserializing data for communication between parent and fragment, including functions and transferable objects.
+
+== Overview
+
+Since functions and transferable objects cannot be serialized with standard `JSON.stringify()`, the serialization module provides:
+
+* Function serialization using UUID tokens
+* Automatic detection and collection of transferable objects
+* Circular reference detection
+* Depth limit protection
+* Bidirectional serialization/deserialization
+
+== Import
+
+[source,typescript]
+----
+import {
+serializeValue,
+deserializeValue,
+isTransferable
+} from '@micro-fe/fragment-elements';
+----
+
+== Functions
+
+=== `isTransferable(value)`
+
+Check if a value is a transferable object that can be transferred (not cloned) via `postMessage()`.
+
+**Supported Transferables:**
+
+* `ArrayBuffer`
+* `MessagePort`
+* `ImageBitmap` (if available)
+* `OffscreenCanvas` (if available)
+* `ReadableStream` (if available)
+* `WritableStream` (if available)
+* `TransformStream` (if available)
+
+**Parameters:**
+* `value` (unknown) - Value to check
+
+**Returns:** `boolean` - `true` if value is transferable
+
+**Examples:**
+
+[source,typescript]
+----
+import { isTransferable } from '@micro-fe/fragment-elements';
+
+const buffer = new ArrayBuffer(1024);
+const port = new MessageChannel().port1;
+
+console.log(isTransferable(buffer)); // true
+console.log(isTransferable(port));   // true
+console.log(isTransferable({}));     // false
+console.log(isTransferable(() => {})); // false
+----
+
+**Performance:**
+
+Transferable objects are transferred (not copied) for better performance:
+
+[source,typescript]
+----
+// Transfer (fast, zero-copy)
+fragment.postMessage(data, [buffer, port]);
+
+// Clone (slow, creates copies)
+fragment.postMessage(data); // Same data will be cloned instead
+----
+
+---
+
+=== `serializeValue(value, functionRegistry, trackedFunctions, seen?, transferables?)`
+
+Serialize a value for postMessage, collecting transferables and serializing functions.
+
+**Parameters:**
+
+* `value` (unknown) - Value to serialize
+* `functionRegistry` (Map<string, Function>) - Map to store serialized functions
+* `trackedFunctions` (Set<string>) - Set to track function IDs for cleanup
+* `seen` (WeakSet<object>, optional) - WeakSet for circular reference detection (default: new WeakSet())
+* `transferables` (Transferable[], optional) - Array to collect transferable objects (default: [])
+
+**Returns:** `{ serialized: unknown; transferables: Transferable[] }`
+
+**Behavior:**
+
+1. Checks serialization depth limit (100 levels)
+2. Serializes primitives and null/undefined as-is
+3. Converts functions to UUID tokens and stores in registry
+4. Collects transferable objects
+5. Detects and handles circular references
+6. Recursively processes arrays and plain objects
+
+**Function Serialization:**
+
+Functions are replaced with UUID tokens:
+
+[source,typescript]
+----
+const functionRegistry = new Map<string, Function>();
+const trackedFunctions = new Set<string>();
+
+const props = {
+onSave: (data) => console.log('Saving:', data),
+onCancel: () => console.log('Cancelled')
+};
+
+const { serialized, transferables } = serializeValue(
+props,
+functionRegistry,
+trackedFunctions
+);
+
+console.log(serialized);
+// {
+//   onSave: { __fn: "abc-123", __meta: { name: "onSave" } },
+//   onCancel: { __fn: "def-456", __meta: { name: "onCancel" } }
+// }
+
+console.log(Array.from(functionRegistry.keys()));
+// ["abc-123", "def-456"]
+
+console.log(Array.from(trackedFunctions));
+// ["abc-123", "def-456"]
+----
+
+**Transferable Collection:**
+
+[source,typescript]
+----
+const functionRegistry = new Map();
+const trackedFunctions = new Set();
+
+const data = {
+buffer: new ArrayBuffer(1024),
+port: new MessageChannel().port1,
+regular: { nested: 'object' }
+};
+
+const { serialized, transferables } = serializeValue(
+data,
+functionRegistry,
+trackedFunctions
+);
+
+console.log(transferables.length); // 2
+console.log(transferables[0] instanceof ArrayBuffer); // true
+console.log(transferables[1] instanceof MessagePort); // true
+
+// Send with transferables
+port.postMessage(serialized, transferables);
+----
+
+**Circular Reference Detection:**
+
+[source,typescript]
+----
+const functionRegistry = new Map();
+const trackedFunctions = new Set();
+
+const obj1 = { name: 'obj1' };
+const obj2 = { name: 'obj2' };
+
+// Create circular reference
+obj1.ref = obj2;
+obj2.ref = obj1;
+
+const { serialized } = serializeValue(obj1, functionRegistry, trackedFunctions);
+// Warning: Circular reference detected
+
+console.log(serialized);
+// { name: 'obj1', ref: { name: 'obj2', ref: undefined } }
+----
+
+**Depth Limit Protection:**
+
+[source,typescript]
+----
+const functionRegistry = new Map();
+const trackedFunctions = new Set();
+
+// Create deeply nested object
+let deep = {};
+for (let i = 0; i < 150; i++) {
+deep = { next: deep };
+}
+
+const { serialized } = serializeValue(deep, functionRegistry, trackedFunctions);
+// Warning: Maximum serialization depth (100) exceeded at level 100, truncating
+----
+
+**Complex Nested Objects:**
+
+[source,typescript]
+----
+const functionRegistry = new Map();
+const trackedFunctions = new Set();
+
+const complex = {
+user: {
+ id: 1,
+ name: 'John',
+ roles: ['admin', 'user'],
+ permissions: {
+read: true,
+write: true,
+delete: (item) => console.log('Deleting:', item)
+ }
+},
+buffer: new ArrayBuffer(512),
+port: new MessageChannel().port1
+};
+
+const { serialized, transferables } = serializeValue(
+complex,
+functionRegistry,
+trackedFunctions
+);
+
+console.log(transferables.length); // 2 (buffer + port)
+console.log(serialized.user.permissions.delete);
+// { __fn: "uuid", __meta: { name: "delete" } }
+----
+
+---
+
+=== `deserializeValue(value, createProxyFunction)`
+
+Deserialize a value from postMessage, creating proxy functions.
+
+**Parameters:**
+
+* `value` (unknown) - Value to deserialize
+* `createProxyFunction` (function) - Function that creates proxy functions: `(fnId: string) => Function`
+
+**Returns:** `unknown` - Deserialized value
+
+**Behavior:**
+
+1. Returns primitives and null/undefined as-is
+2. Converts function tokens to proxy functions
+3. Recursively processes arrays and plain objects
+
+**Deserializing Functions:**
+
+[source,typescript]
+----
+// Create proxy function creator
+const createProxyFunction = (fnId: string) => {
+return (...args) => {
+ console.log('Calling remote function:', fnId);
+ console.log('With args:', args);
+ // In real implementation, this would send a message to the remote side
+};
+};
+
+// Deserialize value with function token
+const serialized = {
+user: 'John',
+onSave: { __fn: 'abc-123', __meta: { name: 'onSave' } }
+};
+
+const deserialized = deserializeValue(serialized, createProxyFunction);
+
+console.log(deserialized.user); // 'John'
+console.log(typeof deserialized.onSave); // 'function'
+
+// Call proxy function
+deserialized.onSave({ name: 'John' });
+// Calling remote function: abc-123
+// With args: [{ name: 'John' }]
+----
+
+**Deserializing Arrays:**
+
+[source,typescript]
+----
+const createProxyFunction = (fnId) => () => console.log('Function:', fnId);
+
+const serialized = {
+validators: [
+ { __fn: 'fn-1', __meta: { name: 'validateName' } },
+ { __fn: 'fn-2', __meta: { name: 'validateEmail' } },
+ { __fn: 'fn-3', __meta: { name: 'validateAge' } }
+]
+};
+
+const deserialized = deserializeValue(serialized, createProxyFunction);
+
+console.log(deserialized.validators.length); // 3
+console.log(typeof deserialized.validators[0]); // 'function'
+----
+
+**Deserializing Nested Objects:**
+
+[source,typescript]
+----
+const createProxyFunction = (fnId) => () => console.log('Function:', fnId);
+
+const serialized = {
+api: {
+ getUser: { __fn: 'fn-get', __meta: { name: 'getUser' } },
+ updateUser: { __fn: 'fn-update', __meta: { name: 'updateUser' } },
+ deleteUser: { __fn: 'fn-delete', __meta: { name: 'deleteUser' } }
+},
+callbacks: {
+ onSuccess: { __fn: 'fn-success', __meta: { name: 'onSuccess' } },
+ onError: { __fn: 'fn-error', __meta: { name: 'onError' } }
+}
+};
+
+const deserialized = deserializeValue(serialized, createProxyFunction);
+
+// Access nested functions
+console.log(typeof deserialized.api.getUser);    // 'function'
+console.log(typeof deserialized.api.updateUser); // 'function'
+console.log(typeof deserialized.callbacks.onSuccess); // 'function'
+----
+
+== Complete Workflow Example
+
+=== Serialization and Deserialization
+
+[source,typescript]
+----
+import {
+serializeValue,
+deserializeValue
+} from '@micro-fe/fragment-elements';
+
+// On sender side (e.g., parent)
+const functionRegistry = new Map<string, Function>();
+const trackedFunctions = new Set<string>();
+
+const original = {
+config: {
+ api: {
+getUsers: async () => fetch('/api/users').then(r => r.json()),
+updateUser: async (id, data) => fetch(`/api/users/${id}`, {
+ method: 'POST',
+ body: JSON.stringify(data)
+}).then(r => r.json())
+ },
+ onError: (error) => console.error('API Error:', error)
+},
+buffer: new ArrayBuffer(2048)
+};
+
+// Serialize
+const { serialized, transferables } = serializeValue(
+original,
+functionRegistry,
+trackedFunctions
+);
+
+// Send via postMessage with transferables
+port.postMessage(serialized, transferables);
+
+// On receiver side (e.g., fragment)
+const createProxyFunction = (fnId: string) => {
+return (...args) => {
+ // Send FUNCTION_CALL message to invoke remote function
+ const callId = crypto.randomUUID();
+ port.postMessage({
+type: '__FUNCTION_CALL__',
+callId,
+fnId,
+params: args
+ });
+ // Return promise that resolves when FUNCTION_RESPONSE is received
+ return new Promise((resolve, reject) => {
+pendingCalls.set(callId, { resolve, reject });
+ });
+};
+};
+
+// Deserialize
+const deserialized = deserializeValue(serialized, createProxyFunction);
+
+// Use proxy functions
+const users = await deserialized.config.api.getUsers();
+console.log(users);
+
+await deserialized.config.api.updateUser(123, { name: 'Updated' });
+
+deserialized.config.onError(new Error('Test error'));
+----
+
+== Error Handling
+
+=== Invalid Function Registry Size
+
+[source,typescript]
+----
+const functionRegistry = new Map();
+// Simulate full registry
+for (let i = 0; i < 1000; i++) {
+functionRegistry.set(`fn-${i}`, () => {});
+}
+
+const trackedFunctions = new Set();
+const { serialized } = serializeValue(
+{ callback: () => {} },
+functionRegistry,
+trackedFunctions
+);
+// Warning: Function registry limit (1000) exceeded. Cannot serialize more functions.
+
+console.log(serialized.callback); // undefined
+----
+
+=== Unsupported Object Types
+
+Non-plain objects are passed through unchanged:
+
+[source,typescript]
+----
+const functionRegistry = new Map();
+const trackedFunctions = new Set();
+
+const date = new Date();
+const regex = /test/g;
+const map = new Map();
+const set = new Set();
+
+const { serialized } = serializeValue(
+{ date, regex, map, set },
+functionRegistry,
+trackedFunctions
+);
+
+// These are not recursively serialized
+console.log(serialized.date === date); // true
+console.log(serialized.regex === regex); // true
+console.log(serialized.map === map); // true
+console.log(serialized.set === set); // true
+----
+
+== Performance Considerations
+
+=== Depth Limit Impact
+
+Serialization depth limit of 100 prevents stack overflow:
+
+* *Shallow objects* (< 10 levels): Minimal overhead (~1μs)
+* *Medium objects* (10-50 levels): Moderate overhead (~5-10μs)
+* *Deep objects* (50-100 levels): Higher overhead (~10-20μs)
+
+**Best practice:** Keep data structures flat when possible.
+
+=== Function Registry Size
+
+Each function stored in registry consumes memory:
+
+* Function object: ~50-100 bytes
+* Function name metadata: ~20-50 bytes
+* UUID token: ~36 bytes
+
+For 1000 functions: ~100-200KB memory usage.
+
+=== Transferable Performance
+
+Transferable objects provide significant performance benefits:
+
+* *Cloning ArrayBuffer (1MB)*: ~1-2ms
+* *Transferring ArrayBuffer (1MB)*: ~0.1-0.2ms (10x faster)
+
+**Best practice:** Use transferable objects for large data (buffers, streams, ports).
+
+== Security Considerations
+
+=== Circular Reference Protection
+
+Circular references are detected to prevent infinite loops:
+
+[source,typescript]
+----
+const obj = {};
+obj.self = obj; // Circular reference
+
+const { serialized } = serializeValue(obj, new Map(), new Set());
+// Warning: Circular reference detected
+// Returns: { self: undefined }
+----
+
+=== Function Registry Limits
+
+Registry size limit prevents DoS attacks:
+
+[source,typescript]
+----
+// An attacker tries to register 1 million functions
+for (let i = 0; i < 1000000; i++) {
+fragment[`fn${i}`] = () => {};
+}
+
+// After 1000 functions, registration fails
+// Warning: Function registry limit (1000) exceeded
+----
+
+=== No eval Usage
+
+Functions are never evaluated from strings, preventing code injection:
+
+[source,typescript]
+----
+// SAFE: Functions are stored directly in registry
+fragment.callback = () => console.log('Safe');
+
+// SAFE: Only function UUID tokens are sent
+// Serialized: { __fn: "uuid", __meta: { name: "callback" } }
+
+// The function is called directly from registry, never eval'd
+----
+
+== Related
+
+* **Function Manager**: See link:./function-manager.adoc[Function Manager] for high-level function management
+* **Function Serialization**: See link:../advanced/function-serialization.adoc[Function Serialization] for usage examples
+* **Source Code**: `src/helpers/serialization.ts`

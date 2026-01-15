@@ -1,23 +1,22 @@
-import { microAppSDK } from '@shared/sdk';
+import { frameSDK } from '@micro-fe/fragment-elements/sdk';
 import { createApp } from 'vue';
 
 import App from './App.vue';
 import { createAppRouter } from './router';
 
 async function bootstrap() {
-  await microAppSDK.initialize();
+  await frameSDK.initialize();
 
-  const config = microAppSDK.getConfig();
-  const base = config.base || '/vue/';
+  const base = frameSDK.props.base || '/vue/';
 
   const router = createAppRouter(base);
 
   router.afterEach((to) => {
     const path = to.fullPath.replace(base, '/');
-    microAppSDK.navigate(path, false, to.meta);
+    frameSDK.emit('navigate', { path, replace: false, state: to.meta });
   });
 
-  microAppSDK.on('route-change', (data) => {
+  frameSDK.on('route-change', (data) => {
     const payload = data as { path: string; replace?: boolean; state?: unknown };
     const fullPath = base + payload.path.replace(/^\//, '');
 
@@ -35,5 +34,8 @@ async function bootstrap() {
 
 bootstrap().catch((error) => {
   console.error('Failed to bootstrap Vue fragment-frame:', error);
-  microAppSDK.reportError(error);
+  frameSDK.emit('error', {
+    error: error instanceof Error ? error.message : String(error),
+    source: 'bootstrap'
+  });
 });

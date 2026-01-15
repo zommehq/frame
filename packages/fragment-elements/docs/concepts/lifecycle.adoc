@@ -1,0 +1,412 @@
+= Lifecycle
+
+Fragment Elements has a well-defined lifecycle from creation to cleanup.
+
+== Fragment Frame Lifecycle (Parent)
+
+=== 1. Creation
+
+Element is created in JavaScript or HTML:
+
+[source,typescript]
+----
+const fragment = document.createElement('fragment-frame');
+fragment.setAttribute('name', 'my-app');
+fragment.setAttribute('src', 'http://localhost:3000');
+----
+
+**State:** Element exists but not initialized
+
+=== 2. Connection (connectedCallback)
+
+Element is added to the DOM:
+
+[source,typescript]
+----
+document.body.appendChild(fragment);
+// connectedCallback() is triggered
+----
+
+**Actions:**
+
+* Read fixed attributes (`name`, `src`, `base`, `sandbox`)
+* Validate required attributes
+* Calculate `_origin` from URL
+* Call `initializeApp()`
+
+=== 3. Initialization
+
+**Actions:**
+
+1. Create iframe element:
+   ```typescript
+   this._iframe = document.createElement('iframe');
+   this._iframe.src = src;
+   this._iframe.setAttribute('sandbox', sandbox);
+   ```
+
+2. Setup message listener:
+   ```typescript
+   window.addEventListener('message', this.handleMessageFromIframe);
+   ```
+
+3. Append iframe to element:
+   ```typescript
+   this.appendChild(this._iframe);
+   ```
+
+4. Wait for iframe load:
+   ```typescript
+   await new Promise(resolve => this._iframe.onload = resolve);
+   ```
+
+5. Collect attributes and properties
+
+6. Serialize props (including functions):
+   ```typescript
+   const { serialized, transferables } = this.serializeValue(props);
+   ```
+
+7. Send `__INIT__` message to fragment:
+   ```typescript
+   this.sendToIframe({ type: '__INIT__', payload: serialized }, transferables);
+   ```
+
+8. Setup MutationObserver for attribute changes:
+   ```typescript
+   this._mutationObserver = new MutationObserver(mutations => {
+     // Handle attribute changes
+   });
+   ```
+
+**State:** Waiting for fragment to be ready
+
+=== 4. Ready
+
+Fragment sends `__READY__` message:
+
+[source,typescript]
+----
+case '__READY__':
+  this._ready = true;
+  this.emit('ready');
+  break;
+----
+
+**Actions:**
+
+* Set `_ready` flag to `true`
+* Emit `ready` event
+* Enable attribute change propagation
+
+**State:** Fully operational, bidirectional communication enabled
+
+=== 5. Operation
+
+Normal operation with message handling:
+
+* Receive custom events from fragment
+* Handle function calls from fragment
+* Send attribute changes to fragment
+* Call functions provided by fragment
+
+=== 6. Disconnection (disconnectedCallback)
+
+Element is removed from DOM:
+
+[source,typescript]
+----
+fragment.remove();
+// disconnectedCallback() is triggered
+----
+
+**Actions:**
+
+1. Stop MutationObserver:
+   ```typescript
+   this._mutationObserver?.disconnect();
+   ```
+
+2. Remove iframe:
+   ```typescript
+   this._iframe?.remove();
+   ```
+
+3. Reject pending function calls:
+   ```typescript
+   for (const [_, pending] of this._pendingFunctionCalls) {
+     clearTimeout(pending.timeout);
+     pending.reject(new Error('Web Component disconnected'));
+   }
+   ```
+
+4. Send function release messages:
+   ```typescript
+   for (const fnId of this._trackedFunctions) {
+     this.sendToIframe({ type: '__FUNCTION_RELEASE__', fnId });
+   }
+   ```
+
+5. Clear registries:
+   ```typescript
+   this._functionRegistry.clear();
+   this._trackedFunctions.clear();
+   this._pendingFunctionCalls.clear();
+   ```
+
+**State:** Cleaned up, resources released
+
+== Fragment SDK Lifecycle (Child)
+
+=== 1. Import and Initialize
+
+Fragment app imports and initializes SDK:
+
+[source,typescript]
+----
+import { frameSDK } from '@micro-fe/fragment-elements/sdk';
+
+// Must be called first
+await frameSDK.initialize();
+----
+
+**State:** Waiting for `__INIT__` message
+
+=== 2. Initialization
+
+SDK receives `__INIT__` message:
+
+**Actions:**
+
+1. Deserialize props (including functions from parent):
+   ```typescript
+   this.props = this.deserializeValue(message.payload);
+   ```
+
+2. Store parent origin:
+   ```typescript
+   this.parentOrigin = event.origin;
+   ```
+
+3. Setup message listener:
+   ```typescript
+   window.addEventListener('message', this.handleMessage.bind(this));
+   ```
+
+4. Setup cleanup on unload:
+   ```typescript
+   window.addEventListener('beforeunload', () => {
+     // Send function release messages
+   });
+   ```
+
+5. Send `__READY__` message:
+   ```typescript
+   this.sendToParent({ type: '__READY__' });
+   ```
+
+6. Resolve initialization promise
+
+**State:** Ready for operation
+
+=== 3. Operation
+
+Normal operation:
+
+* Receive attribute changes
+* Receive events from parent
+* Emit custom events to parent
+* Call functions from parent (via props)
+* Provide functions to parent (via props or return values)
+
+=== 4. Cleanup (beforeunload)
+
+Browser is closing or navigating away:
+
+**Actions:**
+
+1. Send function release messages:
+   ```typescript
+   for (const fnId of this.trackedFunctions) {
+     this.sendToParent({ type: '__FUNCTION_RELEASE__', fnId });
+   }
+   ```
+
+**State:** Resources released
+
+== Lifecycle Diagram
+
+[source]
+----
+PARENT                           CHILD
+------                           -----
+
+Create element
+Add to DOM
+  │
+  ├─> connectedCallback()
+  │     │
+  │     ├─> Create iframe
+  │     ├─> Setup listener
+  │     ├─> Append iframe
+  │     └─> Wait for load
+  │              │
+  │              ├─────────────> iframe loads
+  │              │               frameSDK.initialize()
+  │              │                      │
+  │   Collect props              <waiting>
+  │   Serialize functions               │
+  │              │                      │
+  │   Send INIT ─┼─────────────────────>
+  │              │               Receive INIT
+  │              │               Deserialize props
+  │              │               Setup listener
+  │              │               Setup cleanup
+  │              │                      │
+  │              <──────────────────────┤ Send READY
+  │   Receive READY                     │
+  │   Set _ready = true                 │
+  │   Emit 'ready' event                │
+  │              │                      │
+  │   <─────  OPERATIONAL  ──────────>  │
+  │              │                      │
+  │   Events, Functions, Attributes     │
+  │              │                      │
+  │   Remove ───>│                      │
+  │   disconnectedCallback()            │
+  │   Cleanup                           │
+  │              │                      │
+  │              ├──────────────────────> beforeunload
+  │              │                      Cleanup
+  │              │                      │
+  └──────────────┴──────────────────────┘
+----
+
+== Timing Considerations
+
+=== Before Ready
+
+Operations attempted before the fragment is ready will fail or be ignored:
+
+[source,typescript]
+----
+const fragment = document.createElement('fragment-frame');
+fragment.setAttribute('name', 'my-app');
+fragment.setAttribute('src', 'http://localhost:3000');
+
+// These changes are queued and sent in INIT message
+fragment.theme = 'dark';
+fragment.apiUrl = 'https://api.com';
+
+document.body.appendChild(fragment);
+
+// This will fail - fragment not ready yet
+try {
+  await fragment.onSave?.(); // Error: Fragment not ready
+} catch (err) {
+  console.error(err);
+}
+
+// Wait for ready event
+fragment.addEventListener('ready', () => {
+  // Now operations will work
+  fragment.onSave?.(); // Works
+});
+----
+
+=== Initialization Race Conditions
+
+To avoid race conditions, always wait for the `ready` event:
+
+[source,typescript]
+----
+// BAD: May execute before fragment is ready
+const fragment = document.querySelector('fragment-frame');
+fragment.userData = currentUser;
+
+// GOOD: Wait for ready
+const fragment = document.querySelector('fragment-frame');
+fragment.addEventListener('ready', () => {
+  fragment.userData = currentUser;
+});
+----
+
+Or use promises:
+
+[source,typescript]
+----
+const fragment = document.querySelector('fragment-frame');
+
+await new Promise(resolve => {
+  if (fragment._ready) {
+    resolve();
+  } else {
+    fragment.addEventListener('ready', resolve, { once: true });
+  }
+});
+
+// Fragment is ready
+fragment.userData = currentUser;
+----
+
+== Best Practices
+
+=== Initialize SDK First Thing
+
+[source,typescript]
+----
+// At the top of your fragment entry point
+import { frameSDK } from '@micro-fe/fragment-elements/sdk';
+
+await frameSDK.initialize();
+
+// Now safe to access props
+console.log('Fragment name:', frameSDK.props.name);
+----
+
+=== Wait for Ready in Parent
+
+[source,typescript]
+----
+fragment.addEventListener('ready', () => {
+  // Call functions
+  fragment.onInit?.();
+
+  // Send events
+  fragment.emit('user-logged-in', user);
+
+  // Update properties
+  fragment.userData = user;
+});
+----
+
+=== Cleanup Resources
+
+Fragment applications should clean up on unload:
+
+[source,typescript]
+----
+// Close connections
+window.addEventListener('beforeunload', () => {
+  websocket.close();
+  clearInterval(pollTimer);
+  cancelAnimationFrame(animationId);
+});
+----
+
+=== Handle Disconnection Gracefully
+
+Function calls may fail if the element is disconnected:
+
+[source,typescript]
+----
+try {
+  const result = await fragment.getData?.();
+} catch (err) {
+  if (err.message.includes('disconnected')) {
+    console.log('Fragment was removed');
+  } else {
+    throw err;
+  }
+}
+----

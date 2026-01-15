@@ -102,7 +102,7 @@ All messages are validated against the fragment's origin:
 [source,typescript]
 ----
 window.addEventListener('message', (event) => {
-  if (event.origin !== this._targetOrigin) return;  // Reject
+  if (event.origin !== this._origin) return;  // Reject
   if (event.source !== this._iframe.contentWindow) return;  // Reject
   // Process message
 });

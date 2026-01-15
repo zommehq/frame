@@ -1,3 +1,13 @@
+<script setup lang="ts">
+  import { useFrameSDK } from '../composables/useFrameSDK';
+
+  const { emit } = useFrameSDK();
+
+  const handleEmitEvent = () => {
+    emit('vue-app-event', { message: 'Hello from Vue!' });
+  };
+</script>
+
 <template>
   <div class="view-container">
     <h1 class="title">Welcome to Vue Micro-App</h1>
@@ -22,59 +32,51 @@
   </div>
 </template>
 
-<script setup lang="ts">
-import { microAppSDK } from '@shared/sdk';
-
-const handleEmitEvent = () => {
-  microAppSDK.emit('vue-app-event', { message: 'Hello from Vue!' });
-};
-</script>
-
 <style scoped>
-.view-container {
-  max-width: 1200px;
-}
+  .view-container {
+    max-width: 1200px;
+  }
 
-.title {
-  color: #42b883;
-  font-size: 2.5rem;
-  margin-bottom: 1rem;
-}
+  .title {
+    color: #42b883;
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+  }
 
-.description {
-  color: #666;
-  font-size: 1.125rem;
-  line-height: 1.6;
-  margin-bottom: 2rem;
-}
+  .description {
+    color: #666;
+    font-size: 1.125rem;
+    line-height: 1.6;
+    margin-bottom: 2rem;
+  }
 
-.features {
-  display: grid;
-  gap: 1.5rem;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-}
+  .features {
+    display: grid;
+    gap: 1.5rem;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  }
 
-.feature-card {
-  background: white;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  padding: 1.5rem;
-  transition: box-shadow 0.2s;
-}
+  .feature-card {
+    background: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 1.5rem;
+    transition: box-shadow 0.2s;
+  }
 
-.feature-card:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
+  .feature-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  }
 
-.feature-card h3 {
-  color: #42b883;
-  font-size: 1.25rem;
-  margin-bottom: 0.5rem;
-}
+  .feature-card h3 {
+    color: #42b883;
+    font-size: 1.25rem;
+    margin-bottom: 0.5rem;
+  }
 
-.feature-card p {
-  color: #666;
-  line-height: 1.5;
-  margin: 0;
-}
+  .feature-card p {
+    color: #666;
+    line-height: 1.5;
+    margin: 0;
+  }
 </style>

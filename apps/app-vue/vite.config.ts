@@ -5,7 +5,8 @@ import { defineConfig } from 'vite';
 export default defineConfig({
   base: '/vue/',
   build: {
-    outDir: 'dist/app-vue',
+    outDir: 'dist',
+    emptyOutDir: true,
     rollupOptions: {
       output: {
         manualChunks: {
@@ -15,6 +16,11 @@ export default defineConfig({
     },
   },
   plugins: [vue()],
+  resolve: {
+    alias: {
+      '@micro-fe/fragment-elements': resolve(__dirname, '../../packages/fragment-elements/src'),
+    },
+  },
   server: {
     port: 4202,
   },

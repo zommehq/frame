@@ -5,7 +5,8 @@ import { defineConfig } from 'vite';
 export default defineConfig({
   base: '/react/',
   build: {
-    outDir: 'dist/app-react',
+    outDir: 'dist',
+    emptyOutDir: true,
     rollupOptions: {
       output: {
         manualChunks: {

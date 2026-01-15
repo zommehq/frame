@@ -24,7 +24,8 @@ Fragment Elements provides Web Components and SDK for building micro-frontend ar
 
 * **Web Components** - Custom `<fragment-frame>` element for embedding micro-frontends
 * **Framework Agnostic** - Works with React, Vue, Angular, Solid, or vanilla JS
-* **Type-Safe Communication** - PostMessage protocol with TypeScript types
+* **Type-Safe Communication** - MessageChannel-based protocol with TypeScript types
+* **High Performance** - Dedicated MessageChannel for fast, isolated communication
 * **Dynamic Attributes** - Pass data via attributes or properties (supports objects)
 * **Bidirectional API** - Parent can call fragment methods, fragments can emit events
 * **Secure Isolation** - Configurable iframe sandbox with origin validation
@@ -60,37 +61,28 @@ import '@micro-fe/fragment-elements/fragment-frame';
 
 [source,typescript]
 ----
-import { microAppSDK } from '@micro-fe/fragment-elements/sdk';
+import { frameSDK } from '@micro-fe/fragment-elements/sdk';
 
 // Initialize SDK
-await microAppSDK.initialize();
+await frameSDK.initialize();
 
 // Access configuration
-const config = microAppSDK.getConfig();
+const config = frameSDK.props;
 console.log(config.base);    // "/my-app"
 console.log(config.apiUrl);  // "https://api.example.com"
 console.log(config.theme);   // "dark"
 
-// Navigate parent router
-microAppSDK.navigate('/my-app/settings');
-
 // Emit custom events
-microAppSDK.emit('user-action', { type: 'click', id: 123 });
-
-// Register callable methods
-microAppSDK.registerMethod('getUserData', async () => {
-  return { name: 'John', role: 'admin' };
-});
-
-// Listen to parent events
-microAppSDK.on('theme-changed', (theme) => {
-  console.log('New theme:', theme);
-});
+frameSDK.emit('user-action', { type: 'click', id: 123 });
 
 // Listen to attribute changes
-microAppSDK.on('attribute:api-url', (newUrl) => {
+frameSDK.on('attr:apiUrl', (newUrl) => {
   console.log('API URL changed:', newUrl);
 });
+
+// Call parent functions (passed via props)
+const result = await frameSDK.props.onSave({ name: 'John' });
+console.log(result); // { success: true }
 ----
 
 == Core Concepts
@@ -105,11 +97,11 @@ include::docs/concepts/lifecycle.adoc[leveloffset=+2]
 
 == API Reference
 
-include::docs/api/fragment-frame.adoc[leveloffset=+2]
+include::docs/references/fragment-frame.adoc[leveloffset=+2]
 
-include::docs/api/sdk.adoc[leveloffset=+2]
+include::docs/references/sdk.adoc[leveloffset=+2]
 
-include::docs/api/types.adoc[leveloffset=+2]
+include::docs/references/types.adoc[leveloffset=+2]
 
 == Framework Integration
 
@@ -123,7 +115,7 @@ include::docs/frameworks/solid.adoc[leveloffset=+2]
 
 == Advanced Usage
 
-include::docs/advanced/method-calls.adoc[leveloffset=+2]
+include::docs/advanced/function-serialization.adoc[leveloffset=+2]
 
 include::docs/advanced/event-system.adoc[leveloffset=+2]
 
@@ -131,7 +123,7 @@ include::docs/advanced/security.adoc[leveloffset=+2]
 
 == Tech Stack
 
-TypeScript, Web Components API, PostMessage API
+TypeScript, Web Components API, MessageChannel API
 
 == Project Structure
 
@@ -154,7 +146,8 @@ packages/fragment-elements/
 [source]
 ----
 Parent Application <--> <fragment-frame> <--> iframe <--> Fragment App
-                          Web Component      PostMessage    SDK
+                          Web Component    MessageChannel    SDK
+                                           (dedicated port)
 ----
 
 === Initialization Flow
@@ -162,12 +155,18 @@ Parent Application <--> <fragment-frame> <--> iframe <--> Fragment App
 [source]
 ----
 1. Parent creates <fragment-frame> element
-2. Element creates iframe and loads fragment
-3. Element sends __INIT__ message with config
-4. Fragment SDK receives __INIT__, initializes
-5. Fragment sends __READY__ message
-6. Element marks fragment as ready
-7. Bidirectional communication enabled
+2. Element creates iframe and MessageChannel
+3. Element loads fragment in iframe
+4. Element sends __INIT__ message via window.postMessage with:
+   - Configuration and props
+   - MessagePort (transferred to fragment)
+5. Fragment SDK receives __INIT__:
+   - Validates parent origin (one-time check)
+   - Extracts MessagePort from event.ports[0]
+   - Sets up message handler on port
+6. Fragment sends __READY__ message via MessagePort
+7. Element marks fragment as ready
+8. Bidirectional communication enabled via dedicated MessageChannel
 ----
 
 === Attribute Change Flow
@@ -206,7 +205,7 @@ Requires support for:
 * Web Components (Custom Elements v1)
 * Proxy
 * MutationObserver
-* PostMessage API
+* MessageChannel API
 
 == License
 

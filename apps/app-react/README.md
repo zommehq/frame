@@ -1,12 +1,12 @@
-# React 18 Micro App
+# React 18 Fragment App
 
-A React 18 micro-frontend application built with Vite, React Router, and the Micro App SDK.
+A React 18 micro-frontend application built with Vite, React Router, and the Fragment Elements SDK.
 
 ## Features
 
 - **React 18** with modern hooks and features
 - **React Router v6** for client-side routing
-- **Micro App SDK** integration for parent-child communication
+- **Fragment Elements SDK** integration for parent-child communication
 - **TypeScript** for type safety
 - **Vite** for fast development and optimized builds
 - **Code splitting** with manual chunks for vendor libraries
@@ -53,18 +53,18 @@ app-react/
 ## Configuration
 
 - **Base path**: `/react/`
-- **Output directory**: `dist/app-react`
+- **Output directory**: `dist/`
 - **Dev server port**: `4203`
 - **Code splitting**: Vendor bundle includes `react`, `react-dom`, and `react-router-dom`
 
 ## SDK Integration
 
-The app uses the Micro App SDK to:
-- Initialize and receive configuration from the parent shell
+The app uses the Fragment Elements SDK to:
+- Initialize and receive props from the parent shell via `frameSDK.props`
 - Listen to route change events from the parent
-- Notify the parent about internal route changes
-- Emit custom events to the parent
-- Report errors to the parent
+- Notify the parent about internal route changes via `frameSDK.emit('navigate', { path })`
+- Emit custom events to the parent via `frameSDK.emit()`
+- Report errors to the parent via `frameSDK.emit('error', ...)`
 
 ## Routes
 

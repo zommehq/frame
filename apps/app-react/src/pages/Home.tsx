@@ -1,10 +1,10 @@
-import { microAppSDK } from '@micro-fe/fragment-elements/sdk';
+import { useFrameSDK } from '../hooks/useFrameSDK';
 
 function Home() {
-  const config = microAppSDK.getConfig();
+  const { props, emit } = useFrameSDK();
 
   const handleEmitEvent = () => {
-    microAppSDK.emit('custom-event', {
+    emit('custom-event', {
       message: 'Hello from React app!',
       timestamp: new Date().toISOString(),
     });
@@ -16,9 +16,9 @@ function Home() {
       <p>Welcome to the React 18 micro frontend application.</p>
 
       <div style={{ marginTop: '20px', padding: '15px', background: '#f0f0f0', borderRadius: '5px' }}>
-        <h3>Configuration</h3>
+        <h3>Props from Parent</h3>
         <pre style={{ background: '#fff', padding: '10px', borderRadius: '3px', overflow: 'auto' }}>
-          {JSON.stringify(config, null, 2)}
+          {JSON.stringify(props, null, 2)}
         </pre>
       </div>
 

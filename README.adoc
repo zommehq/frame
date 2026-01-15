@@ -1,0 +1,197 @@
+= Micro-Frontend Architecture with Bun Monorepo
+:toc: left
+:toclevels: 3
+:source-highlighter: highlight.js
+:icons: font
+
+Arquitetura de micro-frontend usando Web Components, iframes, postMessage e SDK para comunicação bidirecional entre apps.
+
+include::docs/architecture.adoc[leveloffset=+1]
+
+== Quick Start
+
+=== Instalação
+
+[source,bash]
+----
+# Instalar dependências
+bun install
+
+# Build de todos os apps
+bun build
+----
+
+=== Desenvolvimento
+
+[source,bash]
+----
+# Todos os apps em paralelo
+bun dev
+----
+
+Acesse: http://localhost:4200
+
+== Documentação
+
+* link:docs/architecture.adoc[Arquitetura Detalhada]
+* link:packages/fragment-elements/README.adoc[Fragment Elements Package]
+* link:packages/fragment-elements/docs/[Documentação Completa]
+
+== API Reference
+
+=== Fragment Frame (Parent)
+
+[source,html]
+----
+<fragment-frame
+  name="admin"
+  src="https://..."
+  base="/admin"
+></fragment-frame>
+----
+
+[source,typescript]
+----
+// Properties
+frame.apiUrl = 'https://api.example.com';
+frame.theme = 'dark';
+frame.onSuccess = (data) => console.log(data);
+
+// Methods
+frame.emit('theme-change', { theme: 'dark' });
+frame.themeChange({ theme: 'dark' }); // camelCase alias
+
+// Events
+frame.addEventListener('ready', () => {});
+frame.addEventListener('user-created', (e) => {});
+----
+
+link:packages/fragment-elements/docs/references/fragment-frame.adoc[Documentação Completa →]
+
+=== Frame SDK (Child)
+
+[source,typescript]
+----
+import { frameSDK } from '@micro-fe/fragment-elements/sdk';
+
+// Inicializar
+await frameSDK.initialize();
+
+// Props
+console.log(frameSDK.props.name);
+frameSDK.props.onSuccess({ status: 'ok' });
+
+// Eventos
+frameSDK.emit('user-created', { id: 123 });
+frameSDK.on('theme-change', (data) => {});
+frameSDK.on('attr:apiUrl', (url) => {});
+----
+
+link:packages/fragment-elements/docs/references/sdk.adoc[Documentação Completa →]
+
+== Recursos
+
+=== Function Serialization
+
+Funções podem ser passadas bidirecionalmente:
+
+[source,typescript]
+----
+// Parent → Child
+frame.onSuccess = (data) => console.log(data);
+
+// Child usa
+frameSDK.props.onSuccess({ status: 'ok' });
+----
+
+link:packages/fragment-elements/docs/advanced/function-serialization.adoc[Mais detalhes →]
+
+=== Transferables
+
+Performance otimizada para dados grandes:
+
+[source,typescript]
+----
+const buffer = new ArrayBuffer(1024 * 1024);
+frameSDK.emit('data', { buffer }); // zero-copy transfer
+----
+
+== Frameworks
+
+* link:packages/fragment-elements/docs/frameworks/angular.adoc[Angular]
+* link:packages/fragment-elements/docs/frameworks/react.adoc[React]
+* link:packages/fragment-elements/docs/frameworks/vue.adoc[Vue]
+* link:packages/fragment-elements/docs/frameworks/solid.adoc[Solid]
+
+== Deploy
+
+[source,bash]
+----
+# Build
+bun run build
+
+# Upload para CDN
+aws s3 sync dist/app-angular/ s3://cdn/angular/v1.0.0/
+----
+
+[source,html]
+----
+<!-- Shell aponta para versão específica -->
+<fragment-frame src="https://cdn.example.com/angular/v1.0.0/" />
+----
+
+== Vantagens vs Desvantagens
+
+[cols="1,1"]
+|===
+| ✅ Vantagens | ❌ Desvantagens
+
+| Deploy independente
+| Complexidade inicial
+
+| Isolamento total
+| Debugging cross-context
+
+| Framework agnostic
+| Alguma duplicação
+
+| Function serialization
+| SEO limitado
+
+| Transferables support
+|
+|===
+
+== Quando Usar
+
+✅ *Use quando:*
+
+* Deploy independente é crítico
+* Times autônomos
+* Isolamento necessário
+* Múltiplos apps (3+)
+
+❌ *Não use quando:*
+
+* Time pequeno único
+* SEO crítico
+* Performance extrema necessária
+
+== Testes
+
+[source,bash]
+----
+bun test
+bun test --watch
+bun test --coverage
+----
+
+== Troubleshooting
+
+link:packages/fragment-elements/docs/[Ver documentação completa]
+
+== Referências
+
+* https://developer.mozilla.org/en-US/docs/Web/Web_Components[Web Components MDN]
+* https://developer.mozilla.org/en-US/docs/Web/API/Window/postMessage[postMessage API]
+* https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Transferable_objects[Transferable Objects]

@@ -5,7 +5,8 @@
     "types": ["node"],
     "useDefineForClassFields": false,
     "paths": {
-      "@shared/*": ["../../packages/shared/src/*"]
+      "@micro-fe/fragment-elements": ["../../packages/fragment-elements/src/index.ts"],
+      "@micro-fe/fragment-elements/*": ["../../packages/fragment-elements/src/*"]
     }
   },
   "files": [

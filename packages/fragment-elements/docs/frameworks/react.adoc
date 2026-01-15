@@ -1,0 +1,150 @@
+= React Integration
+
+Fragment Elements works seamlessly with React in both parent and child applications.
+
+== Parent Application (React)
+
+=== Basic Usage
+
+[source,tsx]
+----
+import '@micro-fe/fragment-elements/fragment-frame';
+
+function App() {
+  return (
+    <fragment-frame
+      name="user-app"
+      src="http://localhost:3001"
+      base="/users"
+      theme="dark"
+    />
+  );
+}
+----
+
+=== Type-Safe Component Wrapper
+
+[source,tsx]
+----
+import '@micro-fe/fragment-elements/fragment-frame';
+import { useEffect, useRef } from 'react';
+import type { FragmentFrame } from '@micro-fe/fragment-elements';
+
+interface FragmentProps {
+  apiUrl: string;
+  name: string;
+  onSave?: (data: unknown) => Promise<void>;
+  src: string;
+  theme: 'light' | 'dark';
+}
+
+export function Fragment({ name, src, ...props }: FragmentProps) {
+  const ref = useRef<FragmentFrame>(null);
+
+  useEffect(() => {
+    const element = ref.current;
+    if (!element) return;
+
+    // Assign props (including functions)
+    Object.assign(element, props);
+  }, [props]);
+
+  return <fragment-frame ref={ref} name={name} src={src} />;
+}
+----
+
+=== Listening to Events
+
+[source,tsx]
+----
+import { useEffect, useRef } from 'react';
+import type { FragmentFrame } from '@micro-fe/fragment-elements';
+
+function App() {
+  const fragmentRef = useRef<FragmentFrame>(null);
+
+  useEffect(() => {
+    const fragment = fragmentRef.current;
+    if (!fragment) return;
+
+    const handleReady = () => console.log('Fragment ready');
+    const handleUserAction = (e: Event) => console.log((e as CustomEvent).detail);
+
+    fragment.addEventListener('ready', handleReady);
+    fragment.addEventListener('user-action', handleUserAction);
+
+    return () => {
+      fragment.removeEventListener('ready', handleReady);
+      fragment.removeEventListener('user-action', handleUserAction);
+    };
+  }, []);
+
+  return <fragment-frame ref={fragmentRef} name="app" src="http://localhost:3000" />;
+}
+----
+
+== Fragment Application (React)
+
+=== Basic Setup
+
+[source,tsx]
+----
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
+import { frameSDK } from '@micro-fe/fragment-elements/sdk';
+
+function App() {
+  return (
+    <div data-theme={frameSDK.props.theme}>
+      <h1>Fragment: {frameSDK.props.name}</h1>
+    </div>
+  );
+}
+
+frameSDK.initialize().then(() => {
+  createRoot(document.getElementById('root')!).render(
+    <StrictMode>
+      <App />
+    </StrictMode>
+  );
+});
+----
+
+=== Custom Hook for SDK
+
+[source,tsx]
+----
+import { useEffect, useState } from 'react';
+import { frameSDK } from '@micro-fe/fragment-elements/sdk';
+
+function useFrameSDK<T = unknown>() {
+  const [props, setProps] = useState(frameSDK.props);
+
+  useEffect(() => {
+    const handlers = new Map();
+
+    Object.keys(props).forEach((key) => {
+      if (key === 'name' || key === 'base') return;
+
+      const handler = (value: unknown) => {
+        setProps((prev) => ({ ...prev, [key]: value }));
+      };
+
+      frameSDK.on(`attr:${key}`, handler);
+      handlers.set(key, handler);
+    });
+
+    return () => {
+      handlers.forEach((handler, key) => {
+        frameSDK.off(`attr:${key}`, handler);
+      });
+    };
+  }, []);
+
+  const emit = (eventName: string, data?: unknown) => {
+    frameSDK.emit(eventName, data);
+  };
+
+  return { emit, props };
+}
+----

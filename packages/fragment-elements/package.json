@@ -12,10 +12,13 @@
     "./types": "./dist/types.js"
   },
   "scripts": {
-    "build": "bun build src/index.ts --outdir dist --target browser --format esm --splitting && tsc --emitDeclarationOnly",
-    "dev": "bun build src/index.ts --outdir dist --target browser --format esm --watch"
+    "build": "bun build src/index.ts src/sdk.ts src/constants.ts src/fragment-frame.ts src/types.ts --outdir dist --target browser --format esm && tsc --emitDeclarationOnly",
+    "dev": "bun build src/index.ts --outdir dist --target browser --format esm --watch",
+    "test": "bun test --preload ./tests/test-setup.ts"
   },
   "devDependencies": {
+    "@happy-dom/global-registrator": "^20.3.0",
+    "happy-dom": "^20.3.0",
     "typescript": "^5.3.3"
   }
 }

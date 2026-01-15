@@ -1,0 +1,77 @@
+.app-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+.navigation {
+  background: #2c3e50;
+  color: white;
+  padding: 1rem 2rem;
+}
+
+.navigation h2 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.25rem;
+}
+
+.user-info {
+  margin: 0 0 1rem 0;
+  font-size: 0.875rem;
+  opacity: 0.8;
+}
+
+.navigation ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.navigation a {
+  color: #ecf0f1;
+  text-decoration: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.navigation a:hover {
+  background-color: #34495e;
+}
+
+.navigation a.active {
+  background-color: #3498db;
+}
+
+.demo-btn {
+  background: #27ae60;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: background-color 0.2s;
+}
+
+.demo-btn:hover {
+  background: #229954;
+}
+
+.error-btn {
+  background: #e74c3c;
+}
+
+.error-btn:hover {
+  background: #c0392b;
+}
+
+.content {
+  flex: 1;
+  padding: 2rem;
+  overflow-y: auto;
+}

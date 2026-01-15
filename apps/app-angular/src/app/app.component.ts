@@ -1,94 +1,72 @@
-import { Component } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
+import { CommonModule } from '@angular/common';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
-import { microAppSDK } from '@shared/sdk';
+import { frameSDK } from '@micro-fe/fragment-elements/sdk';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterLink, RouterLinkActive, RouterOutlet],
-  template: `
-    <div class="app-container">
-      <nav class="navigation">
-        <h2>Angular Micro-App</h2>
-        <ul>
-          <li>
-            <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
-              Home
-            </a>
-          </li>
-          <li>
-            <a routerLink="/users" routerLinkActive="active">
-              Users
-            </a>
-          </li>
-          <li>
-            <a routerLink="/settings" routerLinkActive="active">
-              Settings
-            </a>
-          </li>
-        </ul>
-      </nav>
-
-      <main class="content">
-        <router-outlet />
-      </main>
-    </div>
-  `,
-  styles: [
-    `
-      .app-container {
-        display: flex;
-        flex-direction: column;
-        height: 100vh;
-        font-family: system-ui, -apple-system, sans-serif;
-      }
-
-      .navigation {
-        background: #2c3e50;
-        color: white;
-        padding: 1rem 2rem;
-      }
-
-      .navigation h2 {
-        margin: 0 0 1rem 0;
-        font-size: 1.25rem;
-      }
-
-      .navigation ul {
-        list-style: none;
-        padding: 0;
-        margin: 0;
-        display: flex;
-        gap: 1.5rem;
-      }
-
-      .navigation a {
-        color: #ecf0f1;
-        text-decoration: none;
-        padding: 0.5rem 1rem;
-        border-radius: 4px;
-        transition: background-color 0.2s;
-      }
-
-      .navigation a:hover {
-        background-color: #34495e;
-      }
-
-      .navigation a.active {
-        background-color: #3498db;
-      }
-
-      .content {
-        flex: 1;
-        padding: 2rem;
-        overflow-y: auto;
-      }
-    `,
-  ],
+  imports: [CommonModule, RouterLink, RouterLinkActive, RouterOutlet],
+  templateUrl: './app.component.html',
+  styleUrl: './app.component.css'
 })
-export class AppComponent {
-  constructor() {
-    const config = microAppSDK.getConfig();
-    console.log('Angular App Component initialized with config:', config);
+export class AppComponent implements OnInit, OnDestroy {
+  user: any = null;
+
+  ngOnInit() {
+    // Access props from parent
+    this.user = frameSDK.props.user;
+    console.log('Angular App Component initialized with user:', this.user);
+
+    // Call successCallback if provided
+    const successCallback = frameSDK.props.successCallback as ((data: any) => void) | undefined;
+    if (typeof successCallback === 'function') {
+      successCallback({ message: 'Angular app initialized successfully' });
+    }
+
+    // Listen for user updates
+    frameSDK.on('attr:user', (newUser) => {
+      console.log('User updated:', newUser);
+      this.user = newUser;
+    });
+  }
+
+  triggerAction() {
+    console.log('Action triggered');
+
+    // Emit event to parent
+    frameSDK.emit('action-clicked', {
+      timestamp: Date.now(),
+      component: 'AppComponent'
+    });
+
+    // Call callback if provided
+    const actionCallback = frameSDK.props.actionCallback as ((data: any) => void) | undefined;
+    if (typeof actionCallback === 'function') {
+      actionCallback({
+        type: 'button-click',
+        source: 'navigation'
+      });
+    }
+  }
+
+  triggerError() {
+    try {
+      throw new Error('Test error from Angular AppComponent');
+    } catch (error) {
+      console.error('Error triggered:', error);
+
+      // Emit error event to parent
+      frameSDK.emit('error', {
+        error: error instanceof Error ? error.message : String(error),
+        component: 'AppComponent',
+        timestamp: Date.now()
+      });
+    }
+  }
+
+  ngOnDestroy() {
+    // Cleanup SDK on component destroy
+    frameSDK.cleanup();
   }
 }

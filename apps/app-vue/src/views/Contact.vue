@@ -1,3 +1,37 @@
+<script setup lang="ts">
+  import { useFrameSDK } from '../composables/useFrameSDK';
+  import { reactive, ref } from 'vue';
+
+  const { emit } = useFrameSDK();
+
+  const formData = reactive({
+    email: '',
+    message: '',
+    name: '',
+    subject: '',
+  });
+
+  const submitMessage = ref('');
+  const submitSuccess = ref(false);
+
+  const handleSubmit = () => {
+    submitMessage.value = 'Message sent successfully! (This is a demo)';
+    submitSuccess.value = true;
+
+    emit('contact-form-submitted', {
+      ...formData,
+      timestamp: new Date().toISOString(),
+    });
+
+    setTimeout(() => {
+      submitMessage.value = '';
+      Object.keys(formData).forEach((key) => {
+        formData[key as keyof typeof formData] = '';
+      });
+    }, 3000);
+  };
+</script>
+
 <template>
   <div class="view-container">
     <h1 class="title">Contact Us</h1>
@@ -87,175 +121,143 @@
   </div>
 </template>
 
-<script setup lang="ts">
-import { microAppSDK } from '@shared/sdk';
-import { reactive, ref } from 'vue';
-
-const formData = reactive({
-  email: '',
-  message: '',
-  name: '',
-  subject: '',
-});
-
-const submitMessage = ref('');
-const submitSuccess = ref(false);
-
-const handleSubmit = () => {
-  submitMessage.value = 'Message sent successfully! (This is a demo)';
-  submitSuccess.value = true;
-
-  microAppSDK.emit('contact-form-submitted', {
-    ...formData,
-    timestamp: new Date().toISOString(),
-  });
-
-  setTimeout(() => {
-    submitMessage.value = '';
-    Object.keys(formData).forEach((key) => {
-      formData[key as keyof typeof formData] = '';
-    });
-  }, 3000);
-};
-</script>
-
 <style scoped>
-.view-container {
-  max-width: 1000px;
-}
-
-.title {
-  color: #42b883;
-  font-size: 2.5rem;
-  margin-bottom: 2rem;
-}
-
-.content {
-  display: grid;
-  gap: 2rem;
-  grid-template-columns: 1fr 1fr;
-}
-
-@media (max-width: 768px) {
-  .content {
-    grid-template-columns: 1fr;
+  .view-container {
+    max-width: 1000px;
   }
-}
 
-.form-section {
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-  padding: 2rem;
-}
+  .title {
+    color: #42b883;
+    font-size: 2.5rem;
+    margin-bottom: 2rem;
+  }
 
-.intro {
-  color: #666;
-  line-height: 1.6;
-  margin-bottom: 2rem;
-}
+  .content {
+    display: grid;
+    gap: 2rem;
+    grid-template-columns: 1fr 1fr;
+  }
 
-.contact-form {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
+  @media (max-width: 768px) {
+    .content {
+      grid-template-columns: 1fr;
+    }
+  }
 
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
+  .form-section {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    padding: 2rem;
+  }
 
-.form-label {
-  color: #2c3e50;
-  font-weight: 600;
-}
+  .intro {
+    color: #666;
+    line-height: 1.6;
+    margin-bottom: 2rem;
+  }
 
-.form-input,
-.form-textarea {
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-family: inherit;
-  font-size: 1rem;
-  padding: 0.75rem;
-  transition: border-color 0.2s;
-}
+  .contact-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
 
-.form-input:focus,
-.form-textarea:focus {
-  border-color: #42b883;
-  outline: none;
-}
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
 
-.form-textarea {
-  resize: vertical;
-}
+  .form-label {
+    color: #2c3e50;
+    font-weight: 600;
+  }
 
-.submit-button {
-  background-color: #42b883;
-  border: none;
-  border-radius: 4px;
-  color: white;
-  cursor: pointer;
-  font-size: 1rem;
-  font-weight: 600;
-  padding: 0.875rem 1.5rem;
-  transition: background-color 0.2s;
-}
+  .form-input,
+  .form-textarea {
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 1rem;
+    padding: 0.75rem;
+    transition: border-color 0.2s;
+  }
 
-.submit-button:hover {
-  background-color: #359268;
-}
+  .form-input:focus,
+  .form-textarea:focus {
+    border-color: #42b883;
+    outline: none;
+  }
 
-.submit-message {
-  background-color: #f0f9ff;
-  border-left: 4px solid #3b82f6;
-  border-radius: 4px;
-  color: #1e40af;
-  margin-top: 1rem;
-  padding: 1rem;
-}
+  .form-textarea {
+    resize: vertical;
+  }
 
-.submit-message.success {
-  background-color: #f0fdf4;
-  border-left-color: #42b883;
-  color: #166534;
-}
+  .submit-button {
+    background-color: #42b883;
+    border: none;
+    border-radius: 4px;
+    color: white;
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: 600;
+    padding: 0.875rem 1.5rem;
+    transition: background-color 0.2s;
+  }
 
-.info-section {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
+  .submit-button:hover {
+    background-color: #359268;
+  }
 
-.info-section h2 {
-  color: #2c3e50;
-  font-size: 1.5rem;
-}
+  .submit-message {
+    background-color: #f0f9ff;
+    border-left: 4px solid #3b82f6;
+    border-radius: 4px;
+    color: #1e40af;
+    margin-top: 1rem;
+    padding: 1rem;
+  }
 
-.contact-methods {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
+  .submit-message.success {
+    background-color: #f0fdf4;
+    border-left-color: #42b883;
+    color: #166534;
+  }
 
-.contact-method {
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-  padding: 1.5rem;
-}
+  .info-section {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
 
-.contact-method h3 {
-  color: #42b883;
-  font-size: 1.125rem;
-  margin-bottom: 0.5rem;
-}
+  .info-section h2 {
+    color: #2c3e50;
+    font-size: 1.5rem;
+  }
 
-.contact-method p {
-  color: #666;
-  line-height: 1.5;
-  margin: 0;
-}
+  .contact-methods {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .contact-method {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    padding: 1.5rem;
+  }
+
+  .contact-method h3 {
+    color: #42b883;
+    font-size: 1.125rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .contact-method p {
+    color: #666;
+    line-height: 1.5;
+    margin: 0;
+  }
 </style>

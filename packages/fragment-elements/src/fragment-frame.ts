@@ -1,20 +1,18 @@
 import type {
-  CallResponseMessage,
-  CallResponsePayload,
   CustomEventMessage,
-  ErrorMessage,
-  FragmentFrameConfig,
+  FragmentFrameProps,
+  FunctionCallMessage,
+  FunctionReleaseMessage,
+  FunctionResponseMessage,
   Message,
-  NavigateMessage,
-  StateChangeMessage,
 } from './types';
 import { MessageEvent } from './constants';
+import { FunctionManager } from './helpers/function-manager';
+import { createLogger } from './helpers/logger';
+import { validateMessage } from './helpers/message-validators';
+import { kebabCase } from './helpers/string-utils';
 
-interface PendingCall {
-  reject: (reason?: unknown) => void;
-  resolve: (value: unknown) => void;
-  timeout: ReturnType<typeof setTimeout>;
-}
+const logger = createLogger('fragment-frame');
 
 /**
  * Web Component for embedding micro-frontend fragments in iframes
@@ -26,8 +24,8 @@ interface PendingCall {
  * ```html
  * <fragment-frame
  *   name="my-app"
- *   src="http://localhost:3000"
  *   base="/my-app"
+ *   src="http://localhost:3000"
  *   api-url="https://api.example.com"
  *   theme="dark"
  * ></fragment-frame>
@@ -51,18 +49,45 @@ interface PendingCall {
 export class FragmentFrame extends HTMLElement {
   private static readonly ATTRS_REGEX = /^(base|name|sandbox|src)$/;
 
-  private _iframe!: HTMLIFrameElement;
-  private _mutationObserver?: MutationObserver;
-  private _pendingCalls = new Map<string, PendingCall>();
-  private _ready = false;
-  private _targetOrigin!: string;
+  /**
+   * Observed attributes for Web Component lifecycle
+   */
+  static get observedAttributes() {
+    return ['base', 'name', 'sandbox', 'src'];
+  }
 
+  private _iframe!: HTMLIFrameElement;
+  private _observer?: MutationObserver;
+  private _ready = false;
+  private _origin!: string;
+  private _port!: MessagePort;
+
+  // Function call support
+  private _manager!: FunctionManager;
+
+  // Cache for dynamically created methods
+  private _dynamicMethods = new Map<string, Function>();
+
+  // Handler reference for cleanup
+  private _portMessageHandler?: (event: MessageEvent) => void;
+
+  /**
+   * Creates a new fragment-frame element
+   *
+   * Initializes the function manager and sets up property interception via Proxy
+   * Note: Proxy is not returned to maintain Angular compatibility
+   */
   constructor() {
     super();
 
-    // Proxy to intercept property assignments
-    return new Proxy(this, {
-      set(target, prop, value) {
+    // Initialize function manager
+    this._manager = new FunctionManager((message, transferables = []) => {
+      this._sendToIframe(message, transferables);
+    });
+
+    // Setup Proxy for property interception (not returned for Angular compatibility)
+    new Proxy(this, {
+      set(target, prop, value): boolean {
         const result = Reflect.set(target, prop, value);
 
         // Only public properties (not starting with _ and not fixed attributes)
@@ -72,236 +97,573 @@ export class FragmentFrame extends HTMLElement {
           !FragmentFrame.ATTRS_REGEX.test(prop) &&
           target._ready
         ) {
-          target.sendToIframe({
-            attribute: prop,
-            type: MessageEvent.ATTRIBUTE_CHANGE,
-            value,
-          });
+          try {
+            // Serialize value (including functions and transferables)
+            const { serialized, transferables } = target._manager.serialize(value);
+
+            const success = target._sendToIframe(
+              {
+                attribute: prop,
+                type: MessageEvent.ATTRIBUTE_CHANGE,
+                value: serialized,
+              },
+              transferables
+            );
+
+            // Signal send failure by dispatching error event
+            if (!success) {
+              console.warn(`[fragment-frame] Failed to sync property '${prop}' to iframe`);
+              target._emit('error', {
+                message: `Failed to sync property '${prop}' to iframe`,
+                property: prop,
+              });
+            }
+          } catch (error) {
+            console.error(`[fragment-frame] Failed to serialize property '${prop}':`, error);
+            // Property was set locally but not synced to child
+            target._emit('error', { message: `Property serialization failed: ${prop}`, error });
+          }
         }
 
         return result;
       },
+
+      get(target, prop): unknown {
+        const value = Reflect.get(target, prop);
+
+        // If property exists, return it
+        if (value !== undefined) return value;
+
+        // Dynamic method pattern for camelCase event emitters
+        // If property doesn't exist and looks like a camelCase identifier,
+        // create a dynamic function that emits an event with kebab-case name
+        //
+        // Cache the function to maintain referential equality:
+        //   frame.themeChange === frame.themeChange  // true
+        //
+        // Examples:
+        //   frame.themeChange({ ... })     → emit('theme-change', { ... })
+        //   frame.userCreated({ ... })     → emit('user-created', { ... })
+        //   frame.apiUrlUpdate({ ... })    → emit('api-url-update', { ... })
+
+        // Validate property is a camelCase identifier
+        if (typeof prop !== 'string') return value;
+        if (!/^[a-z][a-zA-Z0-9]*$/.test(prop)) return value;
+        if (!/[A-Z]/.test(prop)) return value;
+
+        // Create dynamic method for valid camelCase identifier
+        // Check cache first
+        if (!target._dynamicMethods.has(prop)) {
+          // Create and cache the function
+          target._dynamicMethods.set(prop, (data?: unknown) =>
+            target._emitToChild(kebabCase(prop), data)
+          );
+        }
+        return target._dynamicMethods.get(prop);
+      },
     });
   }
 
-  connectedCallback() {
-    const name = this.getAttribute('name');
-    const src = this.getAttribute('src');
-    const base = this.getAttribute('base') || `/${name}`;
-    const sandbox =
+  /**
+   * Get fragment name
+   */
+  get name(): string | null {
+    return this.getAttribute('name');
+  }
+
+  /**
+   * Get fragment source URL
+   */
+  get src(): string | null {
+    return this.getAttribute('src');
+  }
+
+  /**
+   * Get base path for routing
+   * Falls back to /name or /fragment if base attribute not set
+   */
+  get base(): string {
+    return this.getAttribute('base') || `/${this.name || 'fragment'}`;
+  }
+
+  /**
+   * Get sandbox permissions
+   */
+  get sandbox(): string {
+    return (
       this.getAttribute('sandbox') ||
-      'allow-scripts allow-same-origin allow-forms allow-popups allow-modals';
-
-    if (!name || !src) {
-      console.error('[fragment-frame] Missing required attributes: name and src');
-      return;
-    }
-
-    this._targetOrigin = new URL(src).origin;
-    this.initializeApp(name, src, base, sandbox);
+      'allow-scripts allow-same-origin allow-forms allow-popups allow-modals'
+    );
   }
 
-  private async initializeApp(name: string, src: string, base: string, sandbox: string) {
-    this._iframe = document.createElement('iframe');
-    this._iframe.src = src;
-    this._iframe.style.cssText = 'border:none;display:block;height:100%;width:100%;';
-    this._iframe.setAttribute('sandbox', sandbox);
+  /**
+   * Web Component lifecycle: called when an observed attribute changes
+   */
+  attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null) {
+    if (oldValue === newValue) return;
 
-    window.addEventListener('message', (event) => {
-      if (event.origin !== this._targetOrigin) return;
-      if (event.source !== this._iframe.contentWindow) return;
-      this.handleMessageFromIframe(event.data as Message);
-    });
+    console.log(`[fragment-frame] Attribute '${name}' changed from '${oldValue}' to '${newValue}'`);
 
-    this.appendChild(this._iframe);
-    await new Promise((resolve) => (this._iframe.onload = resolve));
-
-    // Collect all attributes except fixed ones
-    const attrs: Record<string, string> = {};
-    for (let i = 0; i < this.attributes.length; i++) {
-      const attr = this.attributes[i];
-      if (!FragmentFrame.ATTRS_REGEX.test(attr.name)) {
-        attrs[attr.name] = attr.value;
+    // If element is connected and we now have both name and src, initialize
+    if (this.isConnected && this.name && this.src && !this._iframe) {
+      try {
+        this._origin = new URL(this.src).origin;
+        this._initialize();
+      } catch (error) {
+        console.error(`[fragment-frame] Initialization failed:`, error);
+        this._emit('error', {
+          message: error instanceof Error ? error.message : 'Initialization failed',
+          error
+        });
       }
     }
 
-    this.sendToIframe({
-      payload: { base, name, ...attrs } as FragmentFrameConfig,
-      type: MessageEvent.INIT,
-    });
+    // If src changes after initialization, warn
+    if (name === 'src' && this._iframe && oldValue) {
+      logger.warn('Changing src attribute after initialization is not supported');
+    }
+  }
 
-    // Observe dynamic attribute changes
-    this._mutationObserver = new MutationObserver((mutations) => {
+  /**
+   * Web Component lifecycle: called when element is added to DOM
+   *
+   * Creates the iframe, sets up message listeners, and initializes
+   * communication with the child fragment.
+   *
+   * Note: Initialization may be deferred until attributes are set via attributeChangedCallback
+   */
+  connectedCallback() {
+    // If both name and src are already set, initialize immediately
+    if (this.name && this.src && !this._iframe) {
+      try {
+        this._origin = new URL(this.src).origin;
+        this._initialize();
+      } catch (error) {
+        console.error(`[fragment-frame] Initialization failed:`, error);
+        this._emit('error', {
+          message: error instanceof Error ? error.message : 'Initialization failed',
+          error
+        });
+      }
+    }
+    // Otherwise, wait for attributeChangedCallback to trigger initialization
+  }
+
+  /**
+   * Initialize the fragment frame
+   *
+   * Orchestrates the full initialization process:
+   * 1. Create and setup iframe
+   * 2. Wait for iframe to load
+   * 3. Collect and serialize props
+   * 4. Send INIT message to child
+   * 5. Setup attribute observer
+   */
+  private async _initialize() {
+    const channel = this._setupIframeAndChannel();
+    await this._waitForIframeLoad();
+    const props = this._collectAllProps();
+    this._sendInitMessage(channel, props);
+    this._setupAttributeObserver();
+  }
+
+  /**
+   * Create iframe element and setup MessageChannel for communication
+   *
+   * @returns MessageChannel for parent-child communication
+   */
+  private _setupIframeAndChannel(): MessageChannel {
+    // Create and configure iframe
+    this._iframe = document.createElement('iframe');
+    this._iframe.src = this.src!;
+    this._iframe.style.cssText = 'border:none;display:block;height:100%;width:100%;';
+    this._iframe.setAttribute('sandbox', this.sandbox);
+
+    // Create MessageChannel for dedicated communication
+    const channel = new MessageChannel();
+    this._port = channel.port1;
+
+    // Setup message handler on our port
+    this._portMessageHandler = (event) => {
+      try {
+        this._handleMessageFromIframe(event.data);
+      } catch (error) {
+        logger.error('Error handling message from iframe:', error);
+        this._emit('error', { message: 'Message handler error', error });
+      }
+    };
+    this._port.onmessage = this._portMessageHandler;
+
+    // Add iframe to DOM
+    this.appendChild(this._iframe);
+
+    return channel;
+  }
+
+  /**
+   * Wait for iframe to load with timeout and error handling
+   *
+   * @throws Error if iframe fails to load or timeout occurs
+   */
+  private async _waitForIframeLoad(): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+      const timeoutId = setTimeout(() => {
+        cleanup();
+        reject(new Error(`Iframe load timeout after 10s: ${this.src}`));
+      }, 10000);
+
+      const handler = (event: Event) => {
+        cleanup();
+        if (event.type === 'error') {
+          reject(new Error(`Failed to load iframe: ${this.src}`));
+        } else {
+          resolve();
+        }
+      };
+
+      const cleanup = () => {
+        clearTimeout(timeoutId);
+        this._iframe.removeEventListener('load', handler);
+        this._iframe.removeEventListener('error', handler);
+      };
+
+      this._iframe.addEventListener('load', handler, { once: true });
+      this._iframe.addEventListener('error', handler, { once: true });
+    }).catch((error) => {
+      logger.error('Iframe initialization failed:', error);
+      this._emit('error', { message: 'Iframe load failed', error });
+      throw error;
+    });
+  }
+
+  /**
+   * Collect all attributes and properties to send to child
+   *
+   * Collects HTML attributes (strings) and JavaScript properties (any type including functions).
+   * JavaScript properties override HTML attributes with the same name.
+   *
+   * @returns Props object with all attributes and properties
+   */
+  private _collectAllProps(): Record<string, unknown> {
+    // Start with base and name
+    const props: Record<string, unknown> = { base: this.base, name: this.name };
+
+    // Collect HTML attributes (string values only)
+    for (let i = 0; i < this.attributes.length; i++) {
+      const attr = this.attributes[i];
+      if (!FragmentFrame.ATTRS_REGEX.test(attr.name)) {
+        props[attr.name] = attr.value;
+      }
+    }
+
+    // Collect JavaScript properties (may override attributes, includes functions/objects)
+    for (const key of Object.keys(this)) {
+      if (
+        !key.startsWith('_') &&
+        !FragmentFrame.ATTRS_REGEX.test(key) &&
+        !/^(base|name)$/.test(key)
+      ) {
+        const value = this[key as keyof this];
+        if (value !== undefined) {
+          props[key] = value;
+        }
+      }
+    }
+
+    return props;
+  }
+
+  /**
+   * Send INIT message to child with serialized props
+   *
+   * @param channel - MessageChannel to transfer port2 to child
+   * @param props - Props to serialize and send
+   * @throws Error if contentWindow is not accessible
+   */
+  private _sendInitMessage(channel: MessageChannel, props: Record<string, unknown>): void {
+    // Serialize props (including functions and transferables)
+    const { serialized, transferables } = this._manager.serialize(props);
+
+    // Send INIT message with port2 transfer
+    const contentWindow = this._iframe.contentWindow;
+    if (!contentWindow) {
+      throw new Error('[fragment-frame] Iframe contentWindow is not accessible');
+    }
+
+    contentWindow.postMessage(
+      {
+        payload: serialized as FragmentFrameProps,
+        type: MessageEvent.INIT,
+      },
+      this._origin,
+      [channel.port2, ...transferables]
+    );
+  }
+
+  /**
+   * Setup MutationObserver to watch for attribute changes
+   *
+   * Observes attribute changes and syncs them to the child iframe.
+   * Only observes attributes that are not fixed (not base, name, sandbox, src).
+   */
+  private _setupAttributeObserver(): void {
+    this._observer = new MutationObserver((mutations) => {
       mutations.forEach((mutation) => {
-        if (mutation.type === 'attributes' && this._ready) {
-          const attrName = mutation.attributeName;
-          if (attrName && !FragmentFrame.ATTRS_REGEX.test(attrName)) {
-            this.sendToIframe({
+        const attrName = mutation.attributeName;
+        if (attrName && !FragmentFrame.ATTRS_REGEX.test(attrName)) {
+          const value = this.getAttribute(attrName);
+          const { serialized, transferables } = this._manager.serialize(value);
+
+          this._sendToIframe(
+            {
               attribute: attrName,
               type: MessageEvent.ATTRIBUTE_CHANGE,
-              value: this.getAttribute(attrName),
-            });
-          }
+              value: serialized,
+            },
+            transferables
+          );
         }
       });
     });
 
-    this._mutationObserver.observe(this, {
+    this._observer.observe(this, {
       attributes: true,
       attributeOldValue: false,
     });
   }
 
-  private handleMessageFromIframe(message: Message) {
+  private _handleMessageFromIframe(data: unknown) {
+    // Use shared validation utility to reduce code duplication
+    const message = validateMessage(data, '[fragment-frame]');
+    if (!message) {
+      return; // Validation failed, error already logged
+    }
+
     const { type } = message;
 
     switch (type) {
       case MessageEvent.READY:
         this._ready = true;
-        this.emit('ready');
+        this._dispatchLocalEvent('ready');
         break;
-
-      case MessageEvent.NAVIGATE: {
-        const { payload } = message as NavigateMessage;
-        this.emit('navigate', {
-          path: payload.path,
-          replace: payload.replace || false,
-          state: payload.state,
-        });
-        break;
-      }
-
-      case MessageEvent.ERROR: {
-        const { payload } = message as ErrorMessage;
-        this.emit('error', payload);
-        break;
-      }
-
-      case MessageEvent.STATE_CHANGE: {
-        const { payload } = message as StateChangeMessage;
-        this.emit('state-change', payload);
-        break;
-      }
 
       case MessageEvent.CUSTOM_EVENT: {
-        const { payload } = message as CustomEventMessage;
-        this.emit(payload.name, payload.data);
+        const customMsg = message as CustomEventMessage;
+        const payload = customMsg.payload;
+        if (!payload?.name || typeof payload.name !== 'string') {
+          logger.warn('Invalid CUSTOM_EVENT message:', message);
+          return;
+        }
+        this._dispatchLocalEvent(payload.name, payload.data);
         break;
       }
 
-      case MessageEvent.CALL_RESPONSE: {
-        const { requestId, payload } = message as CallResponseMessage;
-        this.handleCallResponse(requestId, payload);
+      case MessageEvent.FUNCTION_CALL: {
+        const callMsg = message as FunctionCallMessage;
+        if (!callMsg.callId || !callMsg.fnId) {
+          logger.warn('Invalid FUNCTION_CALL message:', message);
+          return;
+        }
+        this._manager.handleFunctionCall(callMsg.callId, callMsg.fnId, callMsg.params);
+        break;
+      }
+
+      case MessageEvent.FUNCTION_RESPONSE: {
+        const respMsg = message as FunctionResponseMessage;
+        const { callId, success, result, error: errorResult } = respMsg;
+        if (!callId || typeof success !== 'boolean') {
+          logger.warn('Invalid FUNCTION_RESPONSE message:', message);
+          return;
+        }
+        this._manager.handleFunctionResponse(callId, success, result, errorResult);
+        break;
+      }
+
+      case MessageEvent.FUNCTION_RELEASE: {
+        const releaseMsg = message as FunctionReleaseMessage;
+        if (!releaseMsg.fnId) {
+          logger.warn('Invalid FUNCTION_RELEASE message:', message);
+          return;
+        }
+        this._manager.releaseFunction(releaseMsg.fnId);
+        break;
+      }
+
+      case MessageEvent.FUNCTION_RELEASE_BATCH: {
+        const batchMsg = message as { fnIds: string[] };
+        if (!Array.isArray(batchMsg.fnIds)) {
+          logger.warn('Invalid FUNCTION_RELEASE_BATCH message:', message);
+          return;
+        }
+        for (const fnId of batchMsg.fnIds) {
+          this._manager.releaseFunction(fnId);
+        }
         break;
       }
 
       default:
-        console.warn(`[micro-app] Unknown message type: ${type}`);
+        console.warn(`[fragment-frame] Unknown message type: ${type}`);
     }
   }
 
-  private emit(eventName: string, detail?: unknown) {
-    this.dispatchEvent(
-      new CustomEvent(eventName, { bubbles: true, composed: true, detail })
+  /**
+   * Send event to child iframe
+   *
+   * Can be called directly or via camelCase method syntax.
+   *
+   * @param eventName - Event name (kebab-case)
+   * @param data - Event data
+   *
+   * @example
+   * ```typescript
+   * // Direct call
+   * frame.emit('theme-change', { theme: 'dark' });
+   *
+   * // CamelCase method
+   * frame.themeChange({ theme: 'dark' });
+   * ```
+   */
+  emit(eventName: string, data?: unknown) {
+    if (!eventName || !/^[a-zA-Z0-9_:.-]+$/.test(eventName)) {
+      logger.error('Invalid event name:', eventName);
+      return;
+    }
+
+    this._emitToChild(eventName, data);
+  }
+
+  /**
+   * Internal method to send event to child iframe
+   */
+  private _emitToChild(eventName: string, data?: unknown) {
+    if (!this._port) {
+      logger.warn('MessagePort not ready, cannot emit event');
+      return;
+    }
+
+    const { serialized, transferables } = this._manager.serialize(data);
+
+    this._sendToIframe(
+      {
+        name: eventName,
+        data: serialized,
+        type: MessageEvent.EVENT,
+      },
+      transferables
     );
   }
 
   /**
-   * Call a method registered in the fragment application
+   * Helper to dispatch custom events on this element
    *
-   * The fragment must have registered the method using SDK's `registerMethod()`.
-   * Waits for fragment response or times out after 10 seconds.
+   * Simplifies the boilerplate of creating and dispatching CustomEvent
    *
-   * @param method - Method name to call
-   * @param params - Parameters to pass to the method
-   * @returns Promise resolving to the method's return value
-   * @throws Error if fragment not ready, method not found, or timeout
-   *
-   * @example
-   * ```typescript
-   * const userData = await fragment.call('getUserData', { id: 123 });
-   * console.log(userData); // { name: 'John', email: '...' }
-   * ```
+   * @param name - Event name
+   * @param detail - Event detail payload
+   * @param options - Optional bubbles/composed overrides (defaults: bubbles=true, composed=true)
    */
-  async call(method: string, params?: unknown): Promise<unknown> {
-    if (!this._ready) {
-      throw new Error('App not ready yet');
-    }
-
-    const requestId = crypto.randomUUID();
-
-    return new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        this._pendingCalls.delete(requestId);
-        reject(new Error(`Call timeout: ${method}`));
-      }, 10000);
-
-      this._pendingCalls.set(requestId, { reject, resolve, timeout });
-
-      this.sendToIframe({
-        method,
-        params,
-        requestId,
-        type: MessageEvent.CALL,
-      });
-    });
+  private _emit(name: string, detail?: unknown, options: { bubbles?: boolean; composed?: boolean } = {}) {
+    this.dispatchEvent(
+      new CustomEvent(name, {
+        bubbles: options.bubbles ?? true,
+        composed: options.composed ?? true,
+        detail,
+      })
+    );
   }
 
   /**
-   * Send an event to the fragment application
-   *
-   * The fragment can listen to events using SDK's `on()` method.
-   *
-   * @param eventName - Event name
-   * @param data - Optional event data
-   *
-   * @example
-   * ```typescript
-   * fragment.emitEvent('theme-changed', { theme: 'dark' });
-   * fragment.emitEvent('refresh-data');
-   * ```
+   * Dispatch custom event on parent (from child emissions)
    */
-  emitEvent(eventName: string, data?: unknown) {
-    this.sendToIframe({
-      data,
-      name: eventName,
-      type: MessageEvent.EVENT,
-    });
-  }
-
-  private handleCallResponse(requestId: string, payload: CallResponsePayload) {
-    const pending = this._pendingCalls.get(requestId);
-    if (!pending) return;
-
-    clearTimeout(pending.timeout);
-    this._pendingCalls.delete(requestId);
-
-    if (payload.success) {
-      pending.resolve(payload.result);
-    } else {
-      pending.reject(new Error(payload.error));
-    }
-  }
-
-  private sendToIframe(message: unknown) {
-    if (!this._iframe?.contentWindow) {
-      console.error('[micro-app] Iframe not ready');
+  private _dispatchLocalEvent(name: string, detail?: unknown) {
+    if (!name || !/^[a-zA-Z0-9_:.\-]+$/.test(name)) {
+      logger.warn('Invalid event name:', name);
       return;
     }
 
-    this._iframe.contentWindow.postMessage(message, this._targetOrigin);
+    // Dispatch DOM CustomEvent
+    this._emit(name, detail);
+
+    // Try property handler (e.g., frame.onready)
+    const handlerName = `on${name.replace(/[:.\-]/g, '')}`;
+    if (Object.hasOwn(this, handlerName)) {
+      const handler = Reflect.get(this, handlerName);
+      if (typeof handler === 'function') {
+        handler.call(this, detail);
+      }
+    }
   }
 
-  disconnectedCallback() {
-    this._mutationObserver?.disconnect();
-    this._iframe?.remove();
-
-    for (const [_, pending] of this._pendingCalls) {
-      clearTimeout(pending.timeout);
-      pending.reject(new Error('Web Component disconnected'));
+  /**
+   * Send message to iframe via MessagePort with optional transferables
+   *
+   * Handles errors gracefully (e.g., DataCloneError, port closed, transferable already transferred)
+   */
+  private _sendToIframe(message: unknown, transferables: Transferable[] = []): boolean {
+    if (!this._port) {
+      logger.error('MessagePort not ready');
+      return false;
     }
-    this._pendingCalls.clear();
+
+    try {
+      this._port.postMessage(message, transferables);
+      return true;
+    } catch (error) {
+      logger.error('Failed to send message:', error);
+
+      this._emit('message-send-failed', {
+        error: error instanceof Error ? error.message : String(error),
+        message,
+        transferablesCount: transferables.length,
+      });
+
+      return false;
+    }
+  }
+
+  /**
+   * Internal cleanup method called on disconnect or error
+   */
+  private _cleanup(): void {
+    this._observer?.disconnect();
+    this._observer = undefined;
+
+    // Release tracked functions
+    const functionIds = Array.from(this._manager?.getTrackedFunctions() || []);
+    if (functionIds.length > 0) {
+      this._sendToIframe({
+        fnIds: functionIds,
+        type: MessageEvent.FUNCTION_RELEASE_BATCH,
+      });
+    }
+
+    // Clean up port and handlers
+    if (this._port) {
+      this._port.onmessage = null;
+      this._port.close();
+    }
+    this._portMessageHandler = undefined;
+
+    // Clean up remaining resources
+    this._manager?.cleanup();
+    this._dynamicMethods?.clear();
+    this._iframe?.remove();
+  }
+
+  /**
+   * Web Component lifecycle: called when element is removed from DOM
+   *
+   * Cleans up observers, releases tracked functions, closes port, and removes the iframe.
+   */
+  disconnectedCallback() {
+    this._cleanup();
   }
 }
 
-customElements.define('fragment-frame', FragmentFrame);
+// Register the custom element
+if (!customElements.get('fragment-frame')) {
+  customElements.define('fragment-frame', FragmentFrame);
+  console.log('[fragment-elements] fragment-frame custom element registered');
+} else {
+  console.warn('[fragment-elements] fragment-frame already registered');
+}

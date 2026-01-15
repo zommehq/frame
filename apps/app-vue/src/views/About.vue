@@ -1,3 +1,13 @@
+<script setup lang="ts">
+  import { useFrameSDK } from '../composables/useFrameSDK';
+  import { computed, version } from 'vue';
+
+  const { props } = useFrameSDK();
+  const vueVersion = version;
+  const basePath = computed(() => props.base || '/vue/');
+  const apiUrl = computed(() => props.apiUrl || 'Not configured');
+</script>
+
 <template>
   <div class="view-container">
     <h1 class="title">About This Application</h1>
@@ -47,86 +57,76 @@
   </div>
 </template>
 
-<script setup lang="ts">
-import { microAppSDK } from '@shared/sdk';
-import { computed, version } from 'vue';
-
-const vueVersion = version;
-const config = microAppSDK.getConfig();
-const basePath = computed(() => config.basePath || '/vue/');
-const apiUrl = computed(() => config.apiUrl);
-</script>
-
 <style scoped>
-.view-container {
-  max-width: 800px;
-}
+  .view-container {
+    max-width: 800px;
+  }
 
-.title {
-  color: #42b883;
-  font-size: 2.5rem;
-  margin-bottom: 2rem;
-}
+  .title {
+    color: #42b883;
+    font-size: 2.5rem;
+    margin-bottom: 2rem;
+  }
 
-.content {
-  display: flex;
-  flex-direction: column;
-  gap: 2rem;
-}
+  .content {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+  }
 
-.section {
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-  padding: 1.5rem;
-}
+  .section {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    padding: 1.5rem;
+  }
 
-.section h2 {
-  color: #2c3e50;
-  font-size: 1.5rem;
-  margin-bottom: 1rem;
-}
+  .section h2 {
+    color: #2c3e50;
+    font-size: 1.5rem;
+    margin-bottom: 1rem;
+  }
 
-.section p {
-  color: #666;
-  line-height: 1.6;
-}
+  .section p {
+    color: #666;
+    line-height: 1.6;
+  }
 
-.tech-list,
-.benefits-list {
-  color: #666;
-  line-height: 1.8;
-  padding-left: 1.5rem;
-}
+  .tech-list,
+  .benefits-list {
+    color: #666;
+    line-height: 1.8;
+    padding-left: 1.5rem;
+  }
 
-.benefits-list li {
-  margin-bottom: 0.5rem;
-}
+  .benefits-list li {
+    margin-bottom: 0.5rem;
+  }
 
-.info-box {
-  background: linear-gradient(135deg, #42b883 0%, #35495e 100%);
-  border-radius: 8px;
-  color: white;
-  padding: 1.5rem;
-}
+  .info-box {
+    background: linear-gradient(135deg, #42b883 0%, #35495e 100%);
+    border-radius: 8px;
+    color: white;
+    padding: 1.5rem;
+  }
 
-.info-box h3 {
-  font-size: 1.25rem;
-  margin-bottom: 1rem;
-}
+  .info-box h3 {
+    font-size: 1.25rem;
+    margin-bottom: 1rem;
+  }
 
-.info-list {
-  display: grid;
-  gap: 0.75rem;
-  grid-template-columns: auto 1fr;
-}
+  .info-list {
+    display: grid;
+    gap: 0.75rem;
+    grid-template-columns: auto 1fr;
+  }
 
-.info-list dt {
-  font-weight: 600;
-  opacity: 0.9;
-}
+  .info-list dt {
+    font-weight: 600;
+    opacity: 0.9;
+  }
 
-.info-list dd {
-  margin: 0;
-}
+  .info-list dd {
+    margin: 0;
+  }
 </style>

@@ -1,0 +1,27 @@
+<div class="page">
+  <h1>Users Management</h1>
+  <p>Manage users in the Angular fragment-frame.</p>
+
+  <div class="users-table">
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Name</th>
+          <th>Email</th>
+          <th>Role</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let user of users">
+          <td>{{ user.id }}</td>
+          <td>{{ user.name }}</td>
+          <td>{{ user.email }}</td>
+          <td>
+            <span class="role-badge">{{ user.role }}</span>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>

@@ -1,31 +1,24 @@
 import { MessageEvent } from './constants';
 
-export interface FragmentFrameConfig {
+// Fragment props passed from parent to child
+export interface FragmentFrameProps {
   base: string;
   name: string;
   [key: string]: unknown;
 }
 
-export interface NavigatePayload {
-  path: string;
-  replace?: boolean;
-  state?: unknown;
+// Serialized function representation
+export interface SerializedFunction {
+  __fn: string; // UUID token
+  __meta?: {
+    name?: string;
+  };
 }
 
-export interface ErrorPayload {
-  message: string;
-  stack?: string;
-}
-
+// Custom event payload
 export interface CustomEventPayload {
   data?: unknown;
   name: string;
-}
-
-export interface CallResponsePayload {
-  error?: string;
-  result?: unknown;
-  success: boolean;
 }
 
 export type MessageType = (typeof MessageEvent)[keyof typeof MessageEvent];
@@ -34,72 +27,84 @@ export interface BaseMessage {
   type: MessageType;
 }
 
+// Lifecycle messages
 export interface InitMessage extends BaseMessage {
-  payload: FragmentFrameConfig;
-  type: '__INIT__';
+  payload: FragmentFrameProps;
+  type: typeof MessageEvent.INIT;
 }
 
 export interface ReadyMessage extends BaseMessage {
-  type: '__READY__';
+  type: typeof MessageEvent.READY;
 }
 
-export interface NavigateMessage extends BaseMessage {
-  payload: NavigatePayload;
-  type: 'NAVIGATE';
+// Property change message
+export interface AttributeChangeMessage extends BaseMessage {
+  attribute: string;
+  type: typeof MessageEvent.ATTRIBUTE_CHANGE;
+  value: unknown;
 }
 
-export interface ErrorMessage extends BaseMessage {
-  payload: ErrorPayload;
-  type: 'ERROR';
+// Event messages
+export interface EventMessage extends BaseMessage {
+  data?: unknown;
+  name: string;
+  type: typeof MessageEvent.EVENT;
 }
 
 export interface CustomEventMessage extends BaseMessage {
   payload: CustomEventPayload;
-  type: 'CUSTOM_EVENT';
+  type: typeof MessageEvent.CUSTOM_EVENT;
 }
 
-export interface AttributeChangeMessage extends BaseMessage {
-  attribute: string;
-  type: 'ATTRIBUTE_CHANGE';
-  value: unknown;
+// Function call messages
+export interface FunctionCallMessage extends BaseMessage {
+  callId: string;
+  fnId: string;
+  params: unknown[];
+  type: typeof MessageEvent.FUNCTION_CALL;
 }
 
-export interface CallMessage extends BaseMessage {
-  method: string;
-  params?: unknown;
-  requestId: string;
-  type: 'CALL';
+export interface FunctionResponseMessage extends BaseMessage {
+  callId: string;
+  error?: string;
+  result?: unknown;
+  success: boolean;
+  type: typeof MessageEvent.FUNCTION_RESPONSE;
 }
 
-export interface CallResponseMessage extends BaseMessage {
-  payload: {
-    error?: string;
-    result?: unknown;
-    success: boolean;
-  };
-  requestId: string;
-  type: 'CALL_RESPONSE';
+export interface FunctionReleaseMessage extends BaseMessage {
+  fnId: string;
+  type: typeof MessageEvent.FUNCTION_RELEASE;
 }
 
-export interface EventMessage extends BaseMessage {
-  data?: unknown;
-  name: string;
-  type: 'EVENT';
-}
-
-export interface StateChangeMessage extends BaseMessage {
-  payload: unknown;
-  type: 'STATE_CHANGE';
+export interface FunctionReleaseBatchMessage extends BaseMessage {
+  fnIds: string[];
+  type: typeof MessageEvent.FUNCTION_RELEASE_BATCH;
 }
 
 export type Message =
   | InitMessage
   | ReadyMessage
-  | NavigateMessage
-  | ErrorMessage
-  | CustomEventMessage
   | AttributeChangeMessage
-  | CallMessage
-  | CallResponseMessage
   | EventMessage
-  | StateChangeMessage;
+  | CustomEventMessage
+  | FunctionCallMessage
+  | FunctionResponseMessage
+  | FunctionReleaseMessage
+  | FunctionReleaseBatchMessage;
+
+/**
+ * Callback function for sending messages via MessagePort.postMessage
+ * Used by FunctionManager to send messages to the other side (parent or child).
+ *
+ * @param message - The message object to send (serialized)
+ * @param transferables - Optional array of transferable objects (MessagePort, ArrayBuffer, etc.)
+ *
+ * @example
+ * ```typescript
+ * const postMessage: PostMessageFn = (msg, transferables = []) => {
+ *   port.postMessage(msg, transferables);
+ * };
+ * ```
+ */
+export type PostMessageFn = (message: unknown, transferables?: Transferable[]) => void;

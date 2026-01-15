@@ -1,0 +1,37 @@
+<div class="app-container">
+  <nav class="navigation">
+    <h2>Angular Micro-App</h2>
+    <p class="user-info" *ngIf="user">{{ user.name }} ({{ user.role }})</p>
+    <ul>
+      <li>
+        <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
+          Home
+        </a>
+      </li>
+      <li>
+        <a routerLink="/users" routerLinkActive="active">
+          Users
+        </a>
+      </li>
+      <li>
+        <a routerLink="/settings" routerLinkActive="active">
+          Settings
+        </a>
+      </li>
+      <li>
+        <button class="demo-btn" (click)="triggerAction()">
+          Test Action
+        </button>
+      </li>
+      <li>
+        <button class="demo-btn error-btn" (click)="triggerError()">
+          Test Error
+        </button>
+      </li>
+    </ul>
+  </nav>
+
+  <main class="content">
+    <router-outlet />
+  </main>
+</div>

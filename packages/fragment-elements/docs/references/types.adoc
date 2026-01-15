@@ -1,0 +1,711 @@
+= Type Definitions
+
+TypeScript types and interfaces for Fragment Elements.
+
+== Core Types
+
+=== FragmentFrameProps
+
+Props received by the fragment from parent:
+
+[source,typescript]
+----
+interface FragmentFrameProps {
+  base: string;              // Base path for routing
+  name: string;              // Fragment identifier
+  [key: string]: unknown;    // Dynamic props (any type)
+}
+----
+
+**Usage in fragments:**
+
+[source,typescript]
+----
+import { frameSDK } from '@micro-fe/fragment-elements/sdk';
+
+await frameSDK.initialize();
+
+// Access props
+console.log(frameSDK.props.name);   // "my-app"
+console.log(frameSDK.props.base);   // "/my-app"
+console.log(frameSDK.props.theme);  // Custom prop
+----
+
+**Extending for type safety:**
+
+[source,typescript]
+----
+import type { FragmentFrameProps } from '@micro-fe/fragment-elements/types';
+
+interface MyFragmentProps extends FragmentFrameProps {
+  apiUrl: string;
+  theme: 'light' | 'dark';
+  userId: string;
+  onSave: (data: unknown) => Promise<void>;
+  onCancel: () => void;
+}
+
+const props = frameSDK.props as MyFragmentProps;
+console.log(props.apiUrl);  // Type-safe access
+await props.onSave({ name: 'John' });
+----
+
+=== SerializedFunction
+
+Internal representation of serialized functions:
+
+[source,typescript]
+----
+interface SerializedFunction {
+  __fn: string;       // UUID token for function
+  __meta?: {
+    name?: string;    // Original function name
+  };
+}
+----
+
+**You don't use this directly.** It's handled internally by serialization.
+
+== Message Types
+
+=== MessageType
+
+Union of all message type constants:
+
+[source,typescript]
+----
+type MessageType =
+  | '__INIT__'
+  | '__READY__'
+  | '__ATTRIBUTE_CHANGE__'
+  | '__EVENT__'
+  | '__CUSTOM_EVENT__'
+  | '__FUNCTION_CALL__'
+  | '__FUNCTION_RESPONSE__'
+  | '__FUNCTION_RELEASE__';
+----
+
+=== BaseMessage
+
+Base interface for all messages:
+
+[source,typescript]
+----
+interface BaseMessage {
+  type: MessageType;
+}
+----
+
+=== InitMessage
+
+Sent from parent to fragment on initialization:
+
+[source,typescript]
+----
+interface InitMessage extends BaseMessage {
+  type: '__INIT__';
+  payload: FragmentFrameProps;  // Serialized props
+}
+----
+
+=== ReadyMessage
+
+Sent from fragment to parent when ready:
+
+[source,typescript]
+----
+interface ReadyMessage extends BaseMessage {
+  type: '__READY__';
+}
+----
+
+=== AttributeChangeMessage
+
+Sent from parent to fragment when attribute/property changes:
+
+[source,typescript]
+----
+interface AttributeChangeMessage extends BaseMessage {
+  type: '__ATTRIBUTE_CHANGE__';
+  attribute: string;   // Property name (camelCase)
+  value: unknown;      // Serialized new value
+}
+----
+
+=== EventMessage
+
+Sent from parent to fragment to deliver event:
+
+[source,typescript]
+----
+interface EventMessage extends BaseMessage {
+  type: '__EVENT__';
+  name: string;        // Event name
+  data?: unknown;      // Optional event data
+}
+----
+
+=== CustomEventMessage
+
+Sent from fragment to parent to emit custom event:
+
+[source,typescript]
+----
+interface CustomEventMessage extends BaseMessage {
+  type: '__CUSTOM_EVENT__';
+  payload: CustomEventPayload;
+}
+
+interface CustomEventPayload {
+  name: string;        // Event name
+  data?: unknown;      // Optional event data
+}
+----
+
+=== FunctionCallMessage
+
+Sent when calling a remote function:
+
+[source,typescript]
+----
+interface FunctionCallMessage extends BaseMessage {
+  type: '__FUNCTION_CALL__';
+  callId: string;      // Unique call identifier
+  fnId: string;        // Function UUID
+  params: unknown[];   // Serialized parameters
+}
+----
+
+=== FunctionResponseMessage
+
+Sent as response to function call:
+
+[source,typescript]
+----
+interface FunctionResponseMessage extends BaseMessage {
+  type: '__FUNCTION_RESPONSE__';
+  callId: string;      // Matches FunctionCallMessage.callId
+  success: boolean;    // true if successful, false if error
+  result?: unknown;    // Serialized return value (if success)
+  error?: string;      // Error message (if failed)
+}
+----
+
+=== FunctionReleaseMessage
+
+Sent to release function from registry:
+
+[source,typescript]
+----
+interface FunctionReleaseMessage extends BaseMessage {
+  type: '__FUNCTION_RELEASE__';
+  fnId: string;        // Function UUID to release
+}
+----
+
+=== FunctionReleaseBatchMessage
+
+Sent to release multiple functions from registry at once (optimization for bulk cleanup):
+
+[source,typescript]
+----
+interface FunctionReleaseBatchMessage extends BaseMessage {
+  type: '__FUNCTION_RELEASE_BATCH__';
+  fnIds: string[];     // Array of Function UUIDs to release
+}
+----
+
+**Benefits:**
+* Reduces message overhead when releasing many functions
+* Single message instead of multiple FUNCTION_RELEASE messages
+* Useful during cleanup when many functions need to be released
+
+**Example:**
+
+[source,typescript]
+----
+// Instead of multiple messages:
+port.postMessage({ type: '__FUNCTION_RELEASE__', fnId: 'fn-1' });
+port.postMessage({ type: '__FUNCTION_RELEASE__', fnId: 'fn-2' });
+port.postMessage({ type: '__FUNCTION_RELEASE__', fnId: 'fn-3' });
+
+// Use single batch message:
+port.postMessage({
+  type: '__FUNCTION_RELEASE_BATCH__',
+  fnIds: ['fn-1', 'fn-2', 'fn-3']
+});
+----
+
+=== Message Union
+
+All message types combined:
+
+[source,typescript]
+----
+type Message =
+  | InitMessage
+  | ReadyMessage
+  | AttributeChangeMessage
+  | EventMessage
+  | CustomEventMessage
+  | FunctionCallMessage
+  | FunctionResponseMessage
+  | FunctionReleaseMessage
+  | FunctionReleaseBatchMessage;
+----
+
+=== PostMessageFn
+
+Callback function type for sending messages via MessagePort.postMessage:
+
+[source,typescript]
+----
+type PostMessageFn = (message: unknown, transferables?: Transferable[]) => void;
+----
+
+**Usage:**
+
+Used by FunctionManager to send messages to the other side (parent or child):
+
+[source,typescript]
+----
+import type { PostMessageFn } from '@micro-fe/fragment-elements/types';
+
+const postMessage: PostMessageFn = (msg, transferables = []) => {
+  port.postMessage(msg, transferables);
+};
+
+const manager = new FunctionManager(postMessage);
+----
+
+== Constants
+
+=== MessageEvent
+
+Constant values for message types:
+
+[source,typescript]
+----
+export const MessageEvent = {
+  // Lifecycle
+  INIT: '__INIT__',
+  READY: '__READY__',
+
+  // Properties
+  ATTRIBUTE_CHANGE: '__ATTRIBUTE_CHANGE__',
+
+  // Events
+  EVENT: '__EVENT__',
+  CUSTOM_EVENT: '__CUSTOM_EVENT__',
+
+  // Functions
+  FUNCTION_CALL: '__FUNCTION_CALL__',
+  FUNCTION_RESPONSE: '__FUNCTION_RESPONSE__',
+  FUNCTION_RELEASE: '__FUNCTION_RELEASE__',
+  FUNCTION_RELEASE_BATCH: '__FUNCTION_RELEASE_BATCH__',
+} as const;
+----
+
+**Usage:**
+
+[source,typescript]
+----
+import { MessageEvent } from '@micro-fe/fragment-elements/constants';
+
+if (message.type === MessageEvent.READY) {
+  // Handle ready
+}
+----
+
+=== Configuration Constants
+
+==== FUNCTION_CALL_TIMEOUT
+
+Timeout for remote function calls in milliseconds.
+
+[source,typescript]
+----
+export const FUNCTION_CALL_TIMEOUT = 5000; // 5 seconds
+----
+
+**Default:** 5000ms (5 seconds)
+
+**Purpose:** Prevents hanging function calls. If a function doesn't respond within this time, the call is rejected with a timeout error.
+
+**Example:**
+
+[source,typescript]
+----
+// This function will timeout after 5 seconds
+fragment.slowOperation = async () => {
+  await new Promise(resolve => setTimeout(resolve, 10000)); // 10 seconds
+  return 'done';
+};
+
+// Fragment calls it
+try {
+  await frameSDK.props.slowOperation();
+} catch (error) {
+  console.error('Timeout:', error); // Error: Function call timeout
+}
+----
+
+==== SERIALIZATION_MAX_DEPTH
+
+Maximum depth for object serialization to prevent stack overflow.
+
+[source,typescript]
+----
+export const SERIALIZATION_MAX_DEPTH = 100;
+----
+
+**Default:** 100 levels
+
+**Purpose:** Prevents stack overflow from deeply nested objects when serializing properties and event data.
+
+**Behavior:** If an object exceeds this depth, serialization will stop at the maximum depth and log a warning.
+
+**Example:**
+
+[source,typescript]
+----
+// This deeply nested object will be truncated
+const deepObject = { level1: { level2: { /* ... 100+ levels ... */ } } };
+
+fragment.data = deepObject;
+// Warning: Maximum serialization depth exceeded
+
+// Best practice: Keep data structures flat
+const flatObject = {
+  id: 1,
+  items: [{ id: 1 }, { id: 2 }],
+  metadata: { created: Date.now() }
+};
+
+fragment.data = flatObject; // OK
+----
+
+**Best Practices:**
+
+* Keep data structures as flat as possible
+* Use arrays instead of deeply nested objects
+* Extract nested data into separate properties
+* Avoid circular references
+
+==== FUNCTION_REGISTRY_MAX_SIZE
+
+Maximum number of functions that can be registered in the function registry.
+
+[source,typescript]
+----
+export const FUNCTION_REGISTRY_MAX_SIZE = 1000;
+----
+
+**Default:** 1000 functions
+
+**Purpose:** Prevents denial-of-service attacks via memory exhaustion from registering too many functions.
+
+**Behavior:** If the limit is reached, new function serialization attempts will fail with a warning.
+
+**Example:**
+
+[source,typescript]
+----
+// This will fail after 1000 functions
+for (let i = 0; i < 2000; i++) {
+  fragment[`handler${i}`] = () => console.log(i);
+}
+// Warning: Function registry limit (1000) exceeded. Cannot serialize more functions.
+----
+
+**Best Practices:**
+
+* Avoid passing many functions as properties
+* Use object-based APIs instead of many individual callbacks
+* Release functions when they are no longer needed
+
+==== IFRAME_LOAD_TIMEOUT
+
+Timeout for iframe loading in milliseconds.
+
+[source,typescript]
+----
+export const IFRAME_LOAD_TIMEOUT = 10000; // 10 seconds
+----
+
+**Default:** 10000ms (10 seconds)
+
+**Purpose:** Prevents indefinite waiting if iframe fails to load. Triggers error event if iframe doesn't load within timeout.
+
+**Behavior:**
+
+[source,typescript]
+----
+// In FragmentFrame initialization
+await new Promise((resolve, reject) => {
+  const timeout = setTimeout(() => {
+    reject(new Error('Iframe load timeout after 10s'));
+  }, IFRAME_LOAD_TIMEOUT);
+
+  this._iframe.addEventListener('load', () => {
+    clearTimeout(timeout);
+    resolve();
+  });
+});
+----
+
+==== INIT_TIMEOUT
+
+Timeout for receiving INIT message in milliseconds.
+
+[source,typescript]
+----
+export const INIT_TIMEOUT = 10000; // 10 seconds
+----
+
+**Default:** 10000ms (10 seconds)
+
+**Purpose:** Prevents indefinite waiting if INIT message is not received from the fragment.
+
+**Usage:**
+
+[source,typescript]
+----
+// SDK initialization with timeout
+await Promise.race([
+  frameSDK.initialize(),
+  new Promise((_, reject) =>
+    setTimeout(() => reject(new Error('Initialization timeout')), INIT_TIMEOUT)
+  )
+]);
+----
+
+==== ERROR_MESSAGES
+
+Standardized error message constants for consistent error handling.
+
+[source,typescript]
+----
+export const ERROR_MESSAGES = {
+  ARRAY_BOUNDS: 'No MessagePort received in INIT message',
+  CIRCULAR_REFERENCE: 'Circular reference detected',
+  DATA_CLONE_ERROR: 'Cannot clone message data - circular reference or unsupported type',
+  FUNCTION_NOT_FOUND: 'Function not found',
+  FUNCTION_REGISTRY_EXCEEDED: 'Function registry limit exceeded',
+  FUNCTION_TIMEOUT: 'Function call timeout',
+  IFRAME_CONTENT_WINDOW: 'Iframe contentWindow is not accessible',
+  IFRAME_LOAD_FAILED: 'Failed to load iframe',
+  IFRAME_LOAD_TIMEOUT: 'Iframe load timeout after 10s',
+  INIT_TIMEOUT: 'Initialization timeout: INIT message not received within timeout',
+  INVALID_ATTRIBUTE_MESSAGE: 'Invalid ATTRIBUTE_CHANGE message',
+  INVALID_CUSTOM_EVENT_MESSAGE: 'Invalid CUSTOM_EVENT message',
+  INVALID_EVENT_MESSAGE: 'Invalid EVENT message',
+  INVALID_EVENT_NAME: 'Invalid event name',
+  INVALID_FUNCTION_CALL_MESSAGE: 'Invalid FUNCTION_CALL message',
+  INVALID_FUNCTION_RELEASE_BATCH_MESSAGE: 'Invalid FUNCTION_RELEASE_BATCH message',
+  INVALID_FUNCTION_RELEASE_MESSAGE: 'Invalid FUNCTION_RELEASE message',
+  INVALID_FUNCTION_RESPONSE_MESSAGE: 'Invalid FUNCTION_RESPONSE message',
+  INVALID_MESSAGE_FORMAT: 'Invalid message format',
+  INVALID_MESSAGE_TYPE: 'Invalid message type (not a string)',
+  INVALID_STATE_ERROR: 'MessagePort is in invalid state (possibly closed)',
+  MESSAGE_HANDLER_ERROR: 'Error handling message from iframe',
+  MESSAGE_SEND_FAILED: 'Failed to send message',
+  MISSING_REQUIRED_ATTRIBUTES: 'Missing required attributes: name and src',
+  PORT_NOT_READY: 'MessagePort not ready',
+  SERIALIZATION_DEPTH_EXCEEDED: 'Serialization depth limit exceeded at level',
+  UNKNOWN_ERROR: 'Unknown error',
+  UNKNOWN_MESSAGE_TYPE: 'Unknown message type',
+} as const;
+----
+
+**Usage:**
+
+[source,typescript]
+----
+import { ERROR_MESSAGES } from '@micro-fe/fragment-elements/constants';
+
+if (error.message === ERROR_MESSAGES.FUNCTION_NOT_FOUND) {
+  // Handle function not found error
+} else if (error.message === ERROR_MESSAGES.IFRAME_LOAD_TIMEOUT) {
+  // Handle iframe load timeout
+}
+----
+
+==== WARNING_MESSAGES
+
+Standardized warning message constants for consistent logging.
+
+[source,typescript]
+----
+export const WARNING_MESSAGES = {
+  ALREADY_INITIALIZED: 'Already initialized, ignoring duplicate call',
+  DUPLICATE_INIT: 'Ignoring duplicate INIT message',
+  EVENT_CONFLICTS_BUILTIN: 'Event name conflicts with built-in property',
+  FORBIDDEN_ATTRIBUTE: 'Forbidden attribute name',
+  FORBIDDEN_EVENT: 'Forbidden event name',
+  RELEASE_ERROR: 'Error sending release messages',
+} as const;
+----
+
+**Usage:**
+
+[source,typescript]
+----
+import { WARNING_MESSAGES } from '@micro-fe/fragment-elements/constants';
+
+if (message === WARNING_MESSAGES.ALREADY_INITIALIZED) {
+  // Handle duplicate initialization warning
+}
+----
+
+=== VALID_MESSAGE_TYPES
+
+Set of all valid message types for validation.
+
+[source,typescript]
+----
+export const VALID_MESSAGE_TYPES = new Set([
+  '__INIT__',
+  '__READY__',
+  '__ATTRIBUTE_CHANGE__',
+  '__EVENT__',
+  '__CUSTOM_EVENT__',
+  '__FUNCTION_CALL__',
+  '__FUNCTION_RESPONSE__',
+  '__FUNCTION_RELEASE__',
+  '__FUNCTION_RELEASE_BATCH__',
+]);
+----
+
+**Purpose:** Used to reject unknown or malicious message types.
+
+**Usage:**
+
+Internal message validation:
+
+[source,typescript]
+----
+if (!VALID_MESSAGE_TYPES.has(message.type)) {
+  console.warn(`Unknown message type (potential attack): ${message.type}`);
+  return;
+}
+----
+
+== Type Guards
+
+You can create type guards for message handling:
+
+[source,typescript]
+----
+import type { Message, InitMessage, ReadyMessage } from '@micro-fe/fragment-elements/types';
+import { MessageEvent } from '@micro-fe/fragment-elements/constants';
+
+function isInitMessage(msg: Message): msg is InitMessage {
+  return msg.type === MessageEvent.INIT;
+}
+
+function isReadyMessage(msg: Message): msg is ReadyMessage {
+  return msg.type === MessageEvent.READY;
+}
+
+// Usage
+if (isInitMessage(message)) {
+  console.log(message.payload.name); // Type-safe
+}
+----
+
+== Example: Complete Type Setup
+
+=== Parent Application
+
+[source,typescript]
+----
+import { FragmentFrame } from '@micro-fe/fragment-elements';
+
+// Define expected props interface
+interface MyFragmentProps {
+  apiUrl: string;
+  theme: 'light' | 'dark';
+  onSave: (data: SaveData) => Promise<SaveResult>;
+  onCancel: () => void;
+}
+
+interface SaveData {
+  name: string;
+  email: string;
+}
+
+interface SaveResult {
+  success: boolean;
+  id?: string;
+}
+
+// Create fragment with typed props
+const fragment = document.createElement('fragment-frame') as FragmentFrame;
+fragment.setAttribute('name', 'user-form');
+fragment.setAttribute('src', 'http://localhost:3000');
+
+// Type-safe property assignment
+const typedFragment = fragment as FragmentFrame & MyFragmentProps;
+typedFragment.apiUrl = 'https://api.example.com';
+typedFragment.theme = 'dark';
+typedFragment.onSave = async (data) => {
+  const response = await fetch('/api/save', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+  return { success: response.ok, id: await response.text() };
+};
+typedFragment.onCancel = () => {
+  router.back();
+};
+----
+
+=== Fragment Application
+
+[source,typescript]
+----
+import { frameSDK } from '@micro-fe/fragment-elements/sdk';
+import type { FragmentFrameProps } from '@micro-fe/fragment-elements/types';
+
+// Define expected props interface (same as parent)
+interface MyFragmentProps extends FragmentFrameProps {
+  apiUrl: string;
+  theme: 'light' | 'dark';
+  onSave: (data: SaveData) => Promise<SaveResult>;
+  onCancel: () => void;
+}
+
+interface SaveData {
+  name: string;
+  email: string;
+}
+
+interface SaveResult {
+  success: boolean;
+  id?: string;
+}
+
+// Initialize SDK
+await frameSDK.initialize();
+
+// Type-safe props access
+const props = frameSDK.props as MyFragmentProps;
+
+console.log(props.apiUrl);   // string
+console.log(props.theme);    // 'light' | 'dark'
+
+// Call parent functions with types
+const result = await props.onSave({
+  name: 'John',
+  email: 'john@example.com',
+});
+console.log(result.success); // boolean
+console.log(result.id);      // string | undefined
+
+// Listen to attribute changes
+frameSDK.on('attr:theme', (theme) => {
+  const typedTheme = theme as 'light' | 'dark';
+  applyTheme(typedTheme);
+});
+----

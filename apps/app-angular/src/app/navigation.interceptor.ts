@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { NavigationEnd, Router } from '@angular/router';
-import { microAppSDK } from '@shared/sdk';
+import { frameSDK } from '@micro-fe/fragment-elements/sdk';
 import { filter } from 'rxjs';
 
 @Injectable({
@@ -14,11 +14,8 @@ export class NavigationInterceptor {
     this.router.events
       .pipe(filter((event) => event instanceof NavigationEnd))
       .subscribe((event: NavigationEnd) => {
-        const config = microAppSDK.getConfig();
-        const fullPath = `${config.base}${event.urlAfterRedirects}`;
-
-        // Notify parent app about navigation changes
-        microAppSDK.navigate(fullPath, false);
+        // Notify parent app about navigation changes (just the local path)
+        frameSDK.emit('navigate', { path: event.urlAfterRedirects });
       });
   }
 }

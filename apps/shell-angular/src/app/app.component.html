@@ -1,0 +1,70 @@
+<div class="app-shell">
+  <header class="header">
+    <h1>Micro Frontend App Shell</h1>
+    <nav class="nav">
+      <a
+        *ngFor="let app of apps"
+        [routerLink]="['/' + app.name]"
+        routerLinkActive="active"
+        class="nav-link"
+      >
+        {{ app.name | titlecase }}
+      </a>
+      <button class="theme-toggle" (click)="toggleTheme()">
+        Toggle Theme ({{ currentTheme }})
+      </button>
+    </nav>
+  </header>
+
+  <main class="main">
+    <fragment-frame
+      *ngIf="activeApp === 'angular'"
+      name="angular"
+      [attr.src]="getFrameUrl('angular')"
+      [user]="currentUser"
+      [theme]="currentTheme"
+      [successCallback]="handleAngularSuccess"
+      [actionCallback]="handleAngularAction"
+      (ready)="onFrameReady($event)"
+      (navigate)="onFrameNavigate($event)"
+      (error)="onFrameError($event)"
+      (action-clicked)="onActionClicked($event)"
+    ></fragment-frame>
+
+    <fragment-frame
+      *ngIf="activeApp === 'vue'"
+      name="vue"
+      [attr.src]="getFrameUrl('vue')"
+      [theme]="currentTheme"
+      (ready)="onFrameReady($event)"
+      (navigate)="onFrameNavigate($event)"
+      (error)="onFrameError($event)"
+      (counter-changed)="onCounterChanged($event)"
+    ></fragment-frame>
+
+    <fragment-frame
+      *ngIf="activeApp === 'react'"
+      name="react"
+      [attr.src]="getFrameUrl('react')"
+      [attr.base]="'/react'"
+      [metricsData]="metricsArrayBuffer"
+      [fetchDataCallback]="handleFetchData"
+      (ready)="onFrameReady($event)"
+      (navigate)="onFrameNavigate($event)"
+      (error)="onFrameError($event)"
+      (data-loaded)="onDataLoaded($event)"
+      (large-data)="onLargeData($event)"
+    ></fragment-frame>
+
+    <fragment-frame
+      *ngIf="activeApp === 'solid'"
+      name="solid"
+      [attr.src]="getFrameUrl('solid')"
+      [messages]="chatMessages"
+      (ready)="onFrameReady($event)"
+      (navigate)="onFrameNavigate($event)"
+      (error)="onFrameError($event)"
+      (message-sent)="onMessageSent($event)"
+    ></fragment-frame>
+  </main>
+</div>

@@ -1,11 +1,11 @@
-# Angular Micro-App
+# Angular Fragment App
 
-Angular 18 micro-frontend application integrated with the shared micro-app SDK.
+Angular 18 micro-frontend application integrated with the Fragment Elements SDK.
 
 ## Features
 
 - Angular 18 with standalone components
-- Integrated with `@shared/core` SDK for micro-frontend communication
+- Integrated with `@micro-fe/fragment-elements/sdk` for micro-frontend communication
 - Automatic navigation sync with parent app
 - Theme and attribute change listeners
 - Sample pages: Home, Users, Settings
@@ -38,13 +38,13 @@ apps/app-angular/
 
 ## SDK Integration
 
-The app integrates with the micro-app SDK in `src/main.ts`:
+The app integrates with the Fragment Elements SDK in `src/main.ts`:
 
-1. **Initialize SDK** - Waits for parent app initialization
-2. **Register Methods** - Exposes `refreshData` method to parent
-3. **Listen to Attributes** - Responds to theme changes
+1. **Initialize SDK** - Waits for parent app initialization via `frameSDK.initialize()`
+2. **Access Props** - Receives props from parent via `frameSDK.props`
+3. **Listen to Attributes** - Responds to attribute changes via `frameSDK.on('attr:theme', ...)`
 4. **Listen to Events** - Handles route-change events
-5. **Navigation Sync** - Notifies parent of route changes via `navigation.interceptor.ts`
+5. **Navigation Sync** - Notifies parent of route changes via `navigation.interceptor.ts` using `frameSDK.emit('navigate', { path })`
 
 ## Scripts
 
@@ -79,19 +79,20 @@ Visit `http://localhost:4201` to view the app standalone.
 - `/users` - Users management table
 - `/settings` - Settings form
 
-## SDK Methods
+## SDK Usage
 
-### Exposed Methods
-- `refreshData()` - Called by parent to refresh app data
+### Props Access
+- Access parent props via `frameSDK.props`
+- Receive callbacks and data from parent
 
 ### Navigation
-- Automatically notifies parent on route changes
+- Automatically notifies parent on route changes via `frameSDK.emit('navigate', { path })`
 - Syncs with parent app base path
 
 ### Events
-- Listens to `attribute:theme` for theme changes
+- Listens to `attr:theme` for theme changes via `frameSDK.on('attr:theme', ...)`
 - Listens to `route-change` for external navigation
-- Emits custom events to parent app
+- Emits custom events to parent app via `frameSDK.emit()`
 
 ## Configuration
 
@@ -100,7 +101,7 @@ Extends from `../../tsconfig.base.json` with Angular-specific settings.
 
 ### Angular CLI
 Configured in `angular.json` with:
-- Output path: `dist/app-angular`
+- Output path: `dist/`
 - Port: 4201
 - Code splitting and optimization enabled
 - CORS headers for micro-frontend support
@@ -110,4 +111,4 @@ Configured in `angular.json` with:
 - Angular 18.2.x
 - RxJS 7.8.x
 - Zone.js 0.14.x
-- @shared/core (workspace package)
+- @micro-fe/fragment-elements (workspace package)

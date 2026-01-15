@@ -1,16 +1,15 @@
-import { microAppSDK } from '@micro-fe/fragment-elements/sdk';
+import { frameSDK } from '@micro-fe/fragment-elements/sdk';
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 
 async function bootstrap() {
-  await microAppSDK.initialize();
+  await frameSDK.initialize();
 
-  const config = microAppSDK.getConfig();
-  const base = config.base || '/react';
+  const base = frameSDK.props.base || '/react';
 
-  microAppSDK.on('route-change', (data) => {
+  frameSDK.on('route-change', (data) => {
     const event = data as { path: string };
     const newPath = event.path.replace(base, '') || '/';
     window.history.pushState(null, '', base + newPath);
@@ -34,5 +33,8 @@ async function bootstrap() {
 
 bootstrap().catch((error) => {
   console.error('Failed to bootstrap React micro app:', error);
-  microAppSDK.reportError(error);
+  frameSDK.emit('error', {
+    error: error instanceof Error ? error.message : String(error),
+    source: 'bootstrap'
+  });
 });
