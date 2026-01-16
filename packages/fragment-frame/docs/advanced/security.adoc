@@ -1,0 +1,590 @@
+= Security
+
+Fragment Frame is designed with security as a priority, using iframe sandboxing and origin validation.
+
+== Security Layers Architecture
+
+Fragment Frame implements multiple layers of security to protect both parent and fragment applications:
+
+[mermaid]
+----
+graph TB
+    subgraph "Layer 1: iframe Sandbox"
+        A[iframe sandbox attributes]
+        A1[Prevents: DOM access, top navigation, plugin execution]
+    end
+
+    subgraph "Layer 2: Origin Validation"
+        B[INIT handshake with origin check]
+        B1[Prevents: Message injection, unauthorized fragments]
+    end
+
+    subgraph "Layer 3: MessageChannel Isolation"
+        C[Dedicated MessagePort]
+        C1[Prevents: Message interception, spoofing]
+    end
+
+    subgraph "Layer 4: Input Validation"
+        D[Runtime type checking]
+        D1[Prevents: XSS, code injection, data manipulation]
+    end
+
+    A --> B
+    B --> C
+    C --> D
+
+    style A fill:#AB47BC,stroke:#7B1FA2,stroke-width:2px,color:#fff
+    style B fill:#4A90E2,stroke:#2563EB,stroke-width:2px,color:#fff
+    style C fill:#66BB6A,stroke:#388E3C,stroke-width:2px,color:#fff
+    style D fill:#FFA726,stroke:#F57C00,stroke-width:2px,color:#000
+----
+
+Each layer provides defense-in-depth:
+
+* **Layer 1 (iframe Sandbox):** Outermost boundary preventing DOM access and navigation
+* **Layer 2 (Origin Validation):** Ensures only trusted origins can establish communication
+* **Layer 3 (MessageChannel Isolation):** Creates a private communication channel
+* **Layer 4 (Input Validation):** Runtime checks on all incoming data
+
+== iframe Sandbox
+
+=== Default Sandbox
+
+Fragments run in sandboxed iframes with these permissions:
+
+[source,html]
+----
+<iframe sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals">
+----
+
+[cols="1,2"]
+|===
+| Permission | Purpose
+
+| `allow-scripts`
+| Allow JavaScript execution
+
+| `allow-same-origin`
+| Allow same-origin requests (required for PostMessage)
+
+| `allow-forms`
+| Allow form submission
+
+| `allow-popups`
+| Allow window.open() and target="_blank"
+
+| `allow-modals`
+| Allow alert(), confirm(), prompt()
+|===
+
+=== Custom Sandbox
+
+You can restrict permissions further:
+
+[source,html]
+----
+<fragment-frame
+  name="untrusted-app"
+  src="http://localhost:3000"
+  sandbox="allow-scripts"
+></fragment-frame>
+----
+
+**Warning:** Removing `allow-same-origin` breaks PostMessage origin validation. Only remove if the fragment doesn't need to communicate with the parent.
+
+=== Sandbox Restrictions
+
+Sandboxed iframes cannot:
+
+* Access parent DOM
+* Access parent JavaScript context
+* Navigate parent window (unless `allow-top-navigation`)
+* Use plugins (Flash, Java)
+* Automatically focus elements (unless `allow-modals`)
+* Access localStorage of parent origin (unique origin)
+
+== Origin Validation
+
+=== How It Works
+
+Origin validation happens **only once during the initial INIT handshake**. After MessageChannel is established, the dedicated port provides isolation.
+
+The following sequence diagram shows the complete handshake process:
+
+[mermaid]
+----
+sequenceDiagram
+    participant P as Parent Application
+    participant W as window.postMessage
+    participant F as Fragment Application
+    participant MC as MessageChannel
+
+    P->>MC: Create MessageChannel
+    Note over MC: port1 (parent), port2 (fragment)
+
+    P->>W: postMessage(__INIT__, origin, [port2])
+    Note over P: Explicit origin target
+
+    W->>F: message event
+
+    alt Origin is valid
+        F->>F: Validate event.origin
+        Note over F: expectedOrigin matches
+        F->>F: Extract MessagePort from event.ports[0]
+        F->>F: Store _parentOrigin
+        F->>F: Setup port.onmessage handler
+        F->>MC: Send __READY__ via port
+        Note over MC: Secure channel established
+        MC->>P: Receive __READY__
+        Note over P,F: All future messages via MessageChannel
+    else Origin is invalid
+        F->>F: Log error
+        Note over F: Reject message, ignore
+        F--xW: No response
+    end
+
+    Note over P,F: MessageChannel provides isolated communication<br/>No origin checks needed on subsequent messages
+----
+
+[source,typescript]
+----
+// Parent: Send INIT via window.postMessage (one-time only)
+iframe.contentWindow.postMessage(
+  { type: '__INIT__', payload: props },
+  this._origin,  // Explicit target origin
+  [channel.port2] // Transfer MessagePort
+);
+
+// Fragment: Validate origin on INIT (one-time only)
+window.addEventListener('message', (event) => {
+  if (event.data.type === '__INIT__') {
+    // Validate origin ONCE during handshake
+    if (event.origin !== expectedOrigin) {
+      console.error('Invalid origin:', event.origin);
+      return;
+    }
+
+    // Store validated origin
+    this._parentOrigin = event.origin;
+
+    // Extract MessagePort from transfer
+    this._port = event.ports[0];
+
+    // All future communication via isolated port
+    this._port.onmessage = (event) => {
+      // No origin checking needed - MessageChannel is isolated
+      this.handleMessage(event.data);
+    };
+  }
+}, { once: true });
+----
+
+**Security guarantees:**
+
+* Origin validated once during initial handshake
+* MessagePort transferred only to validated origin
+* MessageChannel provides isolated communication (no interception possible)
+* Malicious scripts cannot access or inject messages into the channel
+* No origin checking overhead on every message (performance + security)
+
+=== Target Origin
+
+The target origin is extracted from the `src` attribute:
+
+[source,typescript]
+----
+this._origin = new URL(src).origin;
+// "http://localhost:3000" -> "http://localhost:3000"
+// "https://api.example.com/app" -> "https://api.example.com"
+----
+
+**Note:** Origin validation in the SDK is **optional**. The `expectedOrigin` parameter can be `undefined`, in which case no validation is performed. This is useful for development environments or when the parent origin is not known in advance.
+
+The INIT message is sent with explicit origin validation:
+
+[source,typescript]
+----
+// Parent sends INIT with explicit target origin
+iframe.contentWindow.postMessage(
+  { type: '__INIT__', payload: props },
+  this._origin,  // NEVER use '*'
+  [channel.port2]
+);
+----
+
+**Never use `postMessage(message, '*')`** - this allows any origin to receive the message and compromises security.
+
+After MessageChannel is established, all subsequent messages use the isolated port and don't need origin specification.
+
+== Content Security Policy (CSP)
+
+=== Parent Application CSP
+
+Recommended CSP for parent application:
+
+[source,html]
+----
+<meta http-equiv="Content-Security-Policy" content="
+  default-src 'self';
+  script-src 'self';
+  style-src 'self' 'unsafe-inline';
+  frame-src http://localhost:3000 http://localhost:3001;
+  connect-src 'self' https://api.example.com;
+">
+----
+
+**`frame-src` must include all fragment origins** you want to load.
+
+=== Fragment Application CSP
+
+Fragment applications should also use CSP:
+
+[source,html]
+----
+<meta http-equiv="Content-Security-Policy" content="
+  default-src 'self';
+  script-src 'self';
+  style-src 'self' 'unsafe-inline';
+  connect-src 'self' https://api.example.com;
+  frame-ancestors http://localhost:5000;
+">
+----
+
+**`frame-ancestors`** restricts which origins can embed the fragment.
+
+== XSS Prevention
+
+=== Attribute Sanitization
+
+Fragment Frame does NOT sanitize attribute values. You must sanitize user input:
+
+[source,typescript]
+----
+// ❌ Bad: XSS vulnerability
+const userInput = getUserInput();
+fragment.setAttribute('user-name', userInput);
+
+// ✅ Good: Sanitize first
+import DOMPurify from 'dompurify';
+const sanitized = DOMPurify.sanitize(userInput);
+fragment.setAttribute('user-name', sanitized);
+----
+
+=== Function Execution
+
+Functions are executed directly in their original context - they are NEVER evaluated as strings:
+
+[source,typescript]
+----
+// Safe: Function is called directly
+fragment.onSave = (data) => {
+  console.log(data);
+};
+
+// The function reference is stored and called directly.
+// No string evaluation or code generation is involved.
+----
+
+== CORS and Same-Origin Policy
+
+=== PostMessage and CORS
+
+PostMessage **ignores CORS** - it works across origins. This is intentional for micro-frontends.
+
+=== Fragment API Requests
+
+Fragments making API requests are subject to CORS:
+
+[source,typescript]
+----
+// Fragment at http://localhost:3000
+fetch('https://api.example.com/users')
+  .then(r => r.json())
+  .catch(err => {
+    // CORS error if API doesn't allow localhost:3000
+  });
+----
+
+**Solution 1: Configure CORS on API**
+
+[source,javascript]
+----
+// API server
+app.use(cors({
+  origin: ['http://localhost:3000', 'http://localhost:3001'],
+  credentials: true,
+}));
+----
+
+**Solution 2: Proxy requests through parent**
+
+[source,typescript]
+----
+// Parent provides API proxy
+fragment.apiClient = {
+  get: async (url) => {
+    const response = await fetch(`https://api.example.com${url}`, {
+      credentials: 'include',
+    });
+    return response.json();
+  },
+};
+
+// Fragment uses proxy
+const users = await frameSDK.props.apiClient.get('/users');
+----
+
+== Sensitive Data
+
+=== Avoid Passing Secrets
+
+Never pass sensitive data via attributes:
+
+[source,typescript]
+----
+// ❌ Bad: Exposes API key
+fragment.apiKey = 'secret-key-123';
+
+// ✅ Good: Fragment has its own key
+// Fragment loads key from secure storage or environment
+----
+
+=== Token Storage
+
+If fragments need authentication, choose one of three approaches based on your security requirements:
+
+[mermaid]
+----
+flowchart TD
+    Start([Fragment needs authentication?])
+    Start --> Q1{Can API server<br/>manage sessions?}
+
+    Q1 -->|Yes| Option1[Option 1: HTTP-only Cookies]
+    Option1 --> Pro1["✅ Most secure<br/>✅ Automatic with requests<br/>✅ Not accessible to JS<br/>✅ CSRF protection"]
+    Pro1 --> Rec1[RECOMMENDED]
+
+    Q1 -->|No| Q2{Parent or Fragment<br/>manages auth?}
+
+    Q2 -->|Parent| Option2[Option 2: Parent-managed Tokens]
+    Option2 --> Pro2["✅ Centralized control<br/>✅ Fragments stay stateless<br/>⚠️ Parent provides API client<br/>⚠️ Token in memory"]
+
+    Q2 -->|Fragment| Option3[Option 3: Fragment-managed Tokens]
+    Option3 --> Pro3["✅ Fragment independence<br/>⚠️ Parent validates requests<br/>⚠️ Token exposed to fragment<br/>⚠️ Requires trust"]
+
+    style Option1 fill:#66BB6A,stroke:#388E3C,stroke-width:2px,color:#fff
+    style Option2 fill:#4A90E2,stroke:#2563EB,stroke-width:2px,color:#fff
+    style Option3 fill:#FFA726,stroke:#F57C00,stroke-width:2px,color:#000
+    style Rec1 fill:#66BB6A,stroke:#388E3C,stroke-width:3px,color:#fff
+----
+
+**Option 1: HTTP-only cookies** (recommended)
+
+* Set by API server
+* Automatically sent with requests
+* Not accessible to JavaScript
+
+**Option 2: Parent-managed tokens**
+
+[source,typescript]
+----
+// Parent provides API client with token
+fragment.apiClient = {
+  get: async (url) => {
+    const token = await getAuthToken(); // Parent manages token
+    const response = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return response.json();
+  },
+};
+----
+
+**Option 3: Fragment-managed tokens**
+
+* Fragment requests token from parent via function call
+* Parent returns token only after validation
+
+[source,typescript]
+----
+// Parent
+fragment.requestToken = async (purpose) => {
+  if (purpose === 'api-access' && userIsAuthenticated()) {
+    return currentToken;
+  }
+  throw new Error('Unauthorized');
+};
+
+// Fragment
+const token = await frameSDK.props.requestToken('api-access');
+----
+
+== Clickjacking Protection
+
+=== X-Frame-Options
+
+Fragment applications should set `X-Frame-Options` to prevent embedding by unauthorized origins:
+
+[source,http]
+----
+X-Frame-Options: ALLOW-FROM http://localhost:5000
+----
+
+Or use CSP `frame-ancestors`:
+
+[source,http]
+----
+Content-Security-Policy: frame-ancestors http://localhost:5000 https://app.example.com
+----
+
+== Input Validation
+
+=== Validate All Inputs
+
+Never trust data from the parent:
+
+[source,typescript]
+----
+// Fragment validates all props
+if (typeof frameSDK.props.userId !== 'number') {
+  throw new Error('Invalid userId');
+}
+
+if (frameSDK.props.userId < 1) {
+  throw new Error('userId must be positive');
+}
+----
+
+=== Type Checking
+
+Use TypeScript to enforce types:
+
+[source,typescript]
+----
+interface MyFragmentProps extends FragmentFrameProps {
+  apiUrl: string;
+  theme: 'light' | 'dark';
+  userId: number;
+}
+
+const props = frameSDK.props as MyFragmentProps;
+
+// TypeScript will catch type errors
+console.log(props.userId.toFixed(2)); // OK
+console.log(props.theme.toUpperCase()); // OK
+----
+
+== Best Practices
+
+=== 1. Use HTTPS in Production
+
+[source,html]
+----
+<!-- ❌ Bad: HTTP in production -->
+<fragment-frame src="http://app.example.com"></fragment-frame>
+
+<!-- ✅ Good: HTTPS in production -->
+<fragment-frame src="https://app.example.com"></fragment-frame>
+----
+
+=== 2. Validate All Messages
+
+Both parent and fragment should validate message structure:
+
+[source,typescript]
+----
+// Fragment validates message type
+if (!message || typeof message.type !== 'string') {
+  console.warn('Invalid message', message);
+  return;
+}
+----
+
+=== 3. Limit Sandbox Permissions
+
+Only grant permissions that are needed:
+
+[source,html]
+----
+<!-- If fragment doesn't need forms -->
+<fragment-frame sandbox="allow-scripts allow-same-origin"></fragment-frame>
+
+<!-- If fragment doesn't need popups -->
+<fragment-frame sandbox="allow-scripts allow-same-origin allow-forms"></fragment-frame>
+----
+
+=== 4. Use Subresource Integrity (SRI)
+
+If loading fragments from CDN:
+
+[source,html]
+----
+<script
+  src="https://cdn.example.com/fragment.js"
+  integrity="sha384-oqVuAfXRKap7fdgcCY5uykM6+R9GqQ8K/ux..."
+  crossorigin="anonymous"
+></script>
+----
+
+=== 5. Monitor for Suspicious Activity
+
+Log and monitor fragment errors:
+
+[source,typescript]
+----
+fragment.addEventListener('error', (event) => {
+  // Log to security monitoring service
+  securityLogger.log({
+    type: 'fragment-error',
+    fragment: fragment.getAttribute('name'),
+    error: event.detail,
+    timestamp: Date.now(),
+  });
+});
+----
+
+=== 6. Regularly Update Dependencies
+
+Keep Fragment Frame and all dependencies up to date:
+
+[source,bash]
+----
+bun update @zomme/fragment-frame
+----
+
+=== 7. Audit Third-Party Fragments
+
+Before loading third-party fragments:
+
+* Review their source code
+* Check their CSP and security headers
+* Test in isolation
+* Monitor their network requests
+
+=== 8. Implement Timeout Limits
+
+Function calls have a 5-second timeout by default (FUNCTION_CALL_TIMEOUT = 5000):
+
+[source,typescript]
+----
+// This is the current default timeout
+const FUNCTION_CALL_TIMEOUT = 5000; // 5 seconds
+
+// You can adjust this in constants.ts if needed
+----
+
+== Security Checklist
+
+Before deploying to production:
+
+- [ ] All fragments use HTTPS
+- [ ] CSP configured for parent and fragments
+- [ ] `frame-ancestors` set on fragment applications
+- [ ] Sandbox permissions minimized
+- [ ] No secrets passed via attributes
+- [ ] All inputs validated
+- [ ] Error monitoring in place
+- [ ] Dependencies up to date
+- [ ] Third-party fragments audited
+- [ ] Authentication/authorization implemented
+- [ ] CORS properly configured
+- [ ] XSS prevention measures in place

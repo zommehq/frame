@@ -1,0 +1,93 @@
+<app-page-layout title="Task Management" subtitle="Props + Events + Search functionality">
+	<div *ngIf="!isReady" class="loading">Loading SDK...</div>
+
+	<div *ngIf="isReady" class="content">
+		<div class="stats-bar">
+			<div class="stat">
+				<span class="stat-label">Total</span>
+				<span class="stat-value">{{ taskStats().total }}</span>
+			</div>
+			<div class="stat">
+				<span class="stat-label">Active</span>
+				<span class="stat-value active">{{ taskStats().active }}</span>
+			</div>
+			<div class="stat">
+				<span class="stat-label">Completed</span>
+				<span class="stat-value completed">{{ taskStats().completed }}</span>
+			</div>
+		</div>
+
+		<div class="controls">
+			<div class="search-box">
+				<input
+					class="search-input"
+					placeholder="Search tasks..."
+					type="text"
+					[value]="searchQuery()"
+					(input)="handleSearch($event)"
+				/>
+			</div>
+
+			<div class="filter-buttons">
+				<button
+					class="filter-btn"
+					[class.active]="filter() === 'all'"
+					(click)="setFilter('all')"
+				>
+					All
+				</button>
+				<button
+					class="filter-btn"
+					[class.active]="filter() === 'active'"
+					(click)="setFilter('active')"
+				>
+					Active
+				</button>
+				<button
+					class="filter-btn"
+					[class.active]="filter() === 'completed'"
+					(click)="setFilter('completed')"
+				>
+					Completed
+				</button>
+			</div>
+
+			<button class="add-btn" (click)="addTask()">+ Add Task</button>
+		</div>
+
+		<div class="tasks">
+			<div
+				*ngFor="let task of filteredTasks()"
+				class="task-card"
+				[class.completed]="task.completed"
+			>
+				<div class="task-checkbox">
+					<input
+						type="checkbox"
+						[checked]="task.completed"
+						(change)="toggleTask(task.id)"
+					/>
+				</div>
+
+				<div class="task-content">
+					<div class="task-header">
+						<h3 class="task-title">{{ task.title }}</h3>
+						<span
+							class="task-priority"
+							[style.backgroundColor]="getPriorityColor(task.priority)"
+						>
+							{{ task.priority }}
+						</span>
+					</div>
+					<p class="task-description">{{ task.description }}</p>
+				</div>
+
+				<button class="delete-btn" (click)="deleteTask(task.id)">Delete</button>
+			</div>
+
+			<div *ngIf="filteredTasks().length === 0" class="empty-state">
+				<p>No tasks found</p>
+			</div>
+		</div>
+	</div>
+</app-page-layout>

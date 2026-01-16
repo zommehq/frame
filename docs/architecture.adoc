@@ -198,7 +198,7 @@ frame.addEventListener('large-data', (e) => {
          │    value: 'dark' }                 │
          │                                    │
          │                                    ├─ props.theme = 'dark'
-         │                                    ├─ Emit 'attr:theme'
+         │                                    ├─ Trigger watch handlers
          │                                    │
 ----
 

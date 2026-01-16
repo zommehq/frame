@@ -1,0 +1,299 @@
+= Angular Integration
+
+Fragment Frame works with Angular applications.
+
+== Parent Application (Angular)
+
+=== Enable Custom Elements
+
+[source,typescript]
+----
+// app.config.ts
+import { ApplicationConfig, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
+
+export const appConfig: ApplicationConfig = {
+  providers: [
+    // ... other providers
+  ],
+};
+
+// app.component.ts
+import { Component, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
+
+@Component({
+  selector: 'app-root',
+  schemas: [CUSTOM_ELEMENTS_SCHEMA],
+  template: `...`,
+})
+export class AppComponent {}
+----
+
+=== Basic Usage
+
+[source,typescript]
+----
+import { Component, OnInit, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
+import '@zomme/fragment-frame';
+
+@Component({
+  selector: 'app-root',
+  schemas: [CUSTOM_ELEMENTS_SCHEMA],
+  template: `
+    <fragment-frame-component
+      name="user-app"
+      src="http://localhost:3001"
+      base="/users"
+      [attr.theme]="theme"
+    ></fragment-frame-component>
+  `,
+})
+export class AppComponent {
+  theme = 'dark';
+}
+----
+
+=== Using the Angular Package
+
+The `@zomme/fragment-frame-angular` package provides Angular-specific components and services for easier integration.
+
+==== Installation
+
+[source,bash]
+----
+npm install @zomme/fragment-frame-angular
+----
+
+==== FragmentFrameComponent
+
+A standalone component that wraps the `fragment-frame` custom element with Angular bindings.
+
+[source,typescript]
+----
+import { Component } from '@angular/core';
+import { FragmentFrameComponent } from '@zomme/fragment-frame-angular';
+
+@Component({
+  selector: 'app-root',
+  standalone: true,
+  imports: [FragmentFrameComponent],
+  template: `
+    <fragment-frame
+      name="user-app"
+      src="http://localhost:3001"
+      base="/users"
+      [props]="{ theme: 'dark', apiUrl: '/api' }"
+    ></fragment-frame>
+  `,
+})
+export class AppComponent {
+  // Component logic
+}
+----
+
+==== Component Wrapper
+
+[source,typescript]
+----
+import { Component, Input, ViewChild, ElementRef, AfterViewInit, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
+import type { FragmentFrame } from '@zomme/fragment-frame';
+
+@Component({
+  selector: 'app-fragment',
+  schemas: [CUSTOM_ELEMENTS_SCHEMA],
+  template: '<fragment-frame #fragment [attr.name]="name" [attr.src]="src"></fragment-frame>',
+})
+export class FragmentComponent implements AfterViewInit {
+  @Input() name!: string;
+  @Input() src!: string;
+  @Input() apiUrl?: string;
+  @Input() theme?: string;
+
+  @ViewChild('fragment') fragmentRef!: ElementRef<FragmentFrame>;
+
+  ngAfterViewInit() {
+    const fragment = this.fragmentRef.nativeElement;
+    if (this.apiUrl) fragment.apiUrl = this.apiUrl;
+    if (this.theme) fragment.theme = this.theme;
+  }
+}
+----
+
+== Fragment Application (Angular)
+
+=== Using FrameSDKService
+
+The `@zomme/fragment-frame-angular` package provides `FrameSDKService` for reactive integration with the Frame SDK.
+
+==== Service Features
+
+[source,typescript]
+----
+import { Component, OnInit } from '@angular/core';
+import { FrameSDKService } from '@zomme/fragment-frame-angular';
+
+@Component({
+  selector: 'app-root',
+  standalone: true,
+  template: `
+    <div [attr.data-theme]="theme">
+      @if (frameSDK.isReady$ | async) {
+        <h1>Fragment: {{ (frameSDK.props$ | async)?.name }}</h1>
+        <p>Theme: {{ theme }}</p>
+      }
+    </div>
+  `,
+})
+export class AppComponent implements OnInit {
+  theme = 'light';
+
+  constructor(public frameSDK: FrameSDKService) {}
+
+  ngOnInit() {
+    // Subscribe to props changes
+    this.frameSDK.props$.subscribe(props => {
+      console.log('Props updated:', props);
+    });
+
+    // Listen to specific attribute changes
+    this.frameSDK.onAttr('theme', (newTheme) => {
+      this.theme = newTheme;
+    });
+
+    // Listen to custom events
+    this.frameSDK.on('user:login', (data) => {
+      console.log('User logged in:', data);
+    });
+
+    // Emit events to parent
+    this.frameSDK.emit('fragment:ready', { version: '1.0.0' });
+  }
+}
+----
+
+==== Available Observables
+
+- `props$`: Observable of all fragment properties
+- `isReady$`: Observable indicating SDK initialization status
+- `sdkAvailable$`: Observable indicating if SDK is available
+
+==== Available Methods
+
+- `initialize()`: Initialize the SDK (called automatically)
+- `emit(event, data)`: Emit events to parent application
+- `on(event, handler)`: Listen to events from parent
+- `onAttr(attribute, handler)`: Listen to specific attribute changes
+- `cleanup()`: Clean up subscriptions (called automatically on destroy)
+
+=== Router Synchronization
+
+The `setupRouterSync` utility provides bidirectional route synchronization between the parent and fragment applications.
+
+[source,typescript]
+----
+import { Component } from '@angular/core';
+import { Router } from '@angular/router';
+import { FrameSDKService, setupRouterSync } from '@zomme/fragment-frame-angular';
+
+@Component({
+  selector: 'app-root',
+  standalone: true,
+  template: '<router-outlet></router-outlet>',
+})
+export class AppComponent {
+  constructor(
+    private router: Router,
+    private frameSDK: FrameSDKService
+  ) {}
+
+  ngOnInit() {
+    // Wait for SDK to initialize and get base path
+    this.frameSDK.initialize().then(() => {
+      const base = (this.frameSDK.props.base as string) || '/angular';
+      // Setup bidirectional route sync
+      setupRouterSync(this.router, base);
+    });
+  }
+}
+----
+
+The `setupRouterSync` function:
+- Syncs parent route changes to fragment router
+- Syncs fragment route changes to parent router
+- Handles cleanup automatically
+- Preserves query parameters and fragments
+
+=== Bootstrap with Standalone API
+
+Modern Angular applications should use the standalone API with `bootstrapApplication`:
+
+[source,typescript]
+----
+// main.ts
+import { bootstrapApplication } from '@angular/platform-browser';
+import { provideRouter } from '@angular/router';
+import { AppComponent } from './app/app.component';
+import { routes } from './app/app.routes';
+import { FrameSDKService } from '@zomme/fragment-frame-angular';
+
+async function bootstrap() {
+  const frameSDK = new FrameSDKService();
+  await frameSDK.initialize();
+
+  bootstrapApplication(AppComponent, {
+    providers: [
+      provideRouter(routes),
+      { provide: FrameSDKService, useValue: frameSDK },
+    ],
+  }).catch((err) => console.error(err));
+}
+
+bootstrap();
+----
+
+=== Basic Setup (Module-based - Legacy)
+
+For applications still using NgModules:
+
+[source,typescript]
+----
+import { platformBrowserDynamic } from '@angular/platform-browser-dynamic';
+import { AppModule } from './app/app.module';
+import { frameSDK } from '@zomme/fragment-frame/sdk';
+
+frameSDK.initialize().then(() => {
+  platformBrowserDynamic()
+    .bootstrapModule(AppModule)
+    .catch((err) => console.error(err));
+});
+----
+
+[source,typescript]
+----
+import { Component, OnInit } from '@angular/core';
+import { frameSDK } from '@zomme/fragment-frame/sdk';
+
+@Component({
+  selector: 'app-root',
+  template: `
+    <div [attr.data-theme]="config.theme">
+      <h1>Fragment: {{ config.name }}</h1>
+    </div>
+  `,
+})
+export class AppComponent implements OnInit {
+  config = frameSDK.props;
+  private unwatch?: () => void;
+
+  ngOnInit() {
+    this.unwatch = frameSDK.watch(['theme'], (changes) => {
+      if ('theme' in changes && changes.theme) {
+        this.config = { ...frameSDK.props };
+      }
+    });
+  }
+
+  ngOnDestroy() {
+    this.unwatch?.();
+  }
+}
+----

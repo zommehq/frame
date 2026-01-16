@@ -1,27 +1,29 @@
-import { defineConfig } from 'vite';
-import vue from '@vitejs/plugin-vue';
+import vue from "@vitejs/plugin-vue";
+import { defineConfig } from "vite";
 
 export default defineConfig({
-  plugins: [vue({
-    template: {
-      compilerOptions: {
-        // Register custom elements
-        isCustomElement: (tag) => tag === 'fragment-frame'
-      }
-    }
-  })],
+  plugins: [
+    vue({
+      template: {
+        compilerOptions: {
+          // Register custom elements
+          isCustomElement: (tag) => tag === "fragment-frame",
+        },
+      },
+    }),
+  ],
   server: {
-    port: 4000,
+    port: 4001,
     strictPort: true,
-    cors: true
+    cors: true,
   },
   build: {
-    outDir: 'dist',
+    outDir: "dist",
     emptyOutDir: true,
     rollupOptions: {
       output: {
         manualChunks: {
-          vendor: ['vue', 'vue-router'],
+          vendor: ["vue", "vue-router"],
         },
       },
     },

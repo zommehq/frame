@@ -1,10 +1,10 @@
-import { Injectable } from '@angular/core';
-import { NavigationEnd, Router } from '@angular/router';
-import { frameSDK } from '@micro-fe/fragment-elements/sdk';
-import { filter } from 'rxjs';
+import { Injectable } from "@angular/core";
+import { NavigationEnd, type Router } from "@angular/router";
+import { frameSDK } from "@zomme/fragment-frame-angular";
+import { filter } from "rxjs";
 
 @Injectable({
-  providedIn: 'root',
+  providedIn: "root",
 })
 export class NavigationInterceptor {
   constructor(private router: Router) {}
@@ -15,7 +15,7 @@ export class NavigationInterceptor {
       .pipe(filter((event) => event instanceof NavigationEnd))
       .subscribe((event: NavigationEnd) => {
         // Notify parent app about navigation changes (just the local path)
-        frameSDK.emit('navigate', { path: event.urlAfterRedirects });
+        frameSDK.emit("navigate", { path: event.urlAfterRedirects });
       });
   }
 }

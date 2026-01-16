@@ -1,0 +1,25 @@
+{
+	"name": "@zomme/fragment-frame-react",
+	"version": "1.0.0",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": "./dist/index.js"
+	},
+	"scripts": {
+		"build": "bun build src/index.ts --outdir dist --target browser --format esm && tsc --emitDeclarationOnly",
+		"dev": "bun build src/index.ts --outdir dist --target browser --format esm --watch",
+		"lint:format": "bun biome check --write",
+		"lint:types": "bun tsc --noEmit",
+		"lint": "bun run lint:format && bun run lint:types"
+	},
+	"peerDependencies": {
+		"@zomme/fragment-frame": "workspace:*",
+		"react": "^18.0.0"
+	},
+	"devDependencies": {
+		"@types/react": "^18.3.0",
+		"typescript": "^5.3.3"
+	}
+}

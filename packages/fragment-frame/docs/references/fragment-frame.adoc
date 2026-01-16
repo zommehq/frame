@@ -1,0 +1,260 @@
+= `<fragment-frame>` API
+
+Custom element for embedding micro-frontend fragments.
+
+== Attributes
+
+=== Required Attributes
+
+==== `name`
+
+Fragment identifier. Used as default base path if `base` not provided.
+
+[source,html]
+----
+<fragment-frame name="my-app"></fragment-frame>
+----
+
+==== `src`
+
+Fragment URL. Must be a complete URL including protocol.
+
+[source,html]
+----
+<fragment-frame src="http://localhost:3000"></fragment-frame>
+----
+
+=== Optional Attributes
+
+==== `base`
+
+Base path for fragment router. Defaults to `/${name}`.
+
+[source,html]
+----
+<fragment-frame base="/custom-path"></fragment-frame>
+----
+
+==== `sandbox`
+
+iframe sandbox permissions. Defaults to:
+`allow-scripts allow-same-origin allow-forms allow-popups allow-modals`
+
+[source,html]
+----
+<fragment-frame sandbox="allow-scripts allow-same-origin"></fragment-frame>
+----
+
+==== Dynamic Attributes
+
+Any other attribute is passed to the fragment:
+
+[source,html]
+----
+<fragment-frame
+  api-url="https://api.com"
+  theme="dark"
+  user-id="123"
+></fragment-frame>
+----
+
+== Properties
+
+All attributes can be set as properties:
+
+[source,typescript]
+----
+const fragment = document.querySelector('fragment-frame');
+
+// Set via property (supports objects)
+fragment.userData = { name: 'John', role: 'admin' };
+fragment.apiUrl = 'https://api.com';
+fragment.theme = 'dark';
+----
+
+NOTE: Properties support complex objects, while attributes are limited to strings.
+
+== Methods
+
+=== `emit(eventName, data)`
+
+Send event to the fragment.
+
+[source,typescript]
+----
+fragment.emit('theme-changed', { theme: 'dark' });
+fragment.emit('refresh-data');
+----
+
+**Parameters:**
+* `eventName` (string) - Event name
+* `data` (unknown, optional) - Event data
+
+NOTE: The fragment receives this event via `frameSDK.on(eventName, handler)`. See the SDK documentation for more details.
+
+=== Dynamic Event Methods (CamelCase)
+
+The `<fragment-frame>` element supports dynamic camelCase methods for emitting events. These are created automatically when accessed.
+
+**Syntax:** Convert kebab-case event name to camelCase and call as a method.
+
+[source,typescript]
+----
+// These are all equivalent:
+fragment.emit('theme-changed', { theme: 'dark' });
+fragment.themeChanged({ theme: 'dark' });          // Auto-created method
+fragment.themeChanged({ theme: 'light' });         // Same function reference
+
+// More examples:
+fragment.navigate({ path: '/settings' });          // emits 'navigate'
+fragment.userCreated({ id: 123, name: 'John' });  // emits 'user-created'
+fragment.stateChange({ user: currentUser });      // emits 'state-change'
+----
+
+**Benefits:**
+
+* *Type-safe*: The same function reference is returned on each access
+* *Convenient*: No need to remember to use kebab-case for event names
+* *Consistent*: Follows JavaScript naming conventions
+
+**Implementation:**
+
+Methods are created lazily and cached:
+
+[source,typescript]
+----
+// First access creates and caches the method
+const handler1 = fragment.themeChanged;
+const handler2 = fragment.themeChanged;
+
+// Same function reference
+console.log(handler1 === handler2); // true
+----
+
+**Limitations:**
+
+* Only works with valid camelCase identifiers (starts with lowercase letter)
+* Property names must be accessible on the element (not conflicting with built-in properties)
+* Non-matching patterns fall through to normal property access
+
+== Events
+
+The `<fragment-frame>` element emits custom events:
+
+=== `ready`
+
+Fired when fragment is initialized and ready.
+
+[source,typescript]
+----
+fragment.addEventListener('ready', () => {
+  console.log('Fragment is ready');
+});
+----
+
+=== `navigate`
+
+Fired when fragment requests navigation.
+
+[source,typescript]
+----
+fragment.addEventListener('navigate', (event) => {
+  console.log(event.detail.path);     // "/app/settings"
+  console.log(event.detail.replace);  // false
+  console.log(event.detail.state);    // { from: 'home' }
+});
+----
+
+=== `error`
+
+Fired when fragment reports an error.
+
+[source,typescript]
+----
+fragment.addEventListener('error', (event) => {
+  console.log(event.detail.message);  // "Something went wrong"
+  console.log(event.detail.stack);    // Stack trace
+});
+----
+
+=== `state-change`
+
+Fired when fragment notifies state change.
+
+[source,typescript]
+----
+fragment.addEventListener('state-change', (event) => {
+  console.log(event.detail);  // { user: {...}, theme: 'dark' }
+});
+----
+
+=== `custom-event`
+
+Fired for custom events from fragment.
+
+[source,typescript]
+----
+fragment.addEventListener('custom-event', (event) => {
+  console.log(event.detail.name);  // "user-action"
+  console.log(event.detail.data);  // { type: 'click', id: 123 }
+});
+----
+
+Or listen directly by event name:
+
+[source,typescript]
+----
+fragment.addEventListener('user-action', (event) => {
+  console.log(event.detail);  // { type: 'click', id: 123 }
+});
+----
+
+== TypeScript
+
+[source,typescript]
+----
+import type { FragmentFrame } from '@zomme/fragment-frame';
+
+const fragment = document.querySelector('fragment-frame') as FragmentFrame;
+
+// Type-safe function passing
+interface UserData {
+  name: string;
+  email: string;
+}
+
+fragment.getUserData = async (id: number): Promise<UserData> => {
+  const response = await fetch(`/api/users/${id}`);
+  return response.json();
+};
+
+// Fragment can call this function via frameSDK.props.getUserData(123)
+----
+
+== Lifecycle
+
+[source]
+----
+1. Element connected to DOM (connectedCallback)
+2. Read fixed attributes (name, src, base, sandbox)
+3. Create iframe with sandbox
+4. Setup message listener
+5. Wait for iframe load
+6. Collect dynamic attributes
+7. Send __INIT__ message to fragment
+8. Setup MutationObserver for attribute changes
+9. Wait for __READY__ message from fragment
+10. Element ready, bidirectional communication enabled
+----
+
+== Cleanup
+
+[source]
+----
+1. Element disconnected from DOM (disconnectedCallback)
+2. Stop MutationObserver
+3. Remove iframe from DOM
+4. Reject pending function calls
+5. Clear timeout timers
+6. Release function references
+----

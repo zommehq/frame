@@ -1,13 +1,60 @@
-<div class="page">
-  <h1>Welcome to Angular Micro-App</h1>
-  <p>This is the home page of the Angular micro-frontend application.</p>
-
+<app-page-layout
+  title="Welcome to Angular Task Dashboard"
+  subtitle="A comprehensive demonstration of fragment-elements SDK capabilities using Angular standalone components and modern micro-frontend patterns."
+>
   <div class="info-card">
     <h3>Props from Parent</h3>
-    <pre>{{ propsJson }}</pre>
+    <pre>{{ propsString }}</pre>
+  </div>
+
+  <div class="features">
+    <div class="feature-card">
+      <div class="feature-icon">📋</div>
+      <h3>Task Management</h3>
+      <p>Props + Events + Search functionality</p>
+      <a class="feature-link" routerLink="/tasks">
+        View Tasks →
+      </a>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-icon">📊</div>
+      <h3>Analytics Dashboard</h3>
+      <p>Transferable Objects with ArrayBuffer</p>
+      <a class="feature-link" routerLink="/analytics">
+        View Analytics →
+      </a>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-icon">⚙️</div>
+      <h3>Settings</h3>
+      <p>Async Callbacks + Attribute Listeners</p>
+      <a class="feature-link" routerLink="/settings">
+        View Settings →
+      </a>
+    </div>
+  </div>
+
+  <div class="demo-section">
+    <h3>SDK Features Demonstrated</h3>
+    <ul class="feature-list">
+      <li><strong>Props Access:</strong> Read initial props from parent</li>
+      <li><strong>Event Emission:</strong> Emit events to parent shell</li>
+      <li><strong>Event Listeners:</strong> Listen to events from parent</li>
+      <li><strong>Attribute Listeners:</strong> React to attribute changes</li>
+      <li><strong>Callbacks:</strong> Execute parent functions</li>
+      <li><strong>Async Callbacks:</strong> Handle promises from parent</li>
+      <li><strong>Transferable Objects:</strong> Efficient ArrayBuffer transfer</li>
+      <li><strong>Navigation:</strong> Synchronized routing with parent</li>
+      <li><strong>Error Handling:</strong> Proper error propagation</li>
+      <li><strong>Cleanup:</strong> Memory leak prevention</li>
+    </ul>
   </div>
 
   <div class="actions">
-    <button (click)="emitCustomEvent()">Emit Custom Event</button>
+    <button class="action-btn" (click)="handleEmitEvent()">
+      Emit Custom Event
+    </button>
   </div>
-</div>
+</app-page-layout>

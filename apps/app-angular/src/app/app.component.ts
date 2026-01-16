@@ -1,72 +1,93 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
-import { frameSDK } from '@micro-fe/fragment-elements/sdk';
+import { CommonModule } from "@angular/common";
+import { Component, type OnDestroy, type OnInit } from "@angular/core";
+import { RouterLink, RouterLinkActive, RouterOutlet } from "@angular/router";
+import { frameSDK } from "@zomme/fragment-frame-angular";
+
+import type { User } from "./models/types";
+
+interface AppProps {
+  actionCallback?: (data: any) => void;
+  successCallback?: (data: any) => void;
+  theme?: "dark" | "light";
+  user?: User;
+}
 
 @Component({
-  selector: 'app-root',
+  selector: "app-root",
   standalone: true,
   imports: [CommonModule, RouterLink, RouterLinkActive, RouterOutlet],
-  templateUrl: './app.component.html',
-  styleUrl: './app.component.css'
+  templateUrl: "./app.component.html",
+  styleUrl: "./app.component.css",
 })
 export class AppComponent implements OnInit, OnDestroy {
-  user: any = null;
+  theme: "dark" | "light" = "light";
+  user: User | null = null;
+  private unwatchProps?: () => void;
 
   ngOnInit() {
-    // Access props from parent
-    this.user = frameSDK.props.user;
-    console.log('Angular App Component initialized with user:', this.user);
+    const props = (frameSDK.props || {}) as Partial<AppProps>;
 
-    // Call successCallback if provided
-    const successCallback = frameSDK.props.successCallback as ((data: any) => void) | undefined;
-    if (typeof successCallback === 'function') {
-      successCallback({ message: 'Angular app initialized successfully' });
+    this.theme = props.theme || "light";
+    this.user = props.user || null;
+
+    console.log("Angular App Component initialized with user:", this.user);
+
+    if (typeof props.successCallback === "function") {
+      props.successCallback({ message: "Angular app initialized successfully" });
     }
 
-    // Listen for user updates
-    frameSDK.on('attr:user', (newUser) => {
-      console.log('User updated:', newUser);
-      this.user = newUser;
+    document.body.className = this.theme;
+
+    // Watch for theme and user changes with modern API
+    this.unwatchProps = frameSDK.watch(['theme', 'user'], (changes) => {
+      if ('theme' in changes && changes.theme) {
+        const [newTheme] = changes.theme;
+        console.log("Theme changed:", newTheme);
+        this.theme = newTheme as "dark" | "light";
+        document.body.className = newTheme as string;
+      }
+
+      if ('user' in changes && changes.user) {
+        const [newUser] = changes.user;
+        console.log("User updated:", newUser);
+        this.user = newUser as User;
+      }
     });
   }
 
   triggerAction() {
-    console.log('Action triggered');
+    const props = frameSDK.props as AppProps;
+    console.log("Action triggered");
 
-    // Emit event to parent
-    frameSDK.emit('action-clicked', {
+    frameSDK.emit("action-clicked", {
+      component: "AppComponent",
       timestamp: Date.now(),
-      component: 'AppComponent'
     });
 
-    // Call callback if provided
-    const actionCallback = frameSDK.props.actionCallback as ((data: any) => void) | undefined;
-    if (typeof actionCallback === 'function') {
-      actionCallback({
-        type: 'button-click',
-        source: 'navigation'
+    if (typeof props.actionCallback === "function") {
+      props.actionCallback({
+        source: "navigation",
+        type: "button-click",
       });
     }
   }
 
   triggerError() {
     try {
-      throw new Error('Test error from Angular AppComponent');
+      throw new Error("Test error from Angular AppComponent");
     } catch (error) {
-      console.error('Error triggered:', error);
+      console.error("Error triggered:", error);
 
-      // Emit error event to parent
-      frameSDK.emit('error', {
+      frameSDK.emit("error", {
+        component: "AppComponent",
         error: error instanceof Error ? error.message : String(error),
-        component: 'AppComponent',
-        timestamp: Date.now()
+        timestamp: Date.now(),
       });
     }
   }
 
   ngOnDestroy() {
-    // Cleanup SDK on component destroy
+    this.unwatchProps?.();
     frameSDK.cleanup();
   }
 }

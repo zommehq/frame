@@ -1,0 +1,319 @@
+= Architecture
+
+Fragment Frame uses a three-layer architecture for micro-frontend communication:
+
+== Layers
+
+[cols="1,2,2"]
+|===
+| Layer | Component | Responsibility
+
+| Parent
+| Host Application
+| Creates and manages fragment instances
+
+| Bridge
+| `<fragment-frame>` Web Component
+| Manages iframe, handles communication, validates messages
+
+| Child
+| Fragment Application + SDK
+| Receives messages, exposes API, emits events
+|===
+
+.Three-Layer Architecture
+[mermaid]
+----
+graph TB
+    subgraph Parent["Layer 1: Parent Application"]
+        PA[Host Application]
+        PA_Resp["• Creates fragment instances<br/>• Passes attributes/props<br/>• Listens to custom events<br/>• Calls fragment methods"]
+    end
+
+    subgraph Bridge["Layer 2: FragmentFrame Bridge"]
+        FF[&lt;fragment-frame&gt; Web Component]
+        FF_Resp["• Creates sandboxed iframe<br/>• Manages MessageChannel<br/>• Validates messages<br/>• Serializes/deserializes data<br/>• Manages function references"]
+    end
+
+    subgraph Child["Layer 3: Fragment Application"]
+        FA[Fragment App + SDK]
+        FA_Resp["• Receives initialization<br/>• Exposes API methods<br/>• Emits custom events<br/>• Manages local state"]
+    end
+
+    PA -->|"Attributes/Props"| FF
+    PA -->|"Method Calls"| FF
+    FF -->|"CustomEvents"| PA
+
+    FF -->|"PostMessage (Init)"| FA
+    FF <==>|"MessageChannel (Runtime)"| FA
+
+    style Parent fill:#e1f5ff
+    style Bridge fill:#fff4e1
+    style Child fill:#e8f5e9
+----
+
+== Communication Protocol
+
+All communication uses **PostMessage** with structured messages:
+
+[source,typescript]
+----
+interface BaseMessage {
+  type: MessageType;
+  // ... additional fields
+}
+----
+
+=== Message Types
+
+[cols="1,2,2"]
+|===
+| Type | Direction | Purpose
+
+| `__INIT__`
+| Parent → Fragment
+| Initialize fragment with configuration and MessagePort
+
+| `__READY__`
+| Fragment → Parent
+| Signal fragment is initialized and ready
+
+| `__ATTRIBUTE_CHANGE__`
+| Parent → Fragment
+| Notify attribute/property change
+
+| `__EVENT__`
+| Parent → Fragment
+| Send event to fragment
+
+| `__CUSTOM_EVENT__`
+| Fragment → Parent
+| Custom event from fragment
+
+| `__FUNCTION_CALL__`
+| Bidirectional
+| Call a function (request)
+
+| `__FUNCTION_RESPONSE__`
+| Bidirectional
+| Function call result or error (response)
+
+| `__FUNCTION_RELEASE__`
+| Bidirectional
+| Release a single function reference
+
+| `__FUNCTION_RELEASE_BATCH__`
+| Bidirectional
+| Release multiple function references at once
+|===
+
+.Communication Flow
+[mermaid]
+----
+sequenceDiagram
+    participant Parent as Parent Application
+    participant Frame as FragmentFrame Element
+    participant Channel as MessageChannel
+    participant SDK as Fragment SDK
+    participant App as Fragment App
+
+    Note over Parent,App: Initialization Phase
+    Parent->>Frame: Create element with attributes
+    Frame->>Frame: Create sandboxed iframe
+    Frame->>Channel: Create MessageChannel
+    Frame->>SDK: PostMessage(__INIT__ + port2)
+    SDK->>SDK: Validate origin (optional)
+    SDK->>App: Initialize with config
+    App->>SDK: Ready
+    SDK->>Frame: MessageChannel(__READY__)
+    Frame->>Parent: Dispatch "ready" event
+
+    Note over Parent,App: Runtime Communication
+
+    rect rgb(230, 240, 255)
+        Note over Parent,App: Parent → Fragment (Props/Events)
+        Parent->>Frame: Set attribute/property
+        Frame->>Frame: Detect change (MutationObserver/Proxy)
+        Frame->>SDK: MessageChannel(__ATTRIBUTE_CHANGE__)
+        SDK->>App: Update props
+    end
+
+    rect rgb(255, 240, 230)
+        Note over Parent,App: Parent → Fragment (Method Call)
+        Parent->>Frame: Call method
+        Frame->>SDK: MessageChannel(__FUNCTION_CALL__)
+        SDK->>App: Execute method
+        App->>SDK: Return result
+        SDK->>Frame: MessageChannel(__FUNCTION_RESPONSE__)
+        Frame->>Parent: Resolve promise
+    end
+
+    rect rgb(240, 255, 240)
+        Note over Parent,App: Fragment → Parent (Custom Event)
+        App->>SDK: Emit custom event
+        SDK->>Frame: MessageChannel(__CUSTOM_EVENT__)
+        Frame->>Frame: Create CustomEvent
+        Frame->>Parent: Dispatch event
+    end
+
+    rect rgb(255, 250, 240)
+        Note over Parent,App: Fragment → Parent (Callback)
+        App->>SDK: Call parent function
+        SDK->>Frame: MessageChannel(__FUNCTION_CALL__)
+        Frame->>Parent: Execute callback
+        Parent->>Frame: Return result
+        Frame->>SDK: MessageChannel(__FUNCTION_RESPONSE__)
+        SDK->>App: Resolve promise
+    end
+----
+
+== Security Model
+
+=== iframe Sandbox
+
+Fragments run in sandboxed iframes with configurable permissions:
+
+[source,html]
+----
+<fragment-frame
+  sandbox="allow-scripts allow-same-origin allow-forms"
+></fragment-frame>
+----
+
+**Default sandbox:** `allow-scripts allow-same-origin allow-forms allow-popups allow-modals`
+
+.Sandbox Security Architecture
+[mermaid]
+----
+graph TB
+    subgraph Parent["Parent Application Context"]
+        ParentDOM[Parent DOM]
+        ParentJS[Parent JavaScript]
+        ParentCookies[Parent Cookies/Storage]
+    end
+
+    subgraph Sandbox["iframe Sandbox Security Boundary"]
+        FragmentDOM[Fragment DOM - Isolated]
+        FragmentJS[Fragment JavaScript - Isolated]
+        FragmentStorage[Fragment Storage - Isolated]
+    end
+
+    subgraph Allowed["Allowed Sandbox Capabilities"]
+        AllowScripts[allow-scripts: Execute JavaScript]
+        AllowSameOrigin[allow-same-origin: Access storage]
+        AllowForms[allow-forms: Submit forms]
+        AllowPopups[allow-popups: Open windows]
+        AllowModals[allow-modals: Show dialogs]
+    end
+
+    subgraph Blocked["Blocked Sandbox Capabilities"]
+        NoTopNav[X Top-level navigation]
+        NoPlugins[X Plugins Flash/Java]
+        NoPointerLock[X Pointer lock]
+        NoDownloads[X Auto downloads]
+    end
+
+    subgraph Channel["Secure Communication"]
+        PostMessage[PostMessage API]
+        MessageChannel[MessageChannel]
+        CustomEvents[CustomEvents]
+    end
+
+    Parent -.->|No direct access| Sandbox
+    Sandbox -.->|No direct access| Parent
+
+    Parent <-->|Secure messaging| Channel
+    Channel <-->|Secure messaging| Sandbox
+
+    Sandbox -.->|Restrictions| Allowed
+    Sandbox -.->|Restrictions| Blocked
+
+    style Parent fill:#4A90E2,stroke:#2563EB,stroke-width:3px,color:#fff
+    style Sandbox fill:#66BB6A,stroke:#388E3C,stroke-width:3px,color:#fff
+    style Allowed fill:#81C784,stroke:#4CAF50,stroke-width:2px,color:#000
+    style Blocked fill:#EF5350,stroke:#C62828,stroke-width:2px,color:#fff
+    style Channel fill:#AB47BC,stroke:#7B1FA2,stroke-width:2px,color:#fff
+----
+
+=== Origin Validation
+
+Origin validation occurs **only during the initial handshake**:
+
+[source,typescript]
+----
+// In SDK: validate origin when receiving __INIT__ (optional)
+if (expectedOrigin && event.origin !== expectedOrigin) {
+  throw new Error(`Origin validation failed: expected ${expectedOrigin}, got ${event.origin}`);
+}
+----
+
+**Important:** After the initial `__INIT__` handshake via `window.postMessage`, all subsequent communication uses the **dedicated MessageChannel port**, which is already trusted. The origin check is a one-time validation during initialization, not a continuous check on every message.
+
+=== No Shared State
+
+* Each fragment runs in isolated iframe
+* No direct DOM access between parent and fragment
+* No shared JavaScript context
+* Communication only via PostMessage
+
+== Attribute System
+
+=== Fixed Attributes
+
+These control the fragment instance:
+
+* `name` - Fragment identifier
+* `src` - Fragment URL
+* `base` - Base path for fragment router
+* `sandbox` - iframe sandbox permissions
+
+=== Dynamic Attributes
+
+Any other attribute is passed to the fragment:
+
+[source,html]
+----
+<fragment-frame
+  name="app"
+  src="http://localhost:3000"
+  api-url="https://api.com"
+  theme="dark"
+  user-id="123"
+></fragment-frame>
+----
+
+The fragment receives:
+
+[source,json]
+----
+{
+  "name": "app",
+  "base": "/app",
+  "apiUrl": "https://api.com",
+  "theme": "dark",
+  "userId": "123"
+}
+----
+
+== Observation Mechanisms
+
+Fragment Frame uses multiple mechanisms to detect changes:
+
+[cols="1,2,2"]
+|===
+| Mechanism | Detects | Use Case
+
+| `MutationObserver`
+| `setAttribute()` calls
+| Framework updates via DOM
+
+| `Proxy`
+| Property assignments
+| Direct property updates, complex objects
+
+| `observedAttributes`
+| Fixed attributes (`name`, `src`, `base`, `sandbox`)
+| Used by Web Components API for initial setup
+|===
+
+TIP: The combination of MutationObserver + Proxy ensures all **dynamic** attribute changes are captured, regardless of how they're made. The `observedAttributes` static property is used by the browser for the fixed attributes.

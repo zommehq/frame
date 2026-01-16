@@ -1,9 +1,8 @@
 // IMPORTANT: Import and register the fragment-frame Web Component BEFORE Angular imports
-import '@micro-fe/fragment-elements';
+import "@zomme/fragment-frame";
 
-import { bootstrapApplication } from '@angular/platform-browser';
-import { appConfig } from './app/app.config';
-import { AppComponent } from './app/app.component';
+import { bootstrapApplication } from "@angular/platform-browser";
+import { AppComponent } from "./app/app.component";
+import { appConfig } from "./app/app.config";
 
-bootstrapApplication(AppComponent, appConfig)
-  .catch((err) => console.error(err));
+bootstrapApplication(AppComponent, appConfig).catch((err) => console.error(err));

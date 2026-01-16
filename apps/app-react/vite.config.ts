@@ -1,16 +1,16 @@
-import react from '@vitejs/plugin-react';
-import { resolve } from 'path';
-import { defineConfig } from 'vite';
+import { resolve } from "node:path";
+import react from "@vitejs/plugin-react";
+import { defineConfig } from "vite";
 
 export default defineConfig({
-  base: '/react/',
+  base: "/react/",
   build: {
-    outDir: 'dist',
+    outDir: "dist",
     emptyOutDir: true,
     rollupOptions: {
       output: {
         manualChunks: {
-          vendor: ['react', 'react-dom', 'react-router-dom'],
+          vendor: ["react", "react-dom", "react-router-dom"],
         },
       },
     },
@@ -18,10 +18,10 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      '@micro-fe/fragment-elements': resolve(__dirname, '../../packages/fragment-elements/src'),
+      "@zomme/fragment-elements": resolve(__dirname, "../../packages/fragment-elements/src"),
     },
   },
   server: {
-    port: 4203,
+    port: 4201,
   },
 });

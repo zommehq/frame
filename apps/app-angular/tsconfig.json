@@ -1,22 +1,15 @@
 {
-  "extends": "../../tsconfig.base.json",
-  "compilerOptions": {
-    "outDir": "./out-tsc/app",
-    "types": ["node"],
-    "useDefineForClassFields": false,
-    "paths": {
-      "@micro-fe/fragment-elements": ["../../packages/fragment-elements/src/index.ts"],
-      "@micro-fe/fragment-elements/*": ["../../packages/fragment-elements/src/*"]
-    }
-  },
-  "files": [
-    "src/main.ts"
-  ],
-  "include": [
-    "src/**/*.d.ts"
-  ],
-  "exclude": [
-    "node_modules",
-    "dist"
-  ]
+	"extends": "../../tsconfig.base.json",
+	"compilerOptions": {
+		"outDir": "./out-tsc/app",
+		"types": ["node"],
+		"useDefineForClassFields": false,
+		"paths": {
+			"@zomme/fragment-elements": ["../../packages/fragment-elements/src/index.ts"],
+			"@zomme/fragment-elements/*": ["../../packages/fragment-elements/src/*"]
+		}
+	},
+	"files": ["src/main.ts"],
+	"include": ["src/**/*.d.ts"],
+	"exclude": ["node_modules", "dist"]
 }

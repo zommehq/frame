@@ -1,0 +1,28 @@
+/* Wrapper responsivo - container centralizado */
+.page-layout {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+/* Header padronizado - título + subtítulo */
+.header {
+  margin-bottom: 2rem;
+}
+
+.header h1 {
+  margin: 0;
+  font-size: 2rem;
+  color: #1a1a1a;
+}
+
+.subtitle {
+  margin: 0.5rem 0 0;
+  color: #666;
+  font-size: 0.875rem;
+}
+
+/* Content wrapper - conteúdo livre (sem controlar layout interno) */
+.content {
+  /* Children controlam seu próprio layout */
+}

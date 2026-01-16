@@ -1,29 +1,42 @@
-<div class="app-container">
+<div id="app" class="app-container" [ngClass]="theme">
   <nav class="navigation">
-    <h2>Angular Micro-App</h2>
-    <p class="user-info" *ngIf="user">{{ user.name }} ({{ user.role }})</p>
-    <ul>
-      <li>
-        <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
+    <ul class="nav-menu">
+      <li class="nav-item">
+        <a class="nav-link" routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
           Home
         </a>
       </li>
-      <li>
-        <a routerLink="/users" routerLinkActive="active">
-          Users
+      <li class="nav-item">
+        <a class="nav-link" routerLink="/tasks" routerLinkActive="active">
+          Tasks
         </a>
       </li>
-      <li>
-        <a routerLink="/settings" routerLinkActive="active">
+      <li class="nav-item">
+        <a class="nav-link" routerLink="/analytics" routerLinkActive="active">
+          Analytics
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" routerLink="/settings" routerLinkActive="active">
           Settings
         </a>
       </li>
-      <li>
+      <li class="nav-item">
+        <a class="nav-link" routerLink="/about" routerLinkActive="active">
+          About
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" routerLink="/contact" routerLinkActive="active">
+          Contact
+        </a>
+      </li>
+      <li class="nav-item">
         <button class="demo-btn" (click)="triggerAction()">
           Test Action
         </button>
       </li>
-      <li>
+      <li class="nav-item">
         <button class="demo-btn error-btn" (click)="triggerError()">
           Test Error
         </button>
@@ -31,7 +44,7 @@
     </ul>
   </nav>
 
-  <main class="content">
-    <router-outlet />
+  <main class="main-content">
+    <router-outlet></router-outlet>
   </main>
 </div>

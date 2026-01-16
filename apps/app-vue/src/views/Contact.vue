@@ -1,41 +1,40 @@
 <script setup lang="ts">
-  import { useFrameSDK } from '../composables/useFrameSDK';
-  import { reactive, ref } from 'vue';
+import { reactive, ref } from "vue";
+import { useFrameSDK } from "@zomme/fragment-frame-vue";
+import PageLayout from "../components/PageLayout.vue";
 
-  const { emit } = useFrameSDK();
+const { emit } = useFrameSDK();
 
-  const formData = reactive({
-    email: '',
-    message: '',
-    name: '',
-    subject: '',
+const formData = reactive({
+  email: "",
+  message: "",
+  name: "",
+  subject: "",
+});
+
+const submitMessage = ref("");
+const submitSuccess = ref(false);
+
+function handleSubmit() {
+  submitMessage.value = "Message sent successfully! (This is a demo)";
+  submitSuccess.value = true;
+
+  emit("contact-form-submitted", {
+    ...formData,
+    timestamp: new Date().toISOString(),
   });
 
-  const submitMessage = ref('');
-  const submitSuccess = ref(false);
-
-  const handleSubmit = () => {
-    submitMessage.value = 'Message sent successfully! (This is a demo)';
-    submitSuccess.value = true;
-
-    emit('contact-form-submitted', {
-      ...formData,
-      timestamp: new Date().toISOString(),
+  setTimeout(() => {
+    submitMessage.value = "";
+    Object.keys(formData).forEach((key) => {
+      formData[key as keyof typeof formData] = "";
     });
-
-    setTimeout(() => {
-      submitMessage.value = '';
-      Object.keys(formData).forEach((key) => {
-        formData[key as keyof typeof formData] = '';
-      });
-    }, 3000);
-  };
+  }, 3000);
+}
 </script>
 
 <template>
-  <div class="view-container">
-    <h1 class="title">Contact Us</h1>
-    <div class="content">
+  <PageLayout subtitle="Get in touch with our team" title="Contact Us">
       <div class="form-section">
         <p class="intro">
           Have questions about our Vue micro-frontend? Fill out the form below and we'll get back to you.
@@ -117,22 +116,11 @@
           </div>
         </div>
       </div>
-    </div>
-  </div>
+  </PageLayout>
 </template>
 
 <style scoped>
-  .view-container {
-    max-width: 1000px;
-  }
-
-  .title {
-    color: #42b883;
-    font-size: 2.5rem;
-    margin-bottom: 2rem;
-  }
-
-  .content {
+  :deep(.content) {
     display: grid;
     gap: 2rem;
     grid-template-columns: 1fr 1fr;
@@ -232,8 +220,9 @@
   }
 
   .info-section h2 {
-    color: #2c3e50;
-    font-size: 1.5rem;
+    color: #1a1a1a;
+    font-size: 1.25rem;
+    margin: 0 0 1rem;
   }
 
   .contact-methods {

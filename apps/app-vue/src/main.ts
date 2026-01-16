@@ -1,41 +1,61 @@
-import { frameSDK } from '@micro-fe/fragment-elements/sdk';
-import { createApp } from 'vue';
+import { frameSDK } from "@zomme/fragment-frame-vue";
+import { createApp } from "vue";
 
-import App from './App.vue';
-import { createAppRouter } from './router';
+import App from "./App.vue";
+import { createAppRouter } from "./router";
 
 async function bootstrap() {
-  await frameSDK.initialize();
+  let base = "/vue/";
+  let sdkAvailable = false;
 
-  const base = frameSDK.props.base || '/vue/';
+  try {
+    await frameSDK.initialize();
+    base = frameSDK.props.base || "/vue/";
+    sdkAvailable = true;
+
+    frameSDK.on("route-change", (data) => {
+      const payload = data as { path: string; replace?: boolean };
+      const fullPath = base + payload.path.replace(/^\//, "");
+
+      if (payload.replace) {
+        router.replace(fullPath);
+      } else {
+        router.push(fullPath);
+      }
+    });
+
+    console.log("FrameSDK initialized successfully");
+  } catch (error) {
+    console.warn("FrameSDK not available, running in standalone mode:", error);
+    sdkAvailable = false;
+  }
 
   const router = createAppRouter(base);
 
-  router.afterEach((to) => {
-    const path = to.fullPath.replace(base, '/');
-    frameSDK.emit('navigate', { path, replace: false, state: to.meta });
-  });
+  if (sdkAvailable) {
+    let isInitialNavigation = true;
 
-  frameSDK.on('route-change', (data) => {
-    const payload = data as { path: string; replace?: boolean; state?: unknown };
-    const fullPath = base + payload.path.replace(/^\//, '');
+    router.afterEach((to) => {
+      // Skip emitting event for initial navigation
+      if (isInitialNavigation) {
+        isInitialNavigation = false;
+        console.log("[Vue] Initial navigation, skipping navigate event emission");
+        return;
+      }
 
-    if (payload.replace) {
-      router.replace({ path: fullPath, state: payload.state });
-    } else {
-      router.push({ path: fullPath, state: payload.state });
-    }
-  });
+      const path = to.fullPath.replace(base, "/");
+      console.log("[Vue] Emitting navigate event:", path);
+      frameSDK.emit("navigate", { path, replace: false, state: to.meta });
+    });
+  }
 
   const app = createApp(App);
   app.use(router);
-  app.mount('#app');
+  app.mount("#app");
+
+  console.log(`Vue app rendered with base: ${base} (SDK available: ${sdkAvailable})`);
 }
 
 bootstrap().catch((error) => {
-  console.error('Failed to bootstrap Vue fragment-frame:', error);
-  frameSDK.emit('error', {
-    error: error instanceof Error ? error.message : String(error),
-    source: 'bootstrap'
-  });
+  console.error("Failed to bootstrap Vue app:", error);
 });

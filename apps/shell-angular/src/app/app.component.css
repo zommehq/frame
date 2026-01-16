@@ -2,63 +2,100 @@
   display: flex;
   flex-direction: column;
   height: 100vh;
+  font-family: system-ui, -apple-system, sans-serif;
 }
 
 .header {
-  background: #1976d2;
+  background: #1e293b;
   color: white;
-  padding: 1rem 2rem;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-.header h1 {
-  margin: 0 0 1rem 0;
-  font-size: 1.5rem;
+  padding: 0.375rem 1.5rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .nav {
   display: flex;
-  gap: 1rem;
+  gap: 0.375rem;
   align-items: center;
 }
 
 .nav-link {
-  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
   text-decoration: none;
-  padding: 0.5rem 1rem;
+  padding: 0.25rem;
   border-radius: 4px;
-  transition: background-color 0.2s;
+  transition: all 0.2s;
+  width: 24px;
+  height: 24px;
 }
 
 .nav-link:hover {
-  background-color: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
+  transform: translateY(-2px);
 }
 
-.nav-link.active {
-  background-color: rgba(255, 255, 255, 0.2);
-  font-weight: bold;
+.nav-link svg {
+  transition: all 0.2s;
+}
+
+/* Framework-specific colors for active state */
+.nav-link-angular.active {
+  background: #dd0031;
+  color: white;
+}
+
+.nav-link-angular.active:hover {
+  background: #c30029;
+}
+
+.nav-link-vue.active {
+  background: #42b883;
+  color: white;
+}
+
+.nav-link-vue.active:hover {
+  background: #35a372;
+}
+
+.nav-link-react.active {
+  background: #149eca;
+  color: white;
+}
+
+.nav-link-react.active:hover {
+  background: #1089b3;
 }
 
 .theme-toggle {
   margin-left: auto;
-  background: rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  background: rgba(255, 255, 255, 0.1);
   color: white;
   border: none;
-  padding: 0.5rem 1rem;
   border-radius: 4px;
   cursor: pointer;
-  font-size: 0.875rem;
-  transition: background-color 0.2s;
+  transition: all 0.2s;
 }
 
 .theme-toggle:hover {
-  background-color: rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.15);
+  transform: scale(1.05);
+}
+
+.theme-toggle svg {
+  display: block;
 }
 
 .main {
   flex: 1;
   overflow: hidden;
-  position: relative;
 }
 
 fragment-frame {

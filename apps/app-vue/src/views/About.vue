@@ -1,17 +1,16 @@
 <script setup lang="ts">
-  import { useFrameSDK } from '../composables/useFrameSDK';
-  import { computed, version } from 'vue';
+import { computed, version } from "vue";
+import { useFrameSDK } from "@zomme/fragment-frame-vue";
+import PageLayout from "../components/PageLayout.vue";
 
-  const { props } = useFrameSDK();
-  const vueVersion = version;
-  const basePath = computed(() => props.base || '/vue/');
-  const apiUrl = computed(() => props.apiUrl || 'Not configured');
+const { props } = useFrameSDK();
+const vueVersion = version;
+const basePath = computed(() => props.base || "/vue/");
+const apiUrl = computed(() => (props as any).apiUrl || "Not configured");
 </script>
 
 <template>
-  <div class="view-container">
-    <h1 class="title">About This Application</h1>
-    <div class="content">
+  <PageLayout subtitle="Learn about Vue 3 Micro-Frontend Architecture" title="About This Application">
       <section class="section">
         <h2>Vue 3 Micro-Frontend</h2>
         <p>
@@ -53,27 +52,10 @@
           <dd>{{ apiUrl || 'Not configured' }}</dd>
         </dl>
       </div>
-    </div>
-  </div>
+  </PageLayout>
 </template>
 
 <style scoped>
-  .view-container {
-    max-width: 800px;
-  }
-
-  .title {
-    color: #42b883;
-    font-size: 2.5rem;
-    margin-bottom: 2rem;
-  }
-
-  .content {
-    display: flex;
-    flex-direction: column;
-    gap: 2rem;
-  }
-
   .section {
     background: white;
     border-radius: 8px;
@@ -82,9 +64,9 @@
   }
 
   .section h2 {
-    color: #2c3e50;
-    font-size: 1.5rem;
-    margin-bottom: 1rem;
+    color: #1a1a1a;
+    font-size: 1.25rem;
+    margin: 0 0 1rem;
   }
 
   .section p {

@@ -16,7 +16,7 @@ Shell application em Vue 3 que orquestra múltiplos fragments (Angular, Vue, Rea
 # Instalar dependências
 bun install
 
-# Rodar em modo dev (porta 4200)
+# Rodar em modo dev (porta 4000)
 bun run dev
 
 # Build de produção
@@ -52,9 +52,9 @@ Cada fragment é configurado com:
 
 ```typescript
 interface FrameConfig {
-  baseUrl: string;  // Base URL (ex: http://localhost)
-  name: string;     // Nome do fragment (angular, vue, react, solid)
-  port: number;     // Porta do dev server
+  baseUrl: string; // Base URL (ex: http://localhost)
+  name: string; // Nome do fragment (angular, vue, react, solid)
+  port: number; // Porta do dev server
 }
 ```
 
@@ -77,8 +77,8 @@ interface FrameConfig {
 ```typescript
 watchEffect(() => {
   if (angularFrame.value) {
-    angularFrame.value.setAttribute('name', 'angular');
-    angularFrame.value.setAttribute('src', getFrameUrl('angular'));
+    angularFrame.value.setAttribute("name", "angular");
+    angularFrame.value.setAttribute("src", getFrameUrl("angular"));
   }
 });
 ```
@@ -111,7 +111,7 @@ const onFrameReady = (event: CustomEvent) => {
 
 const onFrameNavigate = (event: CustomEvent) => {
   const { path } = event.detail;
-  const frameName = (event.target as any).getAttribute('name');
+  const frameName = (event.target as any).getAttribute("name");
 
   // Atualizar URL do navegador
   router.push(`/${frameName}${path}`);
@@ -120,25 +120,23 @@ const onFrameNavigate = (event: CustomEvent) => {
 
 ## Fragments Suportados
 
-### 1. Angular Fragment (porta 4201)
+### 1. Angular Fragment (porta 4000)
+
 - **Props**: `user`, `theme`, `successCallback`, `actionCallback`
 - **Eventos**: `ready`, `navigate`, `error`, `action-clicked`
 - **Features**: Callbacks bidirecionais, error handling
 
-### 2. Vue Fragment (porta 4202)
-- **Props**: `theme`
-- **Eventos**: `ready`, `navigate`, `error`, `counter-changed`
-- **Features**: Reatividade, composables
+### 2. React Fragment (porta 4201)
 
-### 3. React Fragment (porta 4203)
 - **Props**: `metricsData` (ArrayBuffer), `fetchDataCallback` (async)
 - **Eventos**: `ready`, `navigate`, `error`, `data-loaded`, `large-data`
 - **Features**: Transferable objects, async callbacks
 
-### 4. Solid Fragment (porta 4204)
-- **Props**: `messages` (array)
-- **Eventos**: `ready`, `navigate`, `error`, `message-sent`
-- **Features**: Batch updates, signals
+### 3. Vue Fragment (porta 4202)
+
+- **Props**: `theme`
+- **Eventos**: `ready`, `navigate`, `error`, `counter-changed`
+- **Features**: Reatividade, composables
 
 ## Navegação
 
@@ -147,10 +145,9 @@ O shell gerencia navegação em 2 níveis:
 ### 1. Navegação do Shell (Vue Router)
 
 ```
-http://localhost:4200/angular     → Carrega Angular fragment
-http://localhost:4200/vue         → Carrega Vue fragment
-http://localhost:4200/react       → Carrega React fragment
-http://localhost:4200/solid       → Carrega Solid fragment
+http://localhost:4000/angular     → Carrega Angular fragment
+http://localhost:4000/react       → Carrega React fragment
+http://localhost:4000/vue         → Carrega Vue fragment
 ```
 
 ### 2. Navegação Interna do Fragment
@@ -168,7 +165,7 @@ onFrameNavigate(event) {
 }
 ```
 
-**Resultado:** URL do navegador = `http://localhost:4200/angular/users`
+**Resultado:** URL do navegador = `http://localhost:4000/angular/users`
 
 ## Props Especiais
 
@@ -176,11 +173,11 @@ onFrameNavigate(event) {
 
 ```typescript
 const handleAngularSuccess = (data: any) => {
-  console.log('[Shell] Success:', data);
+  console.log("[Shell] Success:", data);
 };
 
 const handleAngularAction = (data: any) => {
-  console.log('[Shell] Action:', data);
+  console.log("[Shell] Action:", data);
 };
 ```
 
@@ -213,8 +210,8 @@ onMounted(() => {
 
 ```typescript
 const chatMessages = ref([
-  { id: 1, text: 'Welcome!', timestamp: Date.now() },
-  { id: 2, text: 'Demo message', timestamp: Date.now() }
+  { id: 1, text: "Welcome!", timestamp: Date.now() },
+  { id: 2, text: "Demo message", timestamp: Date.now() },
 ]);
 
 // Quando fragment envia mensagem
@@ -222,7 +219,7 @@ const onMessageSent = (event: CustomEvent) => {
   chatMessages.value.push({
     id: chatMessages.value.length + 1,
     text: event.detail.text,
-    timestamp: Date.now()
+    timestamp: Date.now(),
   });
 };
 ```
@@ -232,10 +229,10 @@ const onMessageSent = (event: CustomEvent) => {
 Demonstra reatividade entre shell e fragments:
 
 ```typescript
-const currentTheme = ref<'light' | 'dark'>('light');
+const currentTheme = ref<"light" | "dark">("light");
 
 const toggleTheme = () => {
-  currentTheme.value = currentTheme.value === 'light' ? 'dark' : 'light';
+  currentTheme.value = currentTheme.value === "light" ? "dark" : "light";
   // Atualização reativa propagada para todos os fragments
 };
 ```
@@ -245,12 +242,13 @@ const toggleTheme = () => {
 ### Fragment não carrega (iframe não aparece)
 
 1. Verificar se `name` e `src` estão sendo setados:
+
 ```typescript
 watchEffect(() => {
   if (frameRef.value) {
-    console.log('Setting attributes:', {
-      name: 'angular',
-      src: getFrameUrl('angular')
+    console.log("Setting attributes:", {
+      name: "angular",
+      src: getFrameUrl("angular"),
     });
   }
 });
@@ -261,12 +259,14 @@ watchEffect(() => {
 ### Comunicação não funciona
 
 1. Verificar se fragment está emitindo eventos:
+
 ```typescript
 // No fragment
-frameSDK.emit('navigate', { path: '/users' });
+frameSDK.emit("navigate", { path: "/users" });
 ```
 
 2. Verificar se shell está escutando:
+
 ```vue
 <fragment-frame @navigate="onFrameNavigate" />
 ```

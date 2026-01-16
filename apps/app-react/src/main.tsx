@@ -1,40 +1,42 @@
-import { frameSDK } from '@micro-fe/fragment-elements/sdk';
-import React from 'react';
-import { createRoot } from 'react-dom/client';
-import { BrowserRouter } from 'react-router-dom';
-import App from './App';
+import { frameSDK } from "@zomme/fragment-frame-react";
+import React from "react";
+import { createRoot } from "react-dom/client";
+import { BrowserRouter } from "react-router-dom";
+import App from "./App";
+import "./App.css";
 
 async function bootstrap() {
-  await frameSDK.initialize();
+  let base = "/react";
+  let sdkAvailable = false;
 
-  const base = frameSDK.props.base || '/react';
+  try {
+    await frameSDK.initialize();
+    base = frameSDK.props.base || "/react";
+    sdkAvailable = true;
 
-  frameSDK.on('route-change', (data) => {
-    const event = data as { path: string };
-    const newPath = event.path.replace(base, '') || '/';
-    window.history.pushState(null, '', base + newPath);
-    window.dispatchEvent(new PopStateEvent('popstate'));
-  });
+    console.log("FrameSDK initialized successfully");
+  } catch (error) {
+    console.warn("FrameSDK not available, running in standalone mode:", error);
+    sdkAvailable = false;
+  }
 
-  const rootElement = document.getElementById('root');
+  const rootElement = document.getElementById("root");
   if (!rootElement) {
-    throw new Error('Root element not found');
+    throw new Error("Root element not found");
   }
 
   const root = createRoot(rootElement);
   root.render(
     <React.StrictMode>
       <BrowserRouter basename={base}>
-        <App />
+        <App sdkAvailable={sdkAvailable} base={base} />
       </BrowserRouter>
-    </React.StrictMode>
+    </React.StrictMode>,
   );
+
+  console.log(`React app rendered with base: ${base} (SDK available: ${sdkAvailable})`);
 }
 
 bootstrap().catch((error) => {
-  console.error('Failed to bootstrap React micro app:', error);
-  frameSDK.emit('error', {
-    error: error instanceof Error ? error.message : String(error),
-    source: 'bootstrap'
-  });
+  console.error("Failed to bootstrap React micro app:", error);
 });

@@ -1,24 +1,32 @@
-import { Component } from '@angular/core';
-import { frameSDK } from '@micro-fe/fragment-elements/sdk';
+import { CommonModule } from "@angular/common";
+import { Component } from "@angular/core";
+import { RouterLink } from "@angular/router";
+import { frameSDK } from "@zomme/fragment-frame-angular";
+import { PageLayoutComponent } from "../../components/page-layout/page-layout.component";
 
 @Component({
-  selector: 'app-home',
+  selector: "app-home",
   standalone: true,
-  templateUrl: './home.component.html',
-  styleUrl: './home.component.css'
+  imports: [CommonModule, RouterLink, PageLayoutComponent],
+  templateUrl: "./home.component.html",
+  styleUrl: "./home.component.css",
 })
 export class HomeComponent {
-  propsJson: string;
+  props: Record<string, any> = {};
 
   constructor() {
-    this.propsJson = JSON.stringify(frameSDK.props, null, 2);
+    this.props = frameSDK.props;
   }
 
-  emitCustomEvent() {
-    frameSDK.emit('angular-custom-event', {
-      message: 'Hello from Angular!',
+  handleEmitEvent() {
+    frameSDK.emit("custom-event", {
+      message: "Hello from Angular Task Dashboard!",
       timestamp: new Date().toISOString(),
     });
-    console.log('Custom event emitted');
+    console.log("Custom event emitted from angular app");
+  }
+
+  get propsString(): string {
+    return JSON.stringify(this.props, null, 2);
   }
 }

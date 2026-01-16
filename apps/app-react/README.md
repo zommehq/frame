@@ -1,15 +1,59 @@
-# React 18 Fragment App
+# React 18 Task & Analytics Dashboard
 
-A React 18 micro-frontend application built with Vite, React Router, and the Fragment Elements SDK.
+A comprehensive React 18 micro-frontend application demonstrating all fragment-elements SDK capabilities including task management, analytics, and settings with full parent-child communication.
 
 ## Features
 
-- **React 18** with modern hooks and features
+- **React 18** with modern hooks and Composition API patterns
 - **React Router v6** for client-side routing
-- **Fragment Elements SDK** integration for parent-child communication
-- **TypeScript** for type safety
+- **Fragment Elements SDK** full feature demonstration
+- **TypeScript** for complete type safety
 - **Vite** for fast development and optimized builds
-- **Code splitting** with manual chunks for vendor libraries
+- **Comprehensive CSS** with light/dark theme support
+
+## SDK Capabilities Demonstrated
+
+### 1. Props + Events Communication
+
+- Task management with add, toggle, and delete operations
+- Real-time progress tracking
+- Event emission to parent app on task changes
+
+### 2. Transferable Objects (ArrayBuffer)
+
+- Efficient binary data transfer for metrics
+- Zero-copy performance metrics visualization
+- DataView encoding/decoding demonstration
+
+### 3. Async Callbacks
+
+- Search functionality calling parent app async functions
+- Promise-based communication pattern
+- Error handling and loading states
+
+### 4. Attribute Listeners
+
+- Theme toggle synchronized with parent app
+- Reactive prop updates
+- Two-way theme communication
+
+### 5. Navigation Integration
+
+- Route synchronization between fragment and parent
+- Browser history integration
+- Deep linking support
+
+### 6. Error Handling
+
+- Comprehensive error reporting to parent
+- User-friendly error messages
+- Console logging for debugging
+
+### 7. User Data Props
+
+- User information from parent app
+- Props-based data flow
+- Display of user profile in settings
 
 ## Development
 
@@ -17,7 +61,7 @@ A React 18 micro-frontend application built with Vite, React Router, and the Fra
 # Install dependencies
 bun install
 
-# Start development server (runs on port 4203)
+# Start development server (runs on port 4201)
 bun run dev
 ```
 
@@ -36,17 +80,24 @@ bun run preview
 ```
 app-react/
 ├── src/
-│   ├── pages/          # Page components
-│   │   ├── Home.tsx
-│   │   ├── Products.tsx
-│   │   └── Services.tsx
-│   ├── App.tsx         # Main app component with routing
-│   ├── main.tsx        # Entry point with SDK initialization
-│   └── router.tsx      # Route definitions
-├── index.html          # HTML template
+│   ├── components/           # Reusable components
+│   │   ├── TaskList.tsx     # Task management UI
+│   │   ├── MetricsDisplay.tsx # ArrayBuffer metrics
+│   │   ├── SearchBar.tsx    # Async callback demo
+│   │   └── ThemeToggle.tsx  # Attribute listener demo
+│   ├── pages/               # Route pages
+│   │   ├── Tasks.tsx        # Task management page
+│   │   ├── Analytics.tsx    # Metrics dashboard
+│   │   └── Settings.tsx     # User preferences
+│   ├── hooks/               # Custom React hooks
+│   │   └── useFrameSDK.ts   # SDK integration hook
+│   ├── types.ts             # TypeScript interfaces
+│   ├── App.tsx              # Main app with routing
+│   ├── App.css              # Complete styling
+│   └── main.tsx             # Entry point
+├── index.html
 ├── package.json
 ├── tsconfig.json
-├── tsconfig.node.json
 └── vite.config.ts
 ```
 
@@ -54,20 +105,66 @@ app-react/
 
 - **Base path**: `/react/`
 - **Output directory**: `dist/`
-- **Dev server port**: `4203`
-- **Code splitting**: Vendor bundle includes `react`, `react-dom`, and `react-router-dom`
-
-## SDK Integration
-
-The app uses the Fragment Elements SDK to:
-- Initialize and receive props from the parent shell via `frameSDK.props`
-- Listen to route change events from the parent
-- Notify the parent about internal route changes via `frameSDK.emit('navigate', { path })`
-- Emit custom events to the parent via `frameSDK.emit()`
-- Report errors to the parent via `frameSDK.emit('error', ...)`
+- **Dev server port**: `4201`
+- **Theme**: Light/Dark mode with CSS variables
 
 ## Routes
 
-- `/` - Home page with configuration display and event emission
-- `/products` - Products catalog page
-- `/services` - Services listing page
+- `/tasks` (default) - Task management with search
+- `/analytics` - Performance metrics dashboard
+- `/settings` - User preferences and theme toggle
+
+## Parent App Integration
+
+The React fragment expects the following props from parent:
+
+```typescript
+interface Props {
+  // User data
+  user?: {
+    id: number;
+    name: string;
+    email: string;
+    role: string;
+  };
+
+  // Theme attribute
+  theme?: "light" | "dark";
+
+  // Metrics data (ArrayBuffer)
+  metricsData?: ArrayBuffer;
+
+  // Async search callback
+  searchCallback?: (params: SearchParams) => Promise<SearchResult[]>;
+}
+```
+
+The fragment emits the following events:
+
+```typescript
+// Navigation changes
+emit("navigate", { path: string });
+
+// Theme changes
+emit("theme-changed", { theme: "light" | "dark" });
+
+// Error reporting
+emit("error", { error: any, message: string });
+```
+
+## Example Parent Configuration
+
+```html
+<fragment-frame
+  name="react"
+  src="http://localhost:4201/react/"
+  base="/react"
+  :user="currentUser"
+  :theme="currentTheme"
+  :metricsData="metricsArrayBuffer"
+  :searchCallback="handleSearch"
+  @navigate="onNavigate"
+  @theme-changed="onThemeChanged"
+  @error="onError"
+/>
+```

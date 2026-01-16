@@ -1,18 +1,20 @@
 {
-  "name": "micro-fe",
-  "version": "1.0.0",
-  "type": "module",
-  "private": true,
-  "workspaces": [
-    "packages/*",
-    "apps/*"
-  ],
-  "scripts": {
-    "build": "bun --filter '@micro-fe/fragment-elements' run build && bun --filter './apps/*' run build",
-    "dev": "bun --filter './apps/*' run dev"
-  },
-  "devDependencies": {
-    "@types/bun": "latest",
-    "typescript": "~5.5.0"
-  }
+	"name": "micro-fe",
+	"version": "1.0.0",
+	"type": "module",
+	"private": true,
+	"workspaces": [
+		"packages/*",
+		"apps/*"
+	],
+	"scripts": {
+		"build": "bun --filter '@zomme/fragment-frame*' run build && bun --filter './apps/*' run build",
+		"dev": "bun run --filter '*' dev",
+		"lint": "bun run --filter '*' lint"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^2.3.11",
+		"@types/bun": "latest",
+		"typescript": "~5.9.0"
+	}
 }

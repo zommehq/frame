@@ -1,0 +1,45 @@
+<app-page-layout title="About This Application">
+	<div class="content">
+		<section class="section">
+			<h2>Angular Micro-Frontend</h2>
+			<p>
+				This application is built as a micro-frontend using Angular and demonstrates the power
+				of modern web architecture patterns. It runs independently while seamlessly integrating
+				with a host application through a shared SDK.
+			</p>
+		</section>
+
+		<section class="section">
+			<h2>Key Technologies</h2>
+			<ul class="tech-list">
+				<li>Angular 18 with Standalone Components</li>
+				<li>Angular Router for navigation</li>
+				<li>TypeScript for type safety</li>
+				<li>Vite for fast development and optimized builds</li>
+				<li>Micro-Frontend SDK for host communication</li>
+			</ul>
+		</section>
+
+		<section class="section">
+			<h2>Architecture Benefits</h2>
+			<ul class="benefits-list">
+				<li><strong>Independent Development:</strong> Teams can work autonomously</li>
+				<li><strong>Technology Agnostic:</strong> Mix different frameworks</li>
+				<li><strong>Scalability:</strong> Scale teams and features independently</li>
+				<li><strong>Deployment:</strong> Deploy micro-apps separately</li>
+			</ul>
+		</section>
+
+		<div class="info-box">
+			<h3>Application Info</h3>
+			<dl class="info-list">
+				<dt>Framework:</dt>
+				<dd>Angular {{ angularVersion }}</dd>
+				<dt>Base Path:</dt>
+				<dd>{{ basePath }}</dd>
+				<dt>API URL:</dt>
+				<dd>{{ apiUrl }}</dd>
+			</dl>
+		</div>
+	</div>
+</app-page-layout>

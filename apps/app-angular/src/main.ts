@@ -1,55 +1,52 @@
-import { bootstrapApplication } from '@angular/platform-browser';
-import { frameSDK } from '@micro-fe/fragment-elements/sdk';
+import { bootstrapApplication } from "@angular/platform-browser";
+import { Router } from "@angular/router";
+import { frameSDK, setupRouterSync } from "@zomme/fragment-frame-angular";
 
-import { AppComponent } from './app/app.component';
-import { appConfig } from './app/app.config';
+import { AppComponent } from "./app/app.component";
+import { appConfig } from "./app/app.config";
 
 async function bootstrap() {
+  const appRef = await bootstrapApplication(AppComponent, appConfig);
+  const router = appRef.injector.get(Router);
+
+  let base = "/angular/";
+  let sdkAvailable = false;
+
   try {
-    // Initialize the fragment-frame SDK
     await frameSDK.initialize();
+    base = (frameSDK.props.base as string) || "/angular/";
+    sdkAvailable = true;
 
-    // Listen to attribute changes
-    frameSDK.on('attr:theme', (theme) => {
-      console.log('Angular app: theme changed to', theme);
-      // Apply theme changes to the app
-      document.documentElement.setAttribute('data-theme', String(theme));
-    });
-
-    // Listen to custom events from parent
-    frameSDK.on('route-change', (data) => {
-      console.log('Angular app: route-change event received', data);
-      // Handle route changes if needed
-    });
-
-    // Bootstrap Angular application after SDK initialization
-    const appRef = await bootstrapApplication(AppComponent, appConfig);
-
-    console.log('Angular fragment-frame initialized successfully');
+    // Setup bidirectional router sync with parent shell
+    void setupRouterSync(router, base);
 
     // Report any uncaught errors to parent
-    window.addEventListener('error', (event) => {
-      frameSDK.emit('error', {
+    window.addEventListener("error", (event) => {
+      frameSDK.emit("error", {
         error: event.error?.message || String(event.error),
-        source: 'window.error'
+        source: "window.error",
       });
     });
 
-    window.addEventListener('unhandledrejection', (event) => {
-      frameSDK.emit('error', {
-        error: event.reason instanceof Error ? event.reason.message : String(event.reason),
-        source: 'unhandledrejection'
+    window.addEventListener("unhandledrejection", (event) => {
+      frameSDK.emit("error", {
+        error:
+          event.reason instanceof Error
+            ? event.reason.message
+            : String(event.reason),
+        source: "unhandledrejection",
       });
     });
+
+    console.log("FrameSDK initialized successfully");
   } catch (error) {
-    console.error('Failed to bootstrap Angular app:', error);
-    if (error instanceof Error) {
-      frameSDK.emit('error', {
-        error: error.message,
-        source: 'bootstrap'
-      });
-    }
+    console.warn("FrameSDK not available, running in standalone mode:", error);
+    sdkAvailable = false;
   }
+
+  console.log(
+    `Angular app rendered with base: ${base} (SDK available: ${sdkAvailable})`
+  );
 }
 
 bootstrap();

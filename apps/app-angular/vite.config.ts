@@ -1,17 +1,32 @@
-import { defineConfig } from 'vite';
-import { resolve } from 'path';
+import { resolve } from "node:path";
+import { defineConfig } from "vite";
 
 export default defineConfig({
   resolve: {
     alias: {
-      '@micro-fe/fragment-elements/sdk': resolve(__dirname, '../../packages/fragment-elements/dist/sdk.js'),
-      '@micro-fe/fragment-elements/constants': resolve(__dirname, '../../packages/fragment-elements/dist/constants.js'),
-      '@micro-fe/fragment-elements/types': resolve(__dirname, '../../packages/fragment-elements/dist/types.js'),
-      '@micro-fe/fragment-elements': resolve(__dirname, '../../packages/fragment-elements/dist/index.js'),
+      "@zomme/fragment-elements/sdk": resolve(
+        __dirname,
+        "../../packages/fragment-elements/dist/sdk.js",
+      ),
+      "@zomme/fragment-elements/constants": resolve(
+        __dirname,
+        "../../packages/fragment-elements/dist/constants.js",
+      ),
+      "@zomme/fragment-elements/types": resolve(
+        __dirname,
+        "../../packages/fragment-elements/dist/types.js",
+      ),
+      "@zomme/fragment-elements": resolve(
+        __dirname,
+        "../../packages/fragment-elements/dist/index.js",
+      ),
     },
   },
+  optimizeDeps: {
+    exclude: ['@zomme/fragment-frame-angular']
+  },
   server: {
-    port: 4201,
+    port: 4200,
     cors: true,
   },
 });

@@ -72,7 +72,7 @@ link:packages/fragment-elements/docs/references/fragment-frame.adoc[Documentaç�
 
 [source,typescript]
 ----
-import { frameSDK } from '@micro-fe/fragment-elements/sdk';
+import { frameSDK } from '@zomme/fragment-elements/sdk';
 
 // Inicializar
 await frameSDK.initialize();
@@ -84,7 +84,14 @@ frameSDK.props.onSuccess({ status: 'ok' });
 // Eventos
 frameSDK.emit('user-created', { id: 123 });
 frameSDK.on('theme-change', (data) => {});
-frameSDK.on('attr:apiUrl', (url) => {});
+
+// Watch prop changes (modern API)
+const unwatch = frameSDK.watch(['apiUrl', 'theme'], (changes) => {
+  if ('apiUrl' in changes) {
+    const [newUrl, oldUrl] = changes.apiUrl;
+    console.log(`API URL changed from ${oldUrl} to ${newUrl}`);
+  }
+});
 ----
 
 link:packages/fragment-elements/docs/references/sdk.adoc[Documentação Completa →]

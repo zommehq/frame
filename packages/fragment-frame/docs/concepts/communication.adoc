@@ -1,0 +1,402 @@
+= Communication Protocol
+
+Fragment Frame uses MessageChannel API for dedicated, secure communication between parent and fragment applications.
+
+== MessageChannel vs Window PostMessage
+
+Fragment Frame uses **MessageChannel** instead of `window.postMessage` directly for several advantages:
+
+**Performance:**
+
+* Dedicated communication channel (no origin filtering overhead on every message)
+* Direct port-to-port messaging (faster than window-based routing)
+* Reduced message processing overhead
+
+**Security:**
+
+* Origin validation only on initial handshake (INIT message)
+* Isolated communication channel per fragment
+* No risk of message interception by other scripts
+
+**Cleaner Architecture:**
+
+* No origin checking on every message after initialization
+* Automatic message routing to correct recipient
+* Clear ownership and lifecycle management
+
+**How it works:**
+
+[source,typescript]
+----
+// Parent creates MessageChannel
+const channel = new MessageChannel();
+this._port = channel.port1;
+
+// Transfer port2 to fragment in INIT message
+iframe.postMessage(
+  { type: '__INIT__', payload: props },
+  origin,
+  [channel.port2]  // Transfer ownership
+);
+
+// Both sides use their ports directly
+port.postMessage(message);
+port.onmessage = (event) => handleMessage(event.data);
+----
+
+== Message Structure
+
+All messages follow a base structure:
+
+[source,typescript]
+----
+interface BaseMessage {
+  type: MessageType;
+  // ... type-specific fields
+}
+----
+
+== Message Flow
+
+=== Complete Communication Sequence
+
+The following diagram shows the complete bidirectional message flow between parent and fragment:
+
+[mermaid]
+----
+sequenceDiagram
+    participant Parent as Parent Application
+    participant Frame as FragmentFrame Element
+    participant IFrame as iframe
+    participant SDK as Fragment SDK
+    participant Fragment as Fragment Application
+
+    Note over Parent,Fragment: Initialization Phase
+    Parent->>Frame: Create element
+    Frame->>IFrame: Create iframe
+    Frame->>Frame: Create MessageChannel
+    IFrame->>SDK: Load fragment app
+    SDK->>SDK: Wait for INIT
+
+    Frame->>IFrame: __INIT__ (via window.postMessage)<br/>+ MessagePort transfer
+    Note right of IFrame: Origin validation happens here
+    IFrame->>SDK: Receive INIT + port
+    SDK->>SDK: Validate origin<br/>Store MessagePort
+    SDK->>Fragment: Initialize with props
+
+    Note over Parent,Fragment: Ready Phase
+    SDK->>Frame: __READY__ (via MessagePort)
+    Frame->>Parent: Emit 'ready' event
+
+    Note over Parent,Fragment: Operation Phase
+    Parent->>Frame: Update attribute/property
+    Frame->>SDK: __ATTRIBUTE_CHANGE__
+    SDK->>Fragment: Update props
+    SDK->>Fragment: Trigger watch handlers
+
+    Fragment->>SDK: emit('custom-event', data)
+    SDK->>Frame: __CUSTOM_EVENT__
+    Frame->>Parent: Emit CustomEvent
+
+    Note over Parent,Fragment: Function Calls
+    Parent->>Frame: Call fragment.callback()
+    Frame->>SDK: __FUNCTION_CALL__
+    SDK->>Fragment: Execute function
+    Fragment-->>SDK: Return result
+    SDK-->>Frame: __FUNCTION_RESPONSE__
+    Frame-->>Parent: Resolve promise
+
+    Fragment->>SDK: Call props.onSave()
+    SDK->>Frame: __FUNCTION_CALL__
+    Frame->>Parent: Execute function
+    Parent-->>Frame: Return result
+    Frame-->>SDK: __FUNCTION_RESPONSE__
+    SDK-->>Fragment: Resolve promise
+
+    Note over Parent,Fragment: Cleanup Phase
+    Parent->>Frame: Disconnect element
+    Frame->>SDK: __FUNCTION_RELEASE__
+    SDK->>SDK: Clean up functions
+----
+
+=== Parent → Fragment
+
+[cols="1,2,2"]
+|===
+| Message | Purpose | When
+
+| `__INIT__`
+| Initialize fragment with configuration and props
+| After iframe loads, before fragment is ready
+
+| `__ATTRIBUTE_CHANGE__`
+| Notify attribute or property change
+| When parent updates fragment attributes/properties
+
+| `__EVENT__`
+| Send event to fragment
+| When parent emits event to fragment (via `emit()`)
+
+| `__FUNCTION_CALL__`
+| Call function provided by fragment
+| When parent invokes a function received from fragment
+
+| `__FUNCTION_RESPONSE__`
+| Return result of function call
+| Response to fragment's function call
+
+| `__FUNCTION_RELEASE__`
+| Notify function cleanup
+| When parent disconnects or function is no longer needed
+|===
+
+=== Fragment → Parent
+
+[cols="1,2,2"]
+|===
+| Message | Purpose | When
+
+| `__READY__`
+| Signal fragment is initialized
+| After SDK receives `__INIT__` and completes setup
+
+| `__CUSTOM_EVENT__`
+| Emit custom event to parent
+| When fragment calls `frameSDK.emit()`
+
+| `__FUNCTION_CALL__`
+| Call function provided by parent
+| When fragment invokes a function received from parent
+
+| `__FUNCTION_RESPONSE__`
+| Return result of function call
+| Response to parent's function call
+
+| `__FUNCTION_RELEASE__`
+| Notify function cleanup
+| When fragment unloads or function is no longer needed
+|===
+
+== Origin Validation
+
+Origin validation happens **only during the initial handshake** (INIT message via `window.postMessage`). After the MessageChannel is established, all subsequent communication uses the dedicated port.
+
+[mermaid]
+----
+flowchart TD
+    A[Parent sends INIT] -->|window.postMessage| B[Fragment receives message]
+    B --> C{Origin matches<br/>expected?}
+    C -->|No| D[Reject: Ignore message]
+    C -->|Yes| E[Accept MessagePort]
+    E --> F[Store parent origin]
+    E --> G[Setup port.onmessage]
+    G --> H[Send __READY__ via port]
+    H --> I[All future messages<br/>via MessagePort]
+    I --> J{Port message<br/>received?}
+    J -->|Yes| K[Process message<br/>No origin check needed]
+    J -->|No| L[Wait for message]
+    K --> L
+    L --> J
+
+    style C fill:#EF5350,stroke:#C62828,stroke-width:2px,color:#fff
+    style E fill:#66BB6A,stroke:#388E3C,stroke-width:2px,color:#fff
+    style K fill:#4A90E2,stroke:#2563EB,stroke-width:2px,color:#fff
+----
+
+=== Initial Handshake (INIT)
+
+[source,typescript]
+----
+// Parent sends INIT via window.postMessage (one-time)
+iframe.contentWindow.postMessage(
+  { type: '__INIT__', payload: props },
+  expectedOrigin,
+  [channel.port2]
+);
+
+// Fragment validates origin on INIT
+window.addEventListener('message', (event) => {
+  if (event.data.type === '__INIT__') {
+    // Validate origin ONCE
+    this._parentOrigin = event.origin;
+
+    // Extract MessagePort
+    this._port = event.ports[0];
+
+    // All future communication via port (no origin checking needed)
+    this._port.onmessage = (event) => {
+      this.handleMessage(event.data);
+    };
+  }
+}, { once: true });
+----
+
+=== Why This Is Secure
+
+**Origin validation on INIT:**
+
+* Fragment validates parent origin when receiving MessagePort
+* Only accepts MessagePort from expected origin
+* Stores origin for reference (though not checked again)
+
+**MessageChannel isolation:**
+
+* Port is transferred directly (not accessible to other scripts)
+* Only the two endpoints can communicate via the channel
+* No risk of message interception after channel is established
+* Malicious scripts cannot inject messages into an established channel
+
+**Security guarantees:**
+
+* Initial origin validation ensures correct parent
+* Transferred MessagePort creates isolated communication channel
+* No need for origin checking on every message (performance win)
+* Prevents malicious scripts from injecting fake messages
+
+== Serialization
+
+=== Supported Types
+
+Fragment Frame automatically serializes/deserializes:
+
+* Primitives: `string`, `number`, `boolean`, `null`, `undefined`
+* Objects and arrays (including nested structures)
+* **Functions** (bidirectional)
+* **Transferable objects**: `ArrayBuffer`, `MessagePort`, `ImageBitmap`, etc.
+
+=== Function Serialization
+
+Functions are automatically serialized and can be passed in both directions:
+
+[source,typescript]
+----
+// Parent passes function to fragment
+fragment.onUserClick = (data) => {
+  console.log('User clicked:', data);
+};
+
+// Fragment receives and can call it
+frameSDK.props.onUserClick({ id: 123 });
+----
+
+Behind the scenes:
+
+1. Function is replaced with a `SerializedFunction` token:
+   ```typescript
+   { __fn: "uuid-123", __meta: { name: "onUserClick" } }
+   ```
+
+2. Original function is stored in registry with the UUID
+
+3. When called, a `__FUNCTION_CALL__` message is sent
+
+4. Result is returned via `__FUNCTION_RESPONSE__`
+
+5. Function is released on cleanup via `__FUNCTION_RELEASE__`
+
+[mermaid]
+----
+flowchart LR
+    A[Parent passes<br/>function] --> B[Serialize]
+    B --> C[Generate UUID]
+    C --> D[Store in registry<br/>Map UUID → Function]
+    D --> E[Create token<br/>__fn: UUID]
+    E --> F[Send via postMessage]
+    F --> G[Fragment receives<br/>serialized token]
+    G --> H[Deserialize]
+    H --> I[Create proxy<br/>function]
+    I --> J[Fragment calls<br/>proxy]
+    J --> K[Send __FUNCTION_CALL__<br/>with UUID + args]
+    K --> L[Parent looks up<br/>function in registry]
+    L --> M[Execute original<br/>function]
+    M --> N[Send __FUNCTION_RESPONSE__<br/>with result]
+    N --> O[Fragment receives<br/>result]
+    O --> P[Resolve proxy<br/>promise]
+
+    style C fill:#FFA726,stroke:#F57C00,stroke-width:2px,color:#000
+    style D fill:#4A90E2,stroke:#2563EB,stroke-width:2px,color:#fff
+    style I fill:#4A90E2,stroke:#2563EB,stroke-width:2px,color:#fff
+    style M fill:#66BB6A,stroke:#388E3C,stroke-width:2px,color:#fff
+----
+
+TIP: Functions have a 5-second timeout. Long-running operations should use promises.
+
+=== Transferable Objects
+
+Transferable objects are moved (not copied) for performance:
+
+[source,typescript]
+----
+// Create ArrayBuffer
+const buffer = new ArrayBuffer(1024 * 1024); // 1MB
+
+// Pass to fragment (transferred, not cloned)
+fragment.imageData = buffer;
+
+// buffer is now unusable in parent (transferred ownership)
+----
+
+**Supported transferables:**
+
+* `ArrayBuffer`
+* `MessagePort`
+* `ImageBitmap`
+* `OffscreenCanvas`
+* `ReadableStream`
+* `WritableStream`
+* `TransformStream`
+
+=== Circular Reference Handling
+
+Circular references are automatically preserved using the https://github.com/WebReflection/flatted[flatted] library:
+
+[source,typescript]
+----
+const obj = { name: 'test' };
+obj.self = obj; // Circular reference
+
+fragment.data = obj;
+
+// In fragment:
+console.log(frameSDK.props.data.name); // "test"
+console.log(frameSDK.props.data.self === frameSDK.props.data); // true
+// The circular reference is preserved!
+----
+
+The flatted library handles circular references efficiently, allowing complex object graphs to be serialized and deserialized while preserving their structure.
+
+== Message Ordering
+
+PostMessage guarantees:
+
+* **Order preservation**: Messages arrive in the order sent
+* **Atomicity**: Each message is delivered completely or not at all
+* **No message loss**: Messages are queued if receiver is busy
+
+== Error Handling
+
+Function call errors are propagated across boundaries:
+
+[source,typescript]
+----
+// Fragment throws error
+frameSDK.props.onSave = () => {
+  throw new Error('Save failed');
+};
+
+// Parent receives error
+try {
+  await fragment.onSave();
+} catch (error) {
+  console.error('Fragment error:', error.message); // "Save failed"
+}
+----
+
+== Performance Considerations
+
+* **Serialization cost**: Functions and complex objects have overhead
+* **Message queue**: Too many rapid messages can cause lag
+* **Payload size**: Keep messages under 1MB for best performance
+* **Use transferables**: For large binary data (images, buffers)
+
+TIP: For high-frequency updates (like mouse position), debounce or throttle messages.

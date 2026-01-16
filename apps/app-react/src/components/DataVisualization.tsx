@@ -1,5 +1,5 @@
-import { useFrameSDK } from '../hooks/useFrameSDK';
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from "react";
+import { useFrameSDK } from "@zomme/fragment-frame-react";
 
 export function DataVisualization() {
   const { props, emit } = useFrameSDK();
@@ -20,7 +20,7 @@ export function DataVisualization() {
       setStats({ min, max, avg });
 
       // Notificar parent que dados foram processados
-      emit('data-loaded', { count: float32.length, min, max, avg });
+      emit("data-loaded", { count: float32.length, min, max, avg });
     }
   }, [props.metricsData, emit]);
 
@@ -31,29 +31,39 @@ export function DataVisualization() {
       buffer[i] = Math.random() * 100;
     }
 
-    console.log('Sending ArrayBuffer to parent:', buffer.byteLength, 'bytes');
-    emit('large-data', buffer.buffer); // Transferable!
+    console.log("Sending ArrayBuffer to parent:", buffer.byteLength, "bytes");
+    emit("large-data", buffer.buffer); // Transferable!
   };
 
   return (
-    <div style={{ padding: '1rem', background: '#f5f5f5', borderRadius: '8px', marginBottom: '1rem' }}>
+    <div
+      style={{ padding: "1rem", background: "#f5f5f5", borderRadius: "8px", marginBottom: "1rem" }}
+    >
       <h3>Data Visualization (Transferable Objects Demo)</h3>
-      <div style={{ marginBottom: '1rem' }}>
-        <p><strong>Data points:</strong> {data.length}</p>
-        <p><strong>Min:</strong> {stats.min.toFixed(2)}</p>
-        <p><strong>Max:</strong> {stats.max.toFixed(2)}</p>
-        <p><strong>Average:</strong> {stats.avg.toFixed(2)}</p>
+      <div style={{ marginBottom: "1rem" }}>
+        <p>
+          <strong>Data points:</strong> {data.length}
+        </p>
+        <p>
+          <strong>Min:</strong> {stats.min.toFixed(2)}
+        </p>
+        <p>
+          <strong>Max:</strong> {stats.max.toFixed(2)}
+        </p>
+        <p>
+          <strong>Average:</strong> {stats.avg.toFixed(2)}
+        </p>
       </div>
       <button
         onClick={sendLargeData}
         style={{
-          background: '#3498db',
-          color: 'white',
-          border: 'none',
-          padding: '0.5rem 1rem',
-          borderRadius: '4px',
-          cursor: 'pointer',
-          fontSize: '0.875rem'
+          background: "#3498db",
+          color: "white",
+          border: "none",
+          padding: "0.5rem 1rem",
+          borderRadius: "4px",
+          cursor: "pointer",
+          fontSize: "0.875rem",
         }}
       >
         Send Large Data (1000 floats)

@@ -1,45 +1,45 @@
-import { Routes } from '@angular/router';
+import type { Routes } from "@angular/router";
 
 export const routes: Routes = [
   {
-    path: 'angular',
+    path: "angular",
     children: [
       {
-        path: '**',
+        path: "**",
         component: {} as any, // Routes handled by fragment-frame
-      }
-    ]
+      },
+    ],
   },
   {
-    path: 'vue',
+    path: "vue",
     children: [
       {
-        path: '**',
+        path: "**",
         component: {} as any, // Routes handled by fragment-frame
-      }
-    ]
+      },
+    ],
   },
   {
-    path: 'react',
+    path: "react",
     children: [
       {
-        path: '**',
+        path: "**",
         component: {} as any, // Routes handled by fragment-frame
-      }
-    ]
+      },
+    ],
   },
   {
-    path: 'solid',
+    path: "solid",
     children: [
       {
-        path: '**',
+        path: "**",
         component: {} as any, // Routes handled by fragment-frame
-      }
-    ]
+      },
+    ],
   },
   {
-    path: '',
-    redirectTo: '/angular',
-    pathMatch: 'full'
-  }
+    path: "",
+    redirectTo: "/angular",
+    pathMatch: "full",
+  },
 ];
