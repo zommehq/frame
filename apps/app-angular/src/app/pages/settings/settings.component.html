@@ -1,6 +1,5 @@
 <app-page-layout title="Settings" subtitle="Demonstrating Async Callbacks + Attribute Listeners">
 	<div *ngIf="!isReady()" class="loading">Loading SDK...</div>
-
 	<div *ngIf="isReady()" class="content">
 		<div *ngIf="user()" class="user-card">
 			<div class="user-avatar">
@@ -12,7 +11,6 @@
 				<span class="user-role">{{ user()?.role }}</span>
 			</div>
 		</div>
-
 		<div class="info-card">
 			<h3>About This Demo</h3>
 			<p>
@@ -25,13 +23,11 @@
 				<li>User data updates are synchronized automatically</li>
 			</ul>
 		</div>
-
 		<form class="settings-form" (submit)="handleSubmit(); $event.preventDefault()">
 			<div class="form-group">
 				<label for="appName">Application Name</label>
 				<input id="appName" name="appName" type="text" [(ngModel)]="appName" />
 			</div>
-
 			<div class="form-group">
 				<label for="language">Language</label>
 				<select id="language" name="language" [(ngModel)]="language">
@@ -42,7 +38,6 @@
 					<option value="pt">Portuguese</option>
 				</select>
 			</div>
-
 			<div class="form-group">
 				<label for="theme">Theme</label>
 				<select id="theme" name="theme" [(ngModel)]="settingsTheme">
@@ -50,14 +45,12 @@
 					<option value="dark">Dark</option>
 				</select>
 			</div>
-
 			<div class="form-group checkbox">
 				<label>
 					<input name="notifications" type="checkbox" [(ngModel)]="notifications" />
 					Enable notifications
 				</label>
 			</div>
-
 			<div class="form-actions">
 				<button [disabled]="isSaving()" type="submit">
 					{{ isSaving() ? "Saving..." : "Save Settings" }}
@@ -67,7 +60,6 @@
 				</button>
 			</div>
 		</form>
-
 		<div
 			*ngIf="saveMessage()"
 			class="message"
@@ -75,7 +67,6 @@
 		>
 			{{ saveMessage() }}
 		</div>
-
 		<div class="demo-section">
 			<h3>Callback Demo</h3>
 			<p>Test synchronous callback functions passed from parent:</p>
@@ -83,7 +74,6 @@
 				Trigger Action Callback
 			</button>
 		</div>
-
 		<div class="demo-section">
 			<h3>Attribute Listener Demo</h3>
 			<p>Request theme change from parent (will trigger attribute listener):</p>
@@ -96,7 +86,6 @@
 				</button>
 			</div>
 		</div>
-
 		<div class="tech-details">
 			<h4>Technical Details</h4>
 			<ul>

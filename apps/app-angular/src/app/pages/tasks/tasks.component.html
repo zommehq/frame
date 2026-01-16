@@ -1,6 +1,5 @@
 <app-page-layout title="Task Management" subtitle="Props + Events + Search functionality">
 	<div *ngIf="!isReady" class="loading">Loading SDK...</div>
-
 	<div *ngIf="isReady" class="content">
 		<div class="stats-bar">
 			<div class="stat">
@@ -16,7 +15,6 @@
 				<span class="stat-value completed">{{ taskStats().completed }}</span>
 			</div>
 		</div>
-
 		<div class="controls">
 			<div class="search-box">
 				<input
@@ -27,7 +25,6 @@
 					(input)="handleSearch($event)"
 				/>
 			</div>
-
 			<div class="filter-buttons">
 				<button
 					class="filter-btn"
@@ -51,40 +48,90 @@
 					Completed
 				</button>
 			</div>
-
 			<button class="add-btn" (click)="addTask()">+ Add Task</button>
 		</div>
-
 		<div class="tasks">
 			<div
 				*ngFor="let task of filteredTasks()"
 				class="task-card"
 				[class.completed]="task.completed"
+				[class.editing]="editingTaskId() === task.id"
 			>
 				<div class="task-checkbox">
 					<input
 						type="checkbox"
 						[checked]="task.completed"
 						(change)="toggleTask(task.id)"
+						[disabled]="editingTaskId() === task.id"
 					/>
 				</div>
-
 				<div class="task-content">
-					<div class="task-header">
-						<h3 class="task-title">{{ task.title }}</h3>
-						<span
-							class="task-priority"
-							[style.backgroundColor]="getPriorityColor(task.priority)"
-						>
-							{{ task.priority }}
-						</span>
-					</div>
-					<p class="task-description">{{ task.description }}</p>
+					<ng-container *ngIf="editingTaskId() === task.id; else viewMode">
+						<div class="edit-mode">
+							<input
+								#titleInput
+								type="text"
+								class="edit-title"
+								[value]="task.title"
+								placeholder="Task title"
+							/>
+							<select
+								#prioritySelect
+								class="edit-priority"
+								[value]="task.priority"
+							>
+								<option value="high">High</option>
+								<option value="medium">Medium</option>
+								<option value="low">Low</option>
+							</select>
+							<textarea
+								#descInput
+								class="edit-description"
+								[value]="task.description"
+								placeholder="Task description"
+								rows="2"
+							></textarea>
+							<div class="edit-actions">
+								<button
+									class="save-btn"
+									(click)="saveEdit(task.id, titleInput.value, descInput.value, prioritySelect.value)"
+								>
+									Save
+								</button>
+								<button class="cancel-btn" (click)="cancelEdit()">Cancel</button>
+							</div>
+						</div>
+					</ng-container>
+					<ng-template #viewMode>
+						<div class="task-header">
+							<h3 class="task-title">{{ task.title }}</h3>
+							<span
+								class="task-priority"
+								[style.backgroundColor]="getPriorityColor(task.priority)"
+							>
+								{{ task.priority }}
+							</span>
+						</div>
+						<p class="task-description">{{ task.description }}</p>
+					</ng-template>
 				</div>
-
-				<button class="delete-btn" (click)="deleteTask(task.id)">Delete</button>
+				<div class="task-actions">
+					<button
+						*ngIf="editingTaskId() !== task.id"
+						class="edit-btn"
+						(click)="startEdit(task.id)"
+					>
+						Edit
+					</button>
+					<button
+						*ngIf="editingTaskId() !== task.id"
+						class="delete-btn"
+						(click)="deleteTask(task.id)"
+					>
+						Delete
+					</button>
+				</div>
 			</div>
-
 			<div *ngIf="filteredTasks().length === 0" class="empty-state">
 				<p>No tasks found</p>
 			</div>

@@ -1,7 +1,6 @@
 import { bootstrapApplication } from "@angular/platform-browser";
 import { Router } from "@angular/router";
 import { frameSDK, setupRouterSync } from "@zomme/fragment-frame-angular";
-
 import { AppComponent } from "./app/app.component";
 import { appConfig } from "./app/app.config";
 

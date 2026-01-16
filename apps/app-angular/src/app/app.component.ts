@@ -2,7 +2,6 @@ import { CommonModule } from "@angular/common";
 import { Component, type OnDestroy, type OnInit } from "@angular/core";
 import { RouterLink, RouterLinkActive, RouterOutlet } from "@angular/router";
 import { frameSDK } from "@zomme/fragment-frame-angular";
-
 import type { User } from "./models/types";
 
 interface AppProps {
@@ -33,21 +32,23 @@ export class AppComponent implements OnInit, OnDestroy {
     console.log("Angular App Component initialized with user:", this.user);
 
     if (typeof props.successCallback === "function") {
-      props.successCallback({ message: "Angular app initialized successfully" });
+      props.successCallback({
+        message: "Angular app initialized successfully",
+      });
     }
 
     document.body.className = this.theme;
 
     // Watch for theme and user changes with modern API
-    this.unwatchProps = frameSDK.watch(['theme', 'user'], (changes) => {
-      if ('theme' in changes && changes.theme) {
+    this.unwatchProps = frameSDK.watch(["theme", "user"], (changes) => {
+      if ("theme" in changes && changes.theme) {
         const [newTheme] = changes.theme;
         console.log("Theme changed:", newTheme);
         this.theme = newTheme as "dark" | "light";
         document.body.className = newTheme as string;
       }
 
-      if ('user' in changes && changes.user) {
+      if ("user" in changes && changes.user) {
         const [newUser] = changes.user;
         console.log("User updated:", newUser);
         this.user = newUser as User;

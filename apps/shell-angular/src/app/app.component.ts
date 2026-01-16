@@ -1,6 +1,6 @@
 import { CommonModule } from "@angular/common";
 import { Component, CUSTOM_ELEMENTS_SCHEMA, type OnInit } from "@angular/core";
-import { NavigationEnd, Router, RouterModule } from "@angular/router";
+import { NavigationEnd, type Router, RouterModule } from "@angular/router";
 import { filter } from "rxjs/operators";
 
 interface FrameConfig {

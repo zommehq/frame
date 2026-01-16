@@ -5,7 +5,7 @@
 	"main": "./dist/fragment-frame.js",
 	"types": "./dist/fragment-frame.d.ts",
 	"exports": {
-		".": "./dist/types.js",
+		".": "./dist/fragment-frame.js",
 		"./constants": "./dist/constants.js",
 		"./sdk": "./dist/sdk.js",
 		"./types": "./dist/types.js"

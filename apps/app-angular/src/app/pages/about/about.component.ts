@@ -1,7 +1,6 @@
 import { CommonModule } from "@angular/common";
 import { Component, VERSION } from "@angular/core";
 import { frameSDK } from "@zomme/fragment-frame-angular";
-
 import { PageLayoutComponent } from "../../components/page-layout/page-layout.component";
 
 @Component({

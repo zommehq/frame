@@ -1,6 +1,5 @@
 <app-page-layout title="Analytics Dashboard" subtitle="Demonstrating Transferable Objects (ArrayBuffer)">
 	<div *ngIf="!isReady()" class="loading">Loading SDK...</div>
-
 	<div *ngIf="isReady()" class="content">
 		<div class="info-card">
 			<h3>About Transferable Objects</h3>
@@ -13,7 +12,6 @@
 				Last updated: {{ lastUpdate()?.toLocaleTimeString() }}
 			</p>
 		</div>
-
 		<div class="metrics-grid">
 			<div class="metric-card">
 				<div class="metric-icon">📊</div>
@@ -22,7 +20,6 @@
 					<div class="metric-value">{{ metrics().tasksTotal }}</div>
 				</div>
 			</div>
-
 			<div class="metric-card">
 				<div class="metric-icon">✅</div>
 				<div class="metric-content">
@@ -30,7 +27,6 @@
 					<div class="metric-value">{{ metrics().tasksCompleted }}</div>
 				</div>
 			</div>
-
 			<div class="metric-card">
 				<div class="metric-icon">🎯</div>
 				<div class="metric-content">
@@ -38,7 +34,6 @@
 					<div class="metric-value">{{ metrics().completedToday }}</div>
 				</div>
 			</div>
-
 			<div class="metric-card">
 				<div class="metric-icon">⏱️</div>
 				<div class="metric-content">
@@ -47,7 +42,6 @@
 				</div>
 			</div>
 		</div>
-
 		<div class="productivity-card">
 			<h3>Productivity Score</h3>
 			<div class="score-container">
@@ -70,7 +64,6 @@
 				</div>
 			</div>
 		</div>
-
 		<div class="actions">
 			<button
 				class="action-btn primary"
@@ -94,7 +87,6 @@
 				Reset Metrics
 			</button>
 		</div>
-
 		<div class="tech-details">
 			<h4>Technical Details</h4>
 			<ul>

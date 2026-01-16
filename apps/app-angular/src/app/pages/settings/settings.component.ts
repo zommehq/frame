@@ -54,7 +54,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
       await frameSDK.initialize();
       this.isReady.set(true);
 
-      const props = frameSDK.props as {
+      const props = (frameSDK.props ?? {}) as {
         actionCallback?: (data: any) => void;
         saveCallback?: (
           settings: any
@@ -102,6 +102,8 @@ export class SettingsComponent implements OnInit, OnDestroy {
       });
     } catch (error) {
       console.error("Failed to initialize SDK:", error);
+      // Still set isReady to true so the component renders in standalone mode
+      this.isReady.set(true);
     }
   }
 

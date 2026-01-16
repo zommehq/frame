@@ -1,7 +1,6 @@
 import { CommonModule } from "@angular/common";
-import { Component, type OnInit, computed, signal } from "@angular/core";
+import { Component, computed, type OnInit, signal } from "@angular/core";
 import { frameSDK } from "@zomme/fragment-frame-angular";
-
 import { PageLayoutComponent } from "../../components/page-layout/page-layout.component";
 
 interface Metrics {
@@ -52,11 +51,13 @@ export class AnalyticsComponent implements OnInit {
       await frameSDK.initialize();
       this.isReady.set(true);
 
-      const props = frameSDK.props as { metricsData?: ArrayBuffer };
+      const props = (frameSDK.props ?? {}) as { metricsData?: ArrayBuffer };
 
       if (props.metricsData) {
         try {
-          const deserializedMetrics = this.deserializeMetrics(props.metricsData);
+          const deserializedMetrics = this.deserializeMetrics(
+            props.metricsData
+          );
           this.metrics.set(deserializedMetrics);
           this.lastUpdate.set(new Date());
         } catch (error) {
@@ -70,6 +71,8 @@ export class AnalyticsComponent implements OnInit {
       }
     } catch (error) {
       console.error("Failed to initialize SDK:", error);
+      // Still set isReady to true so the component renders in standalone mode
+      this.isReady.set(true);
     }
   }
 
@@ -86,7 +89,7 @@ export class AnalyticsComponent implements OnInit {
         tasksCompleted,
         tasksTotal,
         completedToday,
-        averageCompletionTime,
+        averageCompletionTime
       );
 
       this.metrics.set(newMetrics);
@@ -156,9 +159,10 @@ export class AnalyticsComponent implements OnInit {
     tasksCompleted: number,
     tasksTotal: number,
     completedToday: number,
-    averageCompletionTime: number,
+    averageCompletionTime: number
   ): Metrics {
-    const productivityScore = tasksTotal > 0 ? Math.round((tasksCompleted / tasksTotal) * 100) : 0;
+    const productivityScore =
+      tasksTotal > 0 ? Math.round((tasksCompleted / tasksTotal) * 100) : 0;
 
     return {
       averageCompletionTime,
