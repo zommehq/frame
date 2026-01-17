@@ -2,7 +2,6 @@ import { MessageEvent } from "./constants";
 import { FunctionManager } from "./helpers/function-manager";
 import { createLogger } from "./helpers/logger";
 import { validateMessage } from "./helpers/message-validators";
-import { kebabCase } from "./helpers/string-utils";
 import type {
   CustomEventMessage,
   FragmentFrameProps,
@@ -46,7 +45,8 @@ const logger = createLogger("fragment-frame");
  * ```
  */
 export class FragmentFrame extends HTMLElement {
-  private static readonly ATTRS_REGEX = /^(base|name|sandbox|src)$/;
+  /** @internal - Used by prototype proxy */
+  static readonly ATTRS_REGEX = /^(base|name|sandbox|src)$/;
 
   /**
    * Observed attributes for Web Component lifecycle
@@ -55,26 +55,31 @@ export class FragmentFrame extends HTMLElement {
     return ["base", "name", "sandbox", "src"];
   }
 
-  private _iframe!: HTMLIFrameElement;
-  private _observer?: MutationObserver;
-  private _ready = false;
-  private _origin!: string;
-  private _port!: MessagePort;
+  _iframe!: HTMLIFrameElement;
+  _observer?: MutationObserver;
+  _ready = false;
+  _origin!: string;
+  _port!: MessagePort;
 
   // Function call support
-  private _manager!: FunctionManager;
+  _manager!: FunctionManager;
 
-  // Cache for dynamically created methods
-  private _dynamicMethods = new Map<string, Function>();
+  // Cache for dynamically created methods (used by prototype proxy)
+  _dynamicMethods = new Map<string, Function>();
 
   // Handler reference for cleanup
-  private _portMessageHandler?: (event: MessageEvent) => void;
+  _portMessageHandler?: (event: MessageEvent) => void;
+
+  // Storage for dynamic properties (intercepted via prototype proxy)
+  _propValues = new Map<string, unknown>();
+
+  // Set of properties that have been defined with getter/setter
+  _definedProps = new Set<string>();
 
   /**
    * Creates a new fragment-frame element
    *
-   * Initializes the function manager and sets up property interception via Proxy
-   * Note: Proxy is not returned to maintain Angular compatibility
+   * Initializes the function manager for cross-iframe communication.
    */
   constructor() {
     super();
@@ -83,87 +88,43 @@ export class FragmentFrame extends HTMLElement {
     this._manager = new FunctionManager((message, transferables = []) => {
       this._sendToIframe(message, transferables);
     });
+  }
 
-    // Setup Proxy for property interception (not returned for Angular compatibility)
-    new Proxy(this, {
-      set(target, prop, value): boolean {
-        const result = Reflect.set(target, prop, value);
+  /**
+   * Sync a property value to the iframe
+   *
+   * Only syncs if fragment is ready. Serializes the value (including functions)
+   * and sends via MessagePort.
+   */
+  _syncPropertyToIframe(prop: string, value: unknown): void {
+    if (!this._ready) return;
 
-        // Only public properties (not starting with _ and not fixed attributes)
-        if (
-          typeof prop === "string" &&
-          !prop.startsWith("_") &&
-          !FragmentFrame.ATTRS_REGEX.test(prop) &&
-          target._ready
-        ) {
-          try {
-            // Serialize value (including functions and transferables)
-            const { serialized, transferables } = target._manager.serialize(value);
+    try {
+      const { serialized, transferables } = this._manager.serialize(value);
 
-            const success = target._sendToIframe(
-              {
-                attribute: prop,
-                type: MessageEvent.ATTRIBUTE_CHANGE,
-                value: serialized,
-              },
-              transferables,
-            );
+      const success = this._sendToIframe(
+        {
+          attribute: prop,
+          type: MessageEvent.ATTRIBUTE_CHANGE,
+          value: serialized,
+        },
+        transferables,
+      );
 
-            // Signal send failure by dispatching error event
-            if (!success) {
-              console.warn(`[fragment-frame] Failed to sync property '${prop}' to iframe`);
-              target._emit("error", {
-                message: `Failed to sync property '${prop}' to iframe`,
-                property: prop,
-              });
-            }
-          } catch (error) {
-            console.error(`[fragment-frame] Failed to serialize property '${prop}':`, error);
-            // Property was set locally but not synced to child
-            target._emit("error", {
-              message: `Property serialization failed: ${prop}`,
-              error,
-            });
-          }
-        }
-
-        return result;
-      },
-
-      get(target, prop): unknown {
-        const value = Reflect.get(target, prop);
-
-        // If property exists, return it
-        if (value !== undefined) return value;
-
-        // Dynamic method pattern for camelCase event emitters
-        // If property doesn't exist and looks like a camelCase identifier,
-        // create a dynamic function that emits an event with kebab-case name
-        //
-        // Cache the function to maintain referential equality:
-        //   frame.themeChange === frame.themeChange  // true
-        //
-        // Examples:
-        //   frame.themeChange({ ... })     → emit('theme-change', { ... })
-        //   frame.userCreated({ ... })     → emit('user-created', { ... })
-        //   frame.apiUrlUpdate({ ... })    → emit('api-url-update', { ... })
-
-        // Validate property is a camelCase identifier
-        if (typeof prop !== "string") return value;
-        if (!/^[a-z][a-zA-Z0-9]*$/.test(prop)) return value;
-        if (!/[A-Z]/.test(prop)) return value;
-
-        // Create dynamic method for valid camelCase identifier
-        // Check cache first
-        if (!target._dynamicMethods.has(prop)) {
-          // Create and cache the function
-          target._dynamicMethods.set(prop, (data?: unknown) =>
-            target._emitToChild(kebabCase(prop), data),
-          );
-        }
-        return target._dynamicMethods.get(prop);
-      },
-    });
+      if (!success) {
+        console.warn(`[fragment-frame] Failed to sync property '${prop}' to iframe`);
+        this._emit("error", {
+          message: `Failed to sync property '${prop}' to iframe`,
+          property: prop,
+        });
+      }
+    } catch (error) {
+      console.error(`[fragment-frame] Failed to serialize property '${prop}':`, error);
+      this._emit("error", {
+        message: `Property serialization failed: ${prop}`,
+        error,
+      });
+    }
   }
 
   /**
@@ -233,6 +194,12 @@ export class FragmentFrame extends HTMLElement {
    * Note: Initialization may be deferred until attributes are set via attributeChangedCallback
    */
   connectedCallback() {
+    // Capture any properties that were set BEFORE connectedCallback
+    this._captureExistingProperties();
+
+    // Start watching for new properties (Angular may set them after connectedCallback)
+    this._startPropertyWatcher();
+
     // If both name and src are already set, initialize immediately
     if (this.name && this.src && !this._iframe) {
       try {
@@ -247,6 +214,116 @@ export class FragmentFrame extends HTMLElement {
       }
     }
     // Otherwise, wait for attributeChangedCallback to trigger initialization
+  }
+
+  /**
+   * Capture properties that were set on the element before connectedCallback.
+   * Converts them to reactive properties with getters/setters.
+   */
+  private _captureExistingProperties(): void {
+    const ownProps = Object.getOwnPropertyNames(this);
+
+    for (const prop of ownProps) {
+      if (this._shouldInterceptProperty(prop)) {
+        const descriptor = Object.getOwnPropertyDescriptor(this, prop);
+
+        // Only capture data properties (not getters/setters)
+        if (descriptor && "value" in descriptor) {
+          const value = descriptor.value;
+          console.log(`[_captureExistingProperties] Capturing: ${prop}`);
+
+          // Store value
+          this._propValues.set(prop, value);
+
+          // Delete the data property
+          delete (this as any)[prop];
+
+          // Define getter/setter
+          this._defineReactiveProperty(prop);
+        }
+      }
+    }
+  }
+
+  /**
+   * Check if a property should be intercepted
+   */
+  private _shouldInterceptProperty(prop: string): boolean {
+    return (
+      typeof prop === "string" &&
+      !prop.startsWith("_") &&
+      !RESERVED_PROPS.has(prop) &&
+      !FragmentFrame.ATTRS_REGEX.test(prop) &&
+      !this._definedProps.has(prop)
+    );
+  }
+
+  /**
+   * Define a reactive property with getter/setter
+   */
+  private _defineReactiveProperty(prop: string): void {
+    if (this._definedProps.has(prop)) return;
+    this._definedProps.add(prop);
+
+    Object.defineProperty(this, prop, {
+      configurable: true,
+      enumerable: true,
+      get: () => this._propValues.get(prop),
+      set: (value: unknown) => {
+        console.log(`[Setter ${prop}] value type: ${typeof value}, ready: ${this._ready}`);
+        this._propValues.set(prop, value);
+        this._syncPropertyToIframe(prop, value);
+      },
+    });
+  }
+
+  /**
+   * Watch for new properties being added to the element.
+   * Uses requestAnimationFrame for efficient checking.
+   */
+  private _propertyWatcherRAF?: number;
+  private _propertyWatcherTimeout?: number;
+
+  private _startPropertyWatcher(): void {
+    let checkCount = 0;
+    const maxChecks = 100; // Stop after ~1.6 seconds (100 * 16ms)
+
+    const checkForNewProps = () => {
+      const ownProps = Object.getOwnPropertyNames(this);
+
+      for (const prop of ownProps) {
+        if (this._shouldInterceptProperty(prop)) {
+          const descriptor = Object.getOwnPropertyDescriptor(this, prop);
+
+          if (descriptor && "value" in descriptor) {
+            const value = descriptor.value;
+            console.log(`[PropertyWatcher] New prop detected: ${prop}`);
+
+            this._propValues.set(prop, value);
+            delete (this as any)[prop];
+            this._defineReactiveProperty(prop);
+
+            // Trigger setter to sync
+            (this as any)[prop] = value;
+          }
+        }
+      }
+
+      checkCount++;
+      if (checkCount < maxChecks && this.isConnected) {
+        this._propertyWatcherRAF = requestAnimationFrame(checkForNewProps);
+      }
+    };
+
+    // Start checking on next frame
+    this._propertyWatcherRAF = requestAnimationFrame(checkForNewProps);
+  }
+
+  private _stopPropertyWatcher(): void {
+    if (this._propertyWatcherRAF) {
+      cancelAnimationFrame(this._propertyWatcherRAF);
+      this._propertyWatcherRAF = undefined;
+    }
   }
 
   /**
@@ -356,17 +433,10 @@ export class FragmentFrame extends HTMLElement {
       }
     }
 
-    // Collect JavaScript properties (may override attributes, includes functions/objects)
-    for (const key of Object.keys(this)) {
-      if (
-        !key.startsWith("_") &&
-        !FragmentFrame.ATTRS_REGEX.test(key) &&
-        !/^(base|name)$/.test(key)
-      ) {
-        const value = this[key as keyof this];
-        if (value !== undefined) {
-          props[key] = value;
-        }
+    // Collect dynamic properties from _propValues (set via prototype proxy)
+    for (const [key, value] of this._propValues.entries()) {
+      if (value !== undefined) {
+        props[key] = value;
       }
     }
 
@@ -633,6 +703,9 @@ export class FragmentFrame extends HTMLElement {
    * Internal cleanup method called on disconnect or error
    */
   private _cleanup(): void {
+    // Stop property watcher
+    this._stopPropertyWatcher();
+
     this._observer?.disconnect();
     this._observer = undefined;
 
@@ -655,7 +728,12 @@ export class FragmentFrame extends HTMLElement {
     // Clean up remaining resources
     this._manager?.cleanup();
     this._dynamicMethods?.clear();
+    this._propValues?.clear();
+    this._definedProps?.clear();
     this._iframe?.remove();
+
+    // Reset ready state
+    this._ready = false;
   }
 
   /**
@@ -667,6 +745,43 @@ export class FragmentFrame extends HTMLElement {
     this._cleanup();
   }
 }
+
+// Properties that should NOT be intercepted
+const RESERVED_PROPS = new Set([
+  // Native HTMLElement properties
+  "innerHTML",
+  "outerHTML",
+  "textContent",
+  "innerText",
+  "style",
+  "className",
+  "classList",
+  "id",
+  "slot",
+  "attributes",
+  "shadowRoot",
+  "children",
+  "childNodes",
+  "parentNode",
+  "parentElement",
+  "nextSibling",
+  "previousSibling",
+  "firstChild",
+  "lastChild",
+  "nodeName",
+  "nodeType",
+  "nodeValue",
+  "ownerDocument",
+  "isConnected",
+  // Native methods
+  "constructor",
+  "connectedCallback",
+  "disconnectedCallback",
+  "attributeChangedCallback",
+  "adoptedCallback",
+  // Public methods of FragmentFrame
+  "emit",
+]);
 
 // Register the custom element
 if (!customElements.get("fragment-frame")) {

@@ -8,8 +8,8 @@
 		"apps/*"
 	],
 	"scripts": {
-		"build": "bun --filter '@zomme/fragment-frame*' run build && bun --filter './apps/*' run build",
-		"dev": "bun run --filter '*' dev",
+		"build": "bun scripts/build.ts",
+		"dev": "bun scripts/build.ts --watch",
 		"lint": "bun run --filter '*' lint"
 	},
 	"devDependencies": {

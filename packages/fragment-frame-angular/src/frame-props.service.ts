@@ -1,4 +1,4 @@
-import { computed, Injectable, type Signal } from "@angular/core";
+import { computed, Injectable, type Signal, signal } from "@angular/core";
 import { frameSDK } from "@zomme/fragment-frame/sdk";
 
 /**
@@ -33,6 +33,17 @@ import { frameSDK } from "@zomme/fragment-frame/sdk";
   providedIn: "root",
 })
 export class FramePropsService {
+  // Internal signal that triggers re-computation when props change
+  private _propsVersion = signal(0);
+
+  constructor() {
+    // Watch for any prop changes from the parent and increment version
+    // This triggers Angular's computed() to re-evaluate
+    frameSDK.watch(() => {
+      this._propsVersion.update((v) => v + 1);
+    });
+  }
+
   /**
    * Get current frameSDK props with type safety
    *
@@ -90,6 +101,10 @@ export class FramePropsService {
    * ```
    */
   asSignal<T>(): Signal<T> {
-    return computed(() => (frameSDK.props ?? {}) as T);
+    return computed(() => {
+      // Read version to create dependency - this makes Angular re-run computed when props change
+      this._propsVersion();
+      return (frameSDK.props ?? {}) as T;
+    });
   }
 }

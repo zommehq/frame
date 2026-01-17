@@ -25,25 +25,39 @@ export interface AnalyticsFragmentProps extends BaseFragmentProps {
   metricsData?: ArrayBuffer;
 }
 
+export interface TaskStats {
+  active: number;
+  completed: number;
+  total: number;
+}
+
 /**
  * Task management actions
+ *
+ * Note: All functions are async when passed via RPC (Remote Procedure Call)
+ * through fragment-frame. Always use await when calling these functions.
  */
 export interface TaskCallbacks {
-  addTask?: (task: Omit<Task, "id">) => Task;
-  addRandomTask?: () => Task;
-  clearCompleted?: () => { removed: number; success: boolean };
-  deleteTask?: (taskId: number) => boolean;
-  getTaskStats?: () => { active: number; completed: number; total: number };
-  refreshTasks?: () => { success: boolean; tasksLoaded: number };
-  toggleTask?: (taskId: number) => Task | undefined;
-  updateTask?: (taskId: number, updates: Partial<Task>) => Task | undefined;
+  addTask?: (task: Omit<Task, "id">) => Promise<Task>;
+  addRandomTask?: () => Promise<Task>;
+  clearCompleted?: () => Promise<{ removed: number; success: boolean }>;
+  deleteTask?: (taskId: number) => Promise<boolean>;
+  getTaskStats?: () => Promise<TaskStats>;
+  refreshTasks?: () => Promise<{ success: boolean; tasksLoaded: number }>;
+  setFilter?: (filter: "active" | "all" | "completed") => Promise<void>;
+  setSearchQuery?: (query: string) => Promise<void>;
+  toggleTask?: (taskId: number) => Promise<Task | undefined>;
+  updateTask?: (taskId: number, updates: Partial<Task>) => Promise<Task | undefined>;
 }
 
 /**
  * Props for Tasks fragment
  */
 export interface TasksFragmentProps extends BaseFragmentProps, TaskCallbacks {
-  tasks?: Task[];
+  filter?: "active" | "all" | "completed";
+  filteredTasks?: Task[];
+  searchQuery?: string;
+  taskStats?: TaskStats;
 }
 
 /**

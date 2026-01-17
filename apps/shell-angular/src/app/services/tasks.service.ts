@@ -55,6 +55,28 @@ export class TasksService {
   ]);
   readonly tasks = this._tasks.asReadonly();
 
+  filter = signal<"active" | "all" | "completed">("all");
+  searchQuery = signal("");
+
+  readonly filteredTasks = computed(() => {
+    let result = this._tasks();
+
+    if (this.filter() === "active") {
+      result = result.filter((t) => !t.completed);
+    } else if (this.filter() === "completed") {
+      result = result.filter((t) => t.completed);
+    }
+
+    if (this.searchQuery()) {
+      const query = this.searchQuery().toLowerCase();
+      result = result.filter(
+        (t) => t.title.toLowerCase().includes(query) || t.description.toLowerCase().includes(query),
+      );
+    }
+
+    return result;
+  });
+
   readonly taskStats = computed<TaskStats>(() => {
     const allTasks = this._tasks();
     return {
@@ -129,5 +151,13 @@ export class TasksService {
 
   getTaskStats = (): TaskStats => {
     return this.taskStats();
+  };
+
+  setFilter = (filter: "active" | "all" | "completed"): void => {
+    this.filter.set(filter);
+  };
+
+  setSearchQuery = (query: string): void => {
+    this.searchQuery.set(query);
   };
 }

@@ -41,6 +41,10 @@ export class AppComponent implements OnInit {
   currentUser: any;
   currentTheme: "dark" | "light" = "light";
   tasks: Task[] = [];
+  filteredTasks: Task[] = [];
+  filter: "active" | "all" | "completed" = "all";
+  searchQuery = "";
+  taskStats = { active: 0, completed: 0, total: 0 };
 
   // Props para React (Transferable Objects)
   metricsArrayBuffer!: ArrayBuffer;
@@ -69,6 +73,10 @@ export class AppComponent implements OnInit {
       this.currentTheme = this.settingsService.theme();
       this.currentUser = this.settingsService.user();
       this.tasks = this.tasksService.tasks();
+      this.filteredTasks = this.tasksService.filteredTasks();
+      this.filter = this.tasksService.filter();
+      this.searchQuery = this.tasksService.searchQuery();
+      this.taskStats = this.tasksService.taskStats();
     });
   }
 

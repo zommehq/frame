@@ -29,15 +29,6 @@ export const routes: Routes = [
     ],
   },
   {
-    path: "solid",
-    children: [
-      {
-        path: "**",
-        component: {} as any, // Routes handled by fragment-frame
-      },
-    ],
-  },
-  {
     path: "",
     redirectTo: "/angular",
     pathMatch: "full",
