@@ -33,11 +33,12 @@ const logger = createLogger("fragment-frame");
  * ```typescript
  * const fragment = document.querySelector('fragment-frame');
  *
- * // Call fragment method
- * const data = await fragment.callMethod('getUserData', { id: 123 });
+ * // Set properties via property binding (auto-detected)
+ * fragment.theme = 'dark';
+ * fragment.user = currentUser;
  *
  * // Send event to fragment
- * fragment.emitEvent('theme-changed', { theme: 'dark' });
+ * fragment.emit('theme-changed', { theme: 'dark' });
  *
  * // Listen to fragment events
  * fragment.addEventListener('ready', () => console.log('Ready'));
@@ -45,7 +46,6 @@ const logger = createLogger("fragment-frame");
  * ```
  */
 export class FragmentFrame extends HTMLElement {
-  /** @internal - Used by prototype proxy */
   static readonly ATTRS_REGEX = /^(base|name|sandbox|src)$/;
 
   /**
@@ -64,17 +64,22 @@ export class FragmentFrame extends HTMLElement {
   // Function call support
   _manager!: FunctionManager;
 
-  // Cache for dynamically created methods (used by prototype proxy)
+  // Cache for dynamically created methods
   _dynamicMethods = new Map<string, Function>();
 
   // Handler reference for cleanup
   _portMessageHandler?: (event: MessageEvent) => void;
 
-  // Storage for dynamic properties (intercepted via prototype proxy)
+  // Storage for dynamic properties
   _propValues = new Map<string, unknown>();
 
   // Set of properties that have been defined with getter/setter
   _definedProps = new Set<string>();
+
+  // Property watcher state
+  private _watcherRAF?: number;
+  private _watcherTimeout?: ReturnType<typeof setTimeout>;
+  private _watcherPhase: "burst" | "slow" | "stopped" = "stopped";
 
   /**
    * Creates a new fragment-frame element
@@ -197,7 +202,7 @@ export class FragmentFrame extends HTMLElement {
     // Capture any properties that were set BEFORE connectedCallback
     this._captureExistingProperties();
 
-    // Start watching for new properties (Angular may set them after connectedCallback)
+    // Start watching for new properties (frameworks may set them after connectedCallback)
     this._startPropertyWatcher();
 
     // If both name and src are already set, initialize immediately
@@ -224,13 +229,15 @@ export class FragmentFrame extends HTMLElement {
     const ownProps = Object.getOwnPropertyNames(this);
 
     for (const prop of ownProps) {
+      // Early exit for private properties
+      if (prop.startsWith("_")) continue;
+
       if (this._shouldInterceptProperty(prop)) {
         const descriptor = Object.getOwnPropertyDescriptor(this, prop);
 
         // Only capture data properties (not getters/setters)
         if (descriptor && "value" in descriptor) {
           const value = descriptor.value;
-          console.log(`[_captureExistingProperties] Capturing: ${prop}`);
 
           // Store value
           this._propValues.set(prop, value);
@@ -247,14 +254,17 @@ export class FragmentFrame extends HTMLElement {
 
   /**
    * Check if a property should be intercepted
+   *
+   * Uses dynamic check against HTMLElement.prototype instead of a hardcoded list.
    */
   private _shouldInterceptProperty(prop: string): boolean {
     return (
       typeof prop === "string" &&
       !prop.startsWith("_") &&
-      !RESERVED_PROPS.has(prop) &&
       !FragmentFrame.ATTRS_REGEX.test(prop) &&
-      !this._definedProps.has(prop)
+      !this._definedProps.has(prop) &&
+      !(prop in HTMLElement.prototype) &&
+      prop !== "emit"
     );
   }
 
@@ -270,7 +280,6 @@ export class FragmentFrame extends HTMLElement {
       enumerable: true,
       get: () => this._propValues.get(prop),
       set: (value: unknown) => {
-        console.log(`[Setter ${prop}] value type: ${typeof value}, ready: ${this._ready}`);
         this._propValues.set(prop, value);
         this._syncPropertyToIframe(prop, value);
       },
@@ -279,50 +288,103 @@ export class FragmentFrame extends HTMLElement {
 
   /**
    * Watch for new properties being added to the element.
-   * Uses requestAnimationFrame for efficient checking.
+   *
+   * Uses a two-phase approach for optimal performance:
+   * - BURST phase: High frequency (requestAnimationFrame) for ~1 second
+   * - SLOW phase: Low frequency (200ms intervals) for ~4 more seconds
+   *
+   * Stops early if no new properties are detected for several consecutive checks.
    */
-  private _propertyWatcherRAF?: number;
-  private _propertyWatcherTimeout?: number;
-
   private _startPropertyWatcher(): void {
-    let checkCount = 0;
-    const maxChecks = 100; // Stop after ~1.6 seconds (100 * 16ms)
+    let burstCount = 0;
+    let slowCount = 0;
+    let emptyChecks = 0;
+
+    // Configuration
+    const BURST_MAX = 60; // ~1 second at 60fps
+    const BURST_EMPTY_STOP = 10; // Stop after 10 consecutive empty checks
+    const SLOW_INTERVAL = 200; // 200ms between slow checks
+    const SLOW_MAX = 20; // ~4 seconds of slow checking
+
+    this._watcherPhase = "burst";
 
     const checkForNewProps = () => {
+      if (this._watcherPhase === "stopped") return;
+
+      let foundNew = false;
       const ownProps = Object.getOwnPropertyNames(this);
 
       for (const prop of ownProps) {
+        // Early exit for private properties
+        if (prop.startsWith("_")) continue;
+
         if (this._shouldInterceptProperty(prop)) {
           const descriptor = Object.getOwnPropertyDescriptor(this, prop);
 
           if (descriptor && "value" in descriptor) {
             const value = descriptor.value;
-            console.log(`[PropertyWatcher] New prop detected: ${prop}`);
+            foundNew = true;
 
             this._propValues.set(prop, value);
             delete (this as any)[prop];
             this._defineReactiveProperty(prop);
 
-            // Trigger setter to sync
+            // Trigger setter to sync (if ready)
             (this as any)[prop] = value;
           }
         }
       }
 
-      checkCount++;
-      if (checkCount < maxChecks && this.isConnected) {
-        this._propertyWatcherRAF = requestAnimationFrame(checkForNewProps);
+      // Smart stop logic
+      if (foundNew) {
+        emptyChecks = 0;
+      } else {
+        emptyChecks++;
+      }
+
+      // Stop if too many consecutive empty checks
+      if (emptyChecks >= BURST_EMPTY_STOP) {
+        this._watcherPhase = "stopped";
+        return;
+      }
+
+      // BURST phase
+      if (this._watcherPhase === "burst") {
+        burstCount++;
+        if (burstCount >= BURST_MAX) {
+          this._watcherPhase = "slow";
+          this._watcherTimeout = setTimeout(checkForNewProps, SLOW_INTERVAL);
+        } else {
+          this._watcherRAF = requestAnimationFrame(checkForNewProps);
+        }
+        return;
+      }
+
+      // SLOW phase
+      if (this._watcherPhase === "slow") {
+        slowCount++;
+        if (slowCount >= SLOW_MAX) {
+          this._watcherPhase = "stopped";
+        } else {
+          this._watcherTimeout = setTimeout(checkForNewProps, SLOW_INTERVAL);
+        }
       }
     };
 
-    // Start checking on next frame
-    this._propertyWatcherRAF = requestAnimationFrame(checkForNewProps);
+    this._watcherRAF = requestAnimationFrame(checkForNewProps);
   }
 
   private _stopPropertyWatcher(): void {
-    if (this._propertyWatcherRAF) {
-      cancelAnimationFrame(this._propertyWatcherRAF);
-      this._propertyWatcherRAF = undefined;
+    this._watcherPhase = "stopped";
+
+    if (this._watcherRAF) {
+      cancelAnimationFrame(this._watcherRAF);
+      this._watcherRAF = undefined;
+    }
+
+    if (this._watcherTimeout) {
+      clearTimeout(this._watcherTimeout);
+      this._watcherTimeout = undefined;
     }
   }
 
@@ -433,7 +495,7 @@ export class FragmentFrame extends HTMLElement {
       }
     }
 
-    // Collect dynamic properties from _propValues (set via prototype proxy)
+    // Collect dynamic properties from _propValues
     for (const [key, value] of this._propValues.entries()) {
       if (value !== undefined) {
         props[key] = value;
@@ -592,9 +654,6 @@ export class FragmentFrame extends HTMLElement {
    * ```typescript
    * // Direct call
    * frame.emit('theme-change', { theme: 'dark' });
-   *
-   * // CamelCase method
-   * frame.themeChange({ theme: 'dark' });
    * ```
    */
   emit(eventName: string, data?: unknown) {
@@ -745,43 +804,6 @@ export class FragmentFrame extends HTMLElement {
     this._cleanup();
   }
 }
-
-// Properties that should NOT be intercepted
-const RESERVED_PROPS = new Set([
-  // Native HTMLElement properties
-  "innerHTML",
-  "outerHTML",
-  "textContent",
-  "innerText",
-  "style",
-  "className",
-  "classList",
-  "id",
-  "slot",
-  "attributes",
-  "shadowRoot",
-  "children",
-  "childNodes",
-  "parentNode",
-  "parentElement",
-  "nextSibling",
-  "previousSibling",
-  "firstChild",
-  "lastChild",
-  "nodeName",
-  "nodeType",
-  "nodeValue",
-  "ownerDocument",
-  "isConnected",
-  // Native methods
-  "constructor",
-  "connectedCallback",
-  "disconnectedCallback",
-  "attributeChangedCallback",
-  "adoptedCallback",
-  // Public methods of FragmentFrame
-  "emit",
-]);
 
 // Register the custom element
 if (!customElements.get("fragment-frame")) {
