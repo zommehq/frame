@@ -29,8 +29,7 @@ export class TasksComponent implements OnDestroy {
   }
 
   async setFilter(newFilter: "active" | "all" | "completed") {
-    const props = this.props();
-    await props.setFilter?.(newFilter);
+    await this.props().setFilter?.(newFilter);
   }
 
   async toggleTask(taskId: number) {
@@ -43,9 +42,7 @@ export class TasksComponent implements OnDestroy {
 
   async addTask() {
     const newTask = await this.props().addRandomTask?.();
-    if (newTask) {
-      this.editingTaskId.set(newTask.id);
-    }
+    if (newTask) this.editingTaskId.set(newTask.id);
   }
 
   startEdit(taskId: number) {

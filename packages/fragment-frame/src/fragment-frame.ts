@@ -2,6 +2,7 @@ import { MessageEvent } from "./constants";
 import { FunctionManager } from "./helpers/function-manager";
 import { createLogger } from "./helpers/logger";
 import { validateMessage } from "./helpers/message-validators";
+import { kebabCase } from "./helpers/string-utils";
 import type {
   CustomEventMessage,
   FragmentFrameProps,
@@ -37,8 +38,9 @@ const logger = createLogger("fragment-frame");
  * fragment.theme = 'dark';
  * fragment.user = currentUser;
  *
- * // Send event to fragment
- * fragment.emit('theme-changed', { theme: 'dark' });
+ * // Send event to fragment (two equivalent ways)
+ * fragment.emit('theme-change', { theme: 'dark' });
+ * fragment.themeChange({ theme: 'dark' }); // camelCase alias
  *
  * // Listen to fragment events
  * fragment.addEventListener('ready', () => console.log('Ready'));
@@ -75,11 +77,6 @@ export class FragmentFrame extends HTMLElement {
 
   // Set of properties that have been defined with getter/setter
   _definedProps = new Set<string>();
-
-  // Property watcher state
-  private _watcherRAF?: number;
-  private _watcherTimeout?: ReturnType<typeof setTimeout>;
-  private _watcherPhase: "burst" | "slow" | "stopped" = "stopped";
 
   /**
    * Creates a new fragment-frame element
@@ -199,12 +196,6 @@ export class FragmentFrame extends HTMLElement {
    * Note: Initialization may be deferred until attributes are set via attributeChangedCallback
    */
   connectedCallback() {
-    // Capture any properties that were set BEFORE connectedCallback
-    this._captureExistingProperties();
-
-    // Start watching for new properties (frameworks may set them after connectedCallback)
-    this._startPropertyWatcher();
-
     // If both name and src are already set, initialize immediately
     if (this.name && this.src && !this._iframe) {
       try {
@@ -219,173 +210,6 @@ export class FragmentFrame extends HTMLElement {
       }
     }
     // Otherwise, wait for attributeChangedCallback to trigger initialization
-  }
-
-  /**
-   * Capture properties that were set on the element before connectedCallback.
-   * Converts them to reactive properties with getters/setters.
-   */
-  private _captureExistingProperties(): void {
-    const ownProps = Object.getOwnPropertyNames(this);
-
-    for (const prop of ownProps) {
-      // Early exit for private properties
-      if (prop.startsWith("_")) continue;
-
-      if (this._shouldInterceptProperty(prop)) {
-        const descriptor = Object.getOwnPropertyDescriptor(this, prop);
-
-        // Only capture data properties (not getters/setters)
-        if (descriptor && "value" in descriptor) {
-          const value = descriptor.value;
-
-          // Store value
-          this._propValues.set(prop, value);
-
-          // Delete the data property
-          delete (this as any)[prop];
-
-          // Define getter/setter
-          this._defineReactiveProperty(prop);
-        }
-      }
-    }
-  }
-
-  /**
-   * Check if a property should be intercepted
-   *
-   * Uses dynamic check against HTMLElement.prototype instead of a hardcoded list.
-   */
-  private _shouldInterceptProperty(prop: string): boolean {
-    return (
-      typeof prop === "string" &&
-      !prop.startsWith("_") &&
-      !FragmentFrame.ATTRS_REGEX.test(prop) &&
-      !this._definedProps.has(prop) &&
-      !(prop in HTMLElement.prototype) &&
-      prop !== "emit"
-    );
-  }
-
-  /**
-   * Define a reactive property with getter/setter
-   */
-  private _defineReactiveProperty(prop: string): void {
-    if (this._definedProps.has(prop)) return;
-    this._definedProps.add(prop);
-
-    Object.defineProperty(this, prop, {
-      configurable: true,
-      enumerable: true,
-      get: () => this._propValues.get(prop),
-      set: (value: unknown) => {
-        this._propValues.set(prop, value);
-        this._syncPropertyToIframe(prop, value);
-      },
-    });
-  }
-
-  /**
-   * Watch for new properties being added to the element.
-   *
-   * Uses a two-phase approach for optimal performance:
-   * - BURST phase: High frequency (requestAnimationFrame) for ~1 second
-   * - SLOW phase: Low frequency (200ms intervals) for ~4 more seconds
-   *
-   * Stops early if no new properties are detected for several consecutive checks.
-   */
-  private _startPropertyWatcher(): void {
-    let burstCount = 0;
-    let slowCount = 0;
-    let emptyChecks = 0;
-
-    // Configuration
-    const BURST_MAX = 60; // ~1 second at 60fps
-    const BURST_EMPTY_STOP = 10; // Stop after 10 consecutive empty checks
-    const SLOW_INTERVAL = 200; // 200ms between slow checks
-    const SLOW_MAX = 20; // ~4 seconds of slow checking
-
-    this._watcherPhase = "burst";
-
-    const checkForNewProps = () => {
-      if (this._watcherPhase === "stopped") return;
-
-      let foundNew = false;
-      const ownProps = Object.getOwnPropertyNames(this);
-
-      for (const prop of ownProps) {
-        // Early exit for private properties
-        if (prop.startsWith("_")) continue;
-
-        if (this._shouldInterceptProperty(prop)) {
-          const descriptor = Object.getOwnPropertyDescriptor(this, prop);
-
-          if (descriptor && "value" in descriptor) {
-            const value = descriptor.value;
-            foundNew = true;
-
-            this._propValues.set(prop, value);
-            delete (this as any)[prop];
-            this._defineReactiveProperty(prop);
-
-            // Trigger setter to sync (if ready)
-            (this as any)[prop] = value;
-          }
-        }
-      }
-
-      // Smart stop logic
-      if (foundNew) {
-        emptyChecks = 0;
-      } else {
-        emptyChecks++;
-      }
-
-      // Stop if too many consecutive empty checks
-      if (emptyChecks >= BURST_EMPTY_STOP) {
-        this._watcherPhase = "stopped";
-        return;
-      }
-
-      // BURST phase
-      if (this._watcherPhase === "burst") {
-        burstCount++;
-        if (burstCount >= BURST_MAX) {
-          this._watcherPhase = "slow";
-          this._watcherTimeout = setTimeout(checkForNewProps, SLOW_INTERVAL);
-        } else {
-          this._watcherRAF = requestAnimationFrame(checkForNewProps);
-        }
-        return;
-      }
-
-      // SLOW phase
-      if (this._watcherPhase === "slow") {
-        slowCount++;
-        if (slowCount >= SLOW_MAX) {
-          this._watcherPhase = "stopped";
-        } else {
-          this._watcherTimeout = setTimeout(checkForNewProps, SLOW_INTERVAL);
-        }
-      }
-    };
-
-    this._watcherRAF = requestAnimationFrame(checkForNewProps);
-  }
-
-  private _stopPropertyWatcher(): void {
-    this._watcherPhase = "stopped";
-
-    if (this._watcherRAF) {
-      cancelAnimationFrame(this._watcherRAF);
-      this._watcherRAF = undefined;
-    }
-
-    if (this._watcherTimeout) {
-      clearTimeout(this._watcherTimeout);
-      this._watcherTimeout = undefined;
-    }
   }
 
   /**
@@ -654,6 +478,9 @@ export class FragmentFrame extends HTMLElement {
    * ```typescript
    * // Direct call
    * frame.emit('theme-change', { theme: 'dark' });
+   *
+   * // CamelCase alias (equivalent)
+   * frame.themeChange({ theme: 'dark' });
    * ```
    */
   emit(eventName: string, data?: unknown) {
@@ -668,7 +495,7 @@ export class FragmentFrame extends HTMLElement {
   /**
    * Internal method to send event to child iframe
    */
-  private _emitToChild(eventName: string, data?: unknown) {
+  _emitToChild(eventName: string, data?: unknown) {
     if (!this._port) {
       logger.warn("MessagePort not ready, cannot emit event");
       return;
@@ -762,9 +589,6 @@ export class FragmentFrame extends HTMLElement {
    * Internal cleanup method called on disconnect or error
    */
   private _cleanup(): void {
-    // Stop property watcher
-    this._stopPropertyWatcher();
-
     this._observer?.disconnect();
     this._observer = undefined;
 
@@ -804,6 +628,89 @@ export class FragmentFrame extends HTMLElement {
     this._cleanup();
   }
 }
+
+/**
+ * Setup Proxy on prototype to intercept property access and assignment.
+ *
+ * GET trap: Creates dynamic methods for camelCase property access
+ *   - frame.themeChange({ data }) → frame.emit('theme-change', { data })
+ *
+ * SET trap: Creates reactive getter/setter for dynamic properties
+ *   - frame.myProp = value → syncs to iframe automatically
+ */
+const setupPrototypeProxy = () => {
+  const proto = FragmentFrame.prototype;
+  const protoOfProto = Object.getPrototypeOf(proto);
+
+  const proxiedProto = new Proxy(protoOfProto, {
+    get(target, prop, receiver) {
+      const value = Reflect.get(target, prop, receiver);
+      if (value !== undefined) return value;
+
+      // Dynamic method pattern for camelCase event emitters
+      // frame.themeChange({ ... }) → emit('theme-change', { ... })
+      if (typeof prop === "string" && /^[a-z][a-zA-Z0-9]*$/.test(prop) && /[A-Z]/.test(prop)) {
+        const instance = receiver as FragmentFrame;
+        if (!instance._dynamicMethods?.has(prop)) {
+          instance._dynamicMethods?.set(prop, (data?: unknown) =>
+            instance._emitToChild(kebabCase(prop), data),
+          );
+        }
+        return instance._dynamicMethods?.get(prop);
+      }
+
+      return undefined;
+    },
+
+    set(target, prop, value, receiver) {
+      // Allow symbols and non-string props
+      if (typeof prop !== "string") {
+        return Reflect.set(target, prop, value, receiver);
+      }
+
+      // Allow private properties
+      if (prop.startsWith("_")) {
+        return Reflect.set(target, prop, value, receiver);
+      }
+
+      const instance = receiver as FragmentFrame;
+
+      // Allow native HTMLElement properties and FragmentFrame methods
+      if (
+        FragmentFrame.ATTRS_REGEX.test(prop) ||
+        prop in HTMLElement.prototype ||
+        prop in FragmentFrame.prototype
+      ) {
+        return Reflect.set(target, prop, value, receiver);
+      }
+
+      // Dynamic property - create reactive getter/setter
+      if (!instance._definedProps.has(prop)) {
+        instance._definedProps.add(prop);
+        Object.defineProperty(receiver, prop, {
+          configurable: true,
+          enumerable: true,
+          get: () => instance._propValues.get(prop),
+          set: (v) => {
+            instance._propValues.set(prop, v);
+            instance._syncPropertyToIframe(prop, v);
+          },
+        });
+      }
+
+      // Set value and sync to iframe
+      instance._propValues.set(prop, value);
+      instance._syncPropertyToIframe(prop, value);
+
+      return true;
+    },
+  });
+
+  Object.setPrototypeOf(proto, proxiedProto);
+};
+
+// Apply prototype proxy BEFORE registering custom element
+setupPrototypeProxy();
 
 // Register the custom element
 if (!customElements.get("fragment-frame")) {
