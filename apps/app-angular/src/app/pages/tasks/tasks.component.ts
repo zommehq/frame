@@ -1,10 +1,10 @@
 import { CommonModule } from "@angular/common";
-import { Component, type OnDestroy, signal } from "@angular/core";
+import { Component, signal } from "@angular/core";
 import { FormsModule } from "@angular/forms";
-// biome-ignore lint/style/useImportType: FramePropsService needs to be a regular import for Angular DI
-import { FramePropsService } from "@zomme/fragment-frame-angular";
+import { injectFrameProps } from "@zomme/fragment-frame-angular";
 import { PageLayoutComponent } from "../../components/page-layout/page-layout.component";
 import type { TasksFragmentProps } from "../../models/fragment-props";
+import type { Task } from "../../models/types";
 
 @Component({
   selector: "app-tasks",
@@ -13,36 +13,34 @@ import type { TasksFragmentProps } from "../../models/fragment-props";
   templateUrl: "./tasks.component.html",
   styleUrl: "./tasks.component.css",
 })
-export class TasksComponent implements OnDestroy {
-  isReady = signal(false);
+export class TasksComponent {
+  private tasks = injectFrameProps<TasksFragmentProps>();
+
+  // Expose data as signals for template - reactive, auto-updates from parent
+  protected filteredTasks = this.tasks.filteredTasks;
+  protected filter = this.tasks.filter;
+  protected searchQuery = this.tasks.searchQuery;
+  protected taskStats = this.tasks.taskStats;
+
+  // Local state
+  isReady = signal(true);
   editingTaskId = signal<number | null>(null);
 
-  // Reactive props using Signal - always current, no getter needed!
-  protected readonly props = this.framePropsService.asSignal<TasksFragmentProps>();
-
-  constructor(private framePropsService: FramePropsService) {
-    this.isReady.set(true);
-  }
-
-  ngOnDestroy() {
-    // Cleanup if needed
-  }
-
   async setFilter(newFilter: "active" | "all" | "completed") {
-    await this.props().setFilter?.(newFilter);
+    await this.tasks.setFilter(newFilter);
   }
 
   async toggleTask(taskId: number) {
-    await this.props().toggleTask?.(taskId);
+    await this.tasks.toggleTask(taskId);
   }
 
   async deleteTask(taskId: number) {
-    await this.props().deleteTask?.(taskId);
+    await this.tasks.deleteTask(taskId);
   }
 
   async addTask() {
-    const newTask = await this.props().addRandomTask?.();
-    if (newTask) this.editingTaskId.set(newTask.id);
+    const newTask = await this.tasks.addRandomTask();
+    if (newTask) this.editingTaskId.set((newTask as Task).id);
   }
 
   startEdit(taskId: number) {
@@ -54,7 +52,7 @@ export class TasksComponent implements OnDestroy {
   }
 
   async saveEdit(taskId: number, title: string, description: string, priority: string) {
-    const updatedTask = await this.props().updateTask?.(taskId, {
+    const updatedTask = await this.tasks.updateTask(taskId, {
       description,
       priority: priority as "high" | "medium" | "low",
       title,
@@ -80,6 +78,6 @@ export class TasksComponent implements OnDestroy {
 
   async handleSearch(event: Event) {
     const target = event.target as HTMLInputElement;
-    await this.props().setSearchQuery?.(target.value);
+    await this.tasks.setSearchQuery(target.value);
   }
 }

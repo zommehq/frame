@@ -1,140 +1,134 @@
 <app-page-layout title="Task Management" subtitle="Props + Events + Search functionality">
-	<div *ngIf="!isReady" class="loading">Loading SDK...</div>
-	<div *ngIf="isReady" class="content">
-		<div class="stats-bar">
-			<div class="stat">
-				<span class="stat-label">Total</span>
-				<span class="stat-value">{{ props().taskStats?.total || 0 }}</span>
+	@if (!isReady()) {
+		<div class="loading">Loading SDK...</div>
+	} @else {
+		<div class="content">
+			<div class="stats-bar">
+				<div class="stat">
+					<span class="stat-label">Total</span>
+					<span class="stat-value">{{ taskStats()?.total || 0 }}</span>
+				</div>
+				<div class="stat">
+					<span class="stat-label">Active</span>
+					<span class="stat-value active">{{ taskStats()?.active || 0 }}</span>
+				</div>
+				<div class="stat">
+					<span class="stat-label">Completed</span>
+					<span class="stat-value completed">{{ taskStats()?.completed || 0 }}</span>
+				</div>
 			</div>
-			<div class="stat">
-				<span class="stat-label">Active</span>
-				<span class="stat-value active">{{ props().taskStats?.active || 0 }}</span>
-			</div>
-			<div class="stat">
-				<span class="stat-label">Completed</span>
-				<span class="stat-value completed">{{ props().taskStats?.completed || 0 }}</span>
-			</div>
-		</div>
-		<div class="controls">
-			<div class="search-box">
-				<input
-					class="search-input"
-					placeholder="Search tasks..."
-					type="text"
-					[value]="props().searchQuery || ''"
-					(input)="handleSearch($event)"
-				/>
-			</div>
-			<div class="filter-buttons">
-				<button
-					class="filter-btn"
-					[class.active]="props().filter === 'all'"
-					(click)="setFilter('all')"
-				>
-					All
-				</button>
-				<button
-					class="filter-btn"
-					[class.active]="props().filter === 'active'"
-					(click)="setFilter('active')"
-				>
-					Active
-				</button>
-				<button
-					class="filter-btn"
-					[class.active]="props().filter === 'completed'"
-					(click)="setFilter('completed')"
-				>
-					Completed
-				</button>
-			</div>
-			<button class="add-btn" (click)="addTask()">+ Add Task</button>
-		</div>
-		<div class="tasks">
-			<div
-				*ngFor="let task of props().filteredTasks || []"
-				class="task-card"
-				[class.completed]="task.completed"
-				[class.editing]="editingTaskId() === task.id"
-			>
-				<div class="task-checkbox">
+			<div class="controls">
+				<div class="search-box">
 					<input
-						type="checkbox"
-						[checked]="task.completed"
-						(change)="toggleTask(task.id)"
-						[disabled]="editingTaskId() === task.id"
+						class="search-input"
+						placeholder="Search tasks..."
+						type="text"
+						[value]="searchQuery() || ''"
+						(input)="handleSearch($event)"
 					/>
 				</div>
-				<div class="task-content">
-					<ng-container *ngIf="editingTaskId() === task.id; else viewMode">
-						<div class="edit-mode">
-							<input
-								#titleInput
-								type="text"
-								class="edit-title"
-								[value]="task.title"
-								placeholder="Task title"
-							/>
-							<select
-								#prioritySelect
-								class="edit-priority"
-								[value]="task.priority"
-							>
-								<option value="high">High</option>
-								<option value="medium">Medium</option>
-								<option value="low">Low</option>
-							</select>
-							<textarea
-								#descInput
-								class="edit-description"
-								[value]="task.description"
-								placeholder="Task description"
-								rows="2"
-							></textarea>
-							<div class="edit-actions">
-								<button
-									class="save-btn"
-									(click)="saveEdit(task.id, titleInput.value, descInput.value, prioritySelect.value)"
-								>
-									Save
-								</button>
-								<button class="cancel-btn" (click)="cancelEdit()">Cancel</button>
-							</div>
-						</div>
-					</ng-container>
-					<ng-template #viewMode>
-						<div class="task-header">
-							<h3 class="task-title">{{ task.title }}</h3>
-							<span
-								class="task-priority"
-								[style.backgroundColor]="getPriorityColor(task.priority)"
-							>
-								{{ task.priority }}
-							</span>
-						</div>
-						<p class="task-description">{{ task.description }}</p>
-					</ng-template>
-				</div>
-				<div class="task-actions">
+				<div class="filter-buttons">
 					<button
-						*ngIf="editingTaskId() !== task.id"
-						class="edit-btn"
-						(click)="startEdit(task.id)"
+						class="filter-btn"
+						[class.active]="filter() === 'all'"
+						(click)="setFilter('all')"
 					>
-						Edit
+						All
 					</button>
 					<button
-						*ngIf="editingTaskId() !== task.id"
-						class="delete-btn"
-						(click)="deleteTask(task.id)"
+						class="filter-btn"
+						[class.active]="filter() === 'active'"
+						(click)="setFilter('active')"
 					>
-						Delete
+						Active
+					</button>
+					<button
+						class="filter-btn"
+						[class.active]="filter() === 'completed'"
+						(click)="setFilter('completed')"
+					>
+						Completed
 					</button>
 				</div>
+				<button class="add-btn" (click)="addTask()">+ Add Task</button>
 			</div>
-			<div *ngIf="(props().filteredTasks || []).length === 0" class="empty-state">
-				<p>No tasks found</p>
+			<div class="tasks">
+				@for (task of filteredTasks() || []; track task.id) {
+					<div
+						class="task-card"
+						[class.completed]="task.completed"
+						[class.editing]="editingTaskId() === task.id"
+					>
+						<div class="task-checkbox">
+							<input
+								type="checkbox"
+								[checked]="task.completed"
+								(change)="toggleTask(task.id)"
+								[disabled]="editingTaskId() === task.id"
+							/>
+						</div>
+						<div class="task-content">
+							@if (editingTaskId() === task.id) {
+								<div class="edit-mode">
+									<input
+										#titleInput
+										type="text"
+										class="edit-title"
+										[value]="task.title"
+										placeholder="Task title"
+									/>
+									<select
+										#prioritySelect
+										class="edit-priority"
+										[value]="task.priority"
+									>
+										<option value="high">High</option>
+										<option value="medium">Medium</option>
+										<option value="low">Low</option>
+									</select>
+									<textarea
+										#descInput
+										class="edit-description"
+										[value]="task.description"
+										placeholder="Task description"
+										rows="2"
+									></textarea>
+									<div class="edit-actions">
+										<button
+											class="save-btn"
+											(click)="saveEdit(task.id, titleInput.value, descInput.value, prioritySelect.value)"
+										>
+											Save
+										</button>
+										<button class="cancel-btn" (click)="cancelEdit()">Cancel</button>
+									</div>
+								</div>
+							} @else {
+								<div class="task-header">
+									<h3 class="task-title">{{ task.title }}</h3>
+									<span
+										class="task-priority"
+										[style.backgroundColor]="getPriorityColor(task.priority)"
+									>
+										{{ task.priority }}
+									</span>
+								</div>
+								<p class="task-description">{{ task.description }}</p>
+							}
+						</div>
+						<div class="task-actions">
+							@if (editingTaskId() !== task.id) {
+								<button class="edit-btn" (click)="startEdit(task.id)">Edit</button>
+								<button class="delete-btn" (click)="deleteTask(task.id)">Delete</button>
+							}
+						</div>
+					</div>
+				} @empty {
+					<div class="empty-state">
+						<p>No tasks found</p>
+					</div>
+				}
 			</div>
 		</div>
-	</div>
+	}
 </app-page-layout>

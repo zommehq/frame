@@ -11,18 +11,7 @@ export interface BaseFragmentProps {
     name: string;
     role: string;
   };
-}
-
-/**
- * Props for Home fragment
- */
-export interface HomeFragmentProps extends BaseFragmentProps {}
-
-/**
- * Props for Analytics fragment
- */
-export interface AnalyticsFragmentProps extends BaseFragmentProps {
-  metricsData?: ArrayBuffer;
+  [key: string]: unknown; // Index signature for compatibility with injectFrameProps
 }
 
 export interface TaskStats {
@@ -71,3 +60,26 @@ export interface SettingsCallbacks {
  * Props for Settings fragment
  */
 export interface SettingsFragmentProps extends BaseFragmentProps, SettingsCallbacks {}
+
+/**
+ * Props for Home fragment
+ */
+export interface HomeFragmentProps extends BaseFragmentProps {
+  actionCallback?: (data: any) => void;
+  apiUrl?: string;
+  base?: string;
+}
+
+/**
+ * Props for Analytics fragment
+ */
+export interface AnalyticsFragmentProps extends BaseFragmentProps {
+  metricsData?: ArrayBuffer;
+}
+
+/**
+ * Props for App (root) component
+ */
+export interface AppFragmentProps extends BaseFragmentProps {
+  successCallback?: (data: any) => void;
+}

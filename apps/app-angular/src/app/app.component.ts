@@ -1,15 +1,9 @@
 import { CommonModule } from "@angular/common";
-import { Component, inject, type OnDestroy, type OnInit } from "@angular/core";
-import { Router, RouterLink, RouterLinkActive, RouterOutlet } from "@angular/router";
-import { frameSDK, setupRouterSync } from "@zomme/fragment-frame-angular";
+import { Component, effect, inject } from "@angular/core";
+import { RouterLink, RouterLinkActive, RouterOutlet } from "@angular/router";
+import { FramePropsService, injectFrameProps } from "@zomme/fragment-frame-angular";
+import type { AppFragmentProps } from "./models/fragment-props";
 import type { User } from "./models/types";
-
-interface AppProps {
-  actionCallback?: (data: any) => void;
-  successCallback?: (data: any) => void;
-  theme?: "dark" | "light";
-  user?: User;
-}
 
 @Component({
   selector: "app-root",
@@ -18,102 +12,65 @@ interface AppProps {
   templateUrl: "./app.component.html",
   styleUrl: "./app.component.css",
 })
-export class AppComponent implements OnInit, OnDestroy {
-  private router = inject(Router);
+export class AppComponent {
+  private frameProps = inject(FramePropsService);
+  private props = injectFrameProps<AppFragmentProps>();
 
-  theme: "dark" | "light" = "light";
-  user: User | null = null;
-  isSDKReady = false;
-  private unwatchProps?: () => void;
-  private unsubscribeRouterSync?: () => void;
+  // Reactive data from parent - auto-updates via Signals
+  protected theme = this.props.theme;
+  protected user = this.props.user;
 
-  async ngOnInit() {
-    try {
-      // ✅ Explicitly initialize SDK
-      await frameSDK.initialize();
-      this.isSDKReady = true;
+  constructor() {
+    // Sync theme with body class
+    effect(() => {
+      const currentTheme = this.theme() || "light";
+      document.body.className = currentTheme;
+    });
 
-      // Setup bidirectional router sync with parent shell
-      this.unsubscribeRouterSync = setupRouterSync(this.router);
+    // Call success callback when props are available
+    this.callSuccessCallback();
 
-      // Setup error reporting to parent
-      window.addEventListener("error", (event) => {
-        frameSDK.emit("error", {
-          error: event.error?.message || String(event.error),
-          source: "window.error",
-        });
-      });
-
-      window.addEventListener("unhandledrejection", (event) => {
-        frameSDK.emit("error", {
-          error:
-            event.reason instanceof Error
-              ? event.reason.message
-              : String(event.reason),
-          source: "unhandledrejection",
-        });
-      });
-
-      // Now it's safe to access props and setup watchers
-      this.setupPropsAndWatchers();
-    } catch (error) {
-      console.error("[Fragment App] Failed to initialize frameSDK:", error);
-
-      // Fallback: run in standalone mode
-      console.warn("[Fragment App] Running in standalone mode (no parent)");
-      this.isSDKReady = false;
-      this.setupStandaloneMode();
-    }
+    // Setup global error reporting to parent
+    this.setupErrorReporting();
   }
 
-  private setupPropsAndWatchers() {
-    const props = (frameSDK.props || {}) as Partial<AppProps>;
+  private async callSuccessCallback() {
+    // Small delay to ensure props are ready
+    await new Promise((resolve) => setTimeout(resolve, 100));
 
-    this.theme = props.theme || "light";
-    this.user = props.user || null;
-
-    if (typeof props.successCallback === "function") {
-      props.successCallback({
+    try {
+      await this.props.successCallback({
         message: "Angular app initialized successfully",
         sdkVersion: "1.0.0",
         timestamp: Date.now(),
       });
+    } catch {
+      // Callback not available - running in standalone mode or parent didn't provide it
     }
+  }
 
-    document.body.className = this.theme;
+  private setupErrorReporting() {
+    window.addEventListener("error", (event) => {
+      this.frameProps.emit("error", {
+        error: event.error?.message || String(event.error),
+        source: "window.error",
+      });
+    });
 
-    // Watch for theme and user changes with modern API
-    this.unwatchProps = frameSDK.watch(["theme", "user"], (changes) => {
-      if ("theme" in changes && changes.theme) {
-        const [newTheme] = changes.theme;
-        this.theme = newTheme as "dark" | "light";
-        document.body.className = newTheme as string;
-      }
-
-      if ("user" in changes && changes.user) {
-        const [newUser] = changes.user;
-        this.user = newUser as User;
-      }
+    window.addEventListener("unhandledrejection", (event) => {
+      this.frameProps.emit("error", {
+        error: event.reason instanceof Error ? event.reason.message : String(event.reason),
+        source: "unhandledrejection",
+      });
     });
   }
 
-  private setupStandaloneMode() {
-    // Standalone mode (running without parent)
-    this.theme = "light";
-    this.user = {
-      id: 0,
-      name: "Standalone User",
-      email: "standalone@example.com",
-      role: "user",
-    };
-    document.body.className = this.theme;
+  // Helper to get user safely
+  get currentUser(): User | undefined {
+    return this.user() as User | undefined;
   }
 
-  ngOnDestroy() {
-    this.unwatchProps?.();
-    this.unsubscribeRouterSync?.();
-    if (this.isSDKReady) {
-      frameSDK.cleanup();
-    }
+  get currentTheme(): "dark" | "light" {
+    return (this.theme() as "dark" | "light") || "light";
   }
 }

@@ -1,7 +1,8 @@
 import { CommonModule } from "@angular/common";
-import { Component, computed, type OnInit, signal } from "@angular/core";
-import { frameSDK } from "@zomme/fragment-frame-angular";
+import { Component, computed, effect, inject, signal } from "@angular/core";
+import { FramePropsService, injectFrameProps } from "@zomme/fragment-frame-angular";
 import { PageLayoutComponent } from "../../components/page-layout/page-layout.component";
+import type { AnalyticsFragmentProps } from "../../models/fragment-props";
 
 interface Metrics {
   averageCompletionTime: number;
@@ -18,8 +19,15 @@ interface Metrics {
   styleUrls: ["./analytics.component.css"],
   templateUrl: "./analytics.component.html",
 })
-export class AnalyticsComponent implements OnInit {
-  isReady = signal(false);
+export class AnalyticsComponent {
+  private frameProps = inject(FramePropsService);
+  private props = injectFrameProps<AnalyticsFragmentProps>();
+
+  // Reactive data from parent
+  protected metricsData = this.props.metricsData;
+
+  // Local state
+  isReady = signal(true);
   isLoadingMetrics = signal(false);
   lastUpdate = signal<Date | null>(null);
 
@@ -43,34 +51,25 @@ export class AnalyticsComponent implements OnInit {
     return Math.ceil(JSON.stringify(this.metrics()).length);
   });
 
-  async ngOnInit() {
-    try {
-      await frameSDK.initialize();
-      this.isReady.set(true);
-
-      const props = (frameSDK.props ?? {}) as { metricsData?: ArrayBuffer };
-
-      if (props.metricsData) {
+  constructor() {
+    // Initialize metrics from parent data when available
+    effect(() => {
+      const data = this.metricsData();
+      if (data) {
         try {
-          const deserializedMetrics = this.deserializeMetrics(
-            props.metricsData
-          );
+          const deserializedMetrics = this.deserializeMetrics(data);
           this.metrics.set(deserializedMetrics);
           this.lastUpdate.set(new Date());
         } catch (error) {
           console.error("Failed to deserialize metrics:", error);
-          frameSDK.emit("error", {
+          this.frameProps.emit("error", {
             component: "Analytics",
             error: error instanceof Error ? error.message : String(error),
             timestamp: Date.now(),
           });
         }
       }
-    } catch (error) {
-      console.error("Failed to initialize SDK:", error);
-      // Still set isReady to true so the component renders in standalone mode
-      this.isReady.set(true);
-    }
+    });
   }
 
   generateRandomMetrics() {
@@ -86,14 +85,14 @@ export class AnalyticsComponent implements OnInit {
         tasksCompleted,
         tasksTotal,
         completedToday,
-        averageCompletionTime
+        averageCompletionTime,
       );
 
       this.metrics.set(newMetrics);
       this.lastUpdate.set(new Date());
       this.isLoadingMetrics.set(false);
 
-      frameSDK.emit("metrics-generated", {
+      this.frameProps.emit("metrics-generated", {
         metrics: newMetrics,
         timestamp: Date.now(),
       });
@@ -104,7 +103,7 @@ export class AnalyticsComponent implements OnInit {
     try {
       const buffer = this.serializeMetrics(this.metrics());
 
-      frameSDK.emit("metrics-transferred", {
+      this.frameProps.emit("metrics-transferred", {
         buffer,
         metrics: this.metrics(),
         size: buffer.byteLength,
@@ -112,7 +111,7 @@ export class AnalyticsComponent implements OnInit {
       });
     } catch (error) {
       console.error("Failed to send metrics:", error);
-      frameSDK.emit("error", {
+      this.frameProps.emit("error", {
         component: "Analytics",
         error: error instanceof Error ? error.message : String(error),
         timestamp: Date.now(),
@@ -130,7 +129,7 @@ export class AnalyticsComponent implements OnInit {
     });
     this.lastUpdate.set(new Date());
 
-    frameSDK.emit("metrics-reset", {
+    this.frameProps.emit("metrics-reset", {
       timestamp: Date.now(),
     });
   }
@@ -151,10 +150,9 @@ export class AnalyticsComponent implements OnInit {
     tasksCompleted: number,
     tasksTotal: number,
     completedToday: number,
-    averageCompletionTime: number
+    averageCompletionTime: number,
   ): Metrics {
-    const productivityScore =
-      tasksTotal > 0 ? Math.round((tasksCompleted / tasksTotal) * 100) : 0;
+    const productivityScore = tasksTotal > 0 ? Math.round((tasksCompleted / tasksTotal) * 100) : 0;
 
     return {
       averageCompletionTime,
@@ -168,7 +166,7 @@ export class AnalyticsComponent implements OnInit {
   private serializeMetrics(metrics: Metrics): ArrayBuffer {
     const json = JSON.stringify(metrics);
     const encoder = new TextEncoder();
-    return encoder.encode(json).buffer;
+    return encoder.encode(json).buffer as ArrayBuffer;
   }
 
   private deserializeMetrics(buffer: ArrayBuffer): Metrics {

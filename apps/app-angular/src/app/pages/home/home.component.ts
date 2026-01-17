@@ -1,8 +1,9 @@
 import { CommonModule } from "@angular/common";
-import { Component, effect, type OnDestroy, type OnInit, signal, VERSION } from "@angular/core";
+import { Component, effect, inject, signal, VERSION } from "@angular/core";
 import { RouterLink } from "@angular/router";
-import { frameSDK } from "@zomme/fragment-frame-angular";
+import { FramePropsService, injectFrameProps } from "@zomme/fragment-frame-angular";
 import { PageLayoutComponent } from "../../components/page-layout/page-layout.component";
+import type { HomeFragmentProps } from "../../models/fragment-props";
 
 @Component({
   imports: [CommonModule, RouterLink, PageLayoutComponent],
@@ -11,65 +12,46 @@ import { PageLayoutComponent } from "../../components/page-layout/page-layout.co
   styleUrl: "./home.component.css",
   templateUrl: "./home.component.html",
 })
-export class HomeComponent implements OnInit, OnDestroy {
+export class HomeComponent {
+  private frameProps = inject(FramePropsService);
+  private props = injectFrameProps<HomeFragmentProps>();
+
+  // Reactive data from parent
+  protected theme = this.props.theme;
+  protected base = this.props.base;
+  protected apiUrl = this.props.apiUrl;
+
+  // Local state
   angularVersion = VERSION.full;
-  apiUrl: string;
-  basePath: string;
-  props: Record<string, any> = {};
   saveMessage = signal("");
-  theme = signal<"dark" | "light">("light");
-  private unwatchProps?: () => void;
 
   constructor() {
-    const props = (frameSDK.props || {}) as any;
-    this.props = props;
-    this.basePath = props.base || "/";
-    this.apiUrl = props.apiUrl || "Not configured";
-
-    // Watch theme changes
+    // Sync theme with body class
     effect(() => {
-      const currentTheme = this.theme();
+      const currentTheme = this.theme() || "light";
       document.body.classList.remove("light", "dark");
       document.body.classList.add(currentTheme);
     });
   }
 
-  async ngOnInit() {
-    try {
-      await frameSDK.initialize();
-
-      const props = (frameSDK.props ?? {}) as {
-        theme?: "dark" | "light";
-      };
-
-      if (props.theme) {
-        this.theme.set(props.theme);
-      }
-
-      // Watch for theme changes with modern API
-      this.unwatchProps = frameSDK.watch(["theme"], (changes) => {
-        if ("theme" in changes && changes.theme) {
-          const [newTheme] = changes.theme;
-          this.theme.set(newTheme as "dark" | "light");
-
-          frameSDK.emit("theme-changed", {
-            source: "watch-listener",
-            theme: newTheme,
-            timestamp: Date.now(),
-          });
-        }
-      });
-    } catch (error) {
-      console.error("Failed to initialize SDK:", error);
-    }
+  get basePath(): string {
+    return this.base() || "/";
   }
 
-  ngOnDestroy() {
-    this.unwatchProps?.();
+  get apiUrlValue(): string {
+    return this.apiUrl() || "Not configured";
   }
 
   get propsString(): string {
-    return JSON.stringify(this.props, null, 2);
+    return JSON.stringify(
+      {
+        apiUrl: this.apiUrl(),
+        base: this.base(),
+        theme: this.theme(),
+      },
+      null,
+      2,
+    );
   }
 
   isErrorMessage(): boolean {
@@ -78,16 +60,12 @@ export class HomeComponent implements OnInit, OnDestroy {
 
   testThemeToggle() {
     const newTheme = this.theme() === "light" ? "dark" : "light";
-    frameSDK.emit("change-theme", { theme: newTheme });
+    this.frameProps.emit("change-theme", { theme: newTheme });
   }
 
-  triggerActionCallback() {
-    const props = frameSDK.props as {
-      actionCallback?: (data: any) => void;
-    };
-
-    if (typeof props.actionCallback === "function") {
-      props.actionCallback({
+  async triggerActionCallback() {
+    try {
+      await this.props.actionCallback({
         component: "Home",
         source: "callback-demo",
         timestamp: Date.now(),
@@ -95,16 +73,12 @@ export class HomeComponent implements OnInit, OnDestroy {
       });
 
       this.saveMessage.set("Action callback triggered!");
-
-      setTimeout(() => {
-        this.saveMessage.set("");
-      }, 2000);
-    } else {
+    } catch {
       this.saveMessage.set("No action callback provided");
-
-      setTimeout(() => {
-        this.saveMessage.set("");
-      }, 2000);
     }
+
+    setTimeout(() => {
+      this.saveMessage.set("");
+    }, 2000);
   }
 }

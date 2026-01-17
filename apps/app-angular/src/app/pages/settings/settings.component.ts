@@ -1,8 +1,7 @@
 import { CommonModule } from "@angular/common";
-import { Component, effect, type OnDestroy, type OnInit, signal } from "@angular/core";
+import { Component, effect, inject, type OnDestroy, signal } from "@angular/core";
 import { FormsModule } from "@angular/forms";
-// biome-ignore lint/style/useImportType: FramePropsService needs to be a regular import for Angular DI
-import { FramePropsService, frameSDK } from "@zomme/fragment-frame-angular";
+import { FramePropsService, injectFrameProps } from "@zomme/fragment-frame-angular";
 import { PageLayoutComponent } from "../../components/page-layout/page-layout.component";
 import type { SettingsFragmentProps } from "../../models/fragment-props";
 
@@ -20,15 +19,18 @@ interface SettingsData {
   styleUrls: ["./settings.component.css"],
   templateUrl: "./settings.component.html",
 })
-export class SettingsComponent implements OnInit, OnDestroy {
-  isReady = signal(false);
+export class SettingsComponent implements OnDestroy {
+  private frameProps = inject(FramePropsService);
+  private props = injectFrameProps<SettingsFragmentProps>();
+
+  // Reactive data from parent
+  protected theme = this.props.theme;
+  protected user = this.props.user;
+
+  // Local state
+  isReady = signal(true);
   isSaving = signal(false);
   saveMessage = signal("");
-  theme = signal<"dark" | "light">("light");
-  user = signal<SettingsFragmentProps["user"]>(undefined);
-
-  private unwatchProps?: () => void;
-  private eventUnsubscribers: Array<() => void> = [];
 
   settings = signal<SettingsData>({
     appName: "Angular Micro-App",
@@ -37,63 +39,24 @@ export class SettingsComponent implements OnInit, OnDestroy {
     theme: "light",
   });
 
-  // Reactive props using Signal - always current, no getter needed!
-  protected readonly props = this.framePropsService.asSignal<SettingsFragmentProps>();
+  private eventUnsubscribers: Array<() => void> = [];
 
-  constructor(private framePropsService: FramePropsService) {
-    // Watch theme changes
+  constructor() {
+    // Sync theme with body class
     effect(() => {
-      const currentTheme = this.theme();
+      const currentTheme = this.theme() || "light";
       document.body.classList.remove("light", "dark");
       document.body.classList.add(currentTheme);
+
+      // Also sync to local settings
+      this.settings.update((s) => ({ ...s, theme: currentTheme }));
     });
-  }
 
-  async ngOnInit() {
-    try {
-      await frameSDK.initialize();
-      this.isReady.set(true);
-
-      if (this.props().theme) {
-        this.theme.set(this.props().theme!);
-        this.settings.update((s) => ({
-          ...s,
-          theme: this.props().theme!,
-        }));
-      }
-
-      if (this.props().user) {
-        this.user.set(this.props().user);
-      }
-
-      // Watch for theme and user changes from parent
-      this.unwatchProps = frameSDK.watch(["theme", "user"], (changes) => {
-        if ("theme" in changes && changes.theme) {
-          const [newTheme] = changes.theme;
-          this.theme.set(newTheme as "dark" | "light");
-          this.settings.update((s) => ({
-            ...s,
-            theme: newTheme as "dark" | "light",
-          }));
-        }
-
-        if ("user" in changes && changes.user) {
-          const [newUser] = changes.user;
-          this.user.set(newUser as SettingsFragmentProps["user"]);
-        }
-      });
-
-      // Listen to events from parent
-      this.setupParentEventListeners();
-    } catch (error) {
-      console.error("Failed to initialize SDK:", error);
-      // Still set isReady to true so the component renders in standalone mode
-      this.isReady.set(true);
-    }
+    // Setup parent event listeners
+    this.setupParentEventListeners();
   }
 
   ngOnDestroy() {
-    this.unwatchProps?.();
     // Cleanup all event listeners
     for (const unsub of this.eventUnsubscribers) {
       unsub();
@@ -102,9 +65,8 @@ export class SettingsComponent implements OnInit, OnDestroy {
 
   private setupParentEventListeners() {
     // Listen for force theme change from parent
-    const unsub1 = frameSDK.on("force-theme-change", (data: any) => {
+    const unsub1 = this.frameProps.on("force-theme-change", (data: any) => {
       if (data?.theme) {
-        this.theme.set(data.theme);
         this.settings.update((s) => ({ ...s, theme: data.theme }));
         this.saveMessage.set(`Theme forced to ${data.theme} by parent`);
         setTimeout(() => this.saveMessage.set(""), 2000);
@@ -112,42 +74,31 @@ export class SettingsComponent implements OnInit, OnDestroy {
     });
 
     // Listen for reset settings command
-    const unsub2 = frameSDK.on("reset-settings", () => {
+    const unsub2 = this.frameProps.on("reset-settings", () => {
       this.handleReset();
       this.saveMessage.set("Settings reset by parent");
       setTimeout(() => this.saveMessage.set(""), 2000);
     });
 
     // Listen for load preset command
-    const unsub3 = frameSDK.on("load-preset", (preset: any) => {
+    const unsub3 = this.frameProps.on("load-preset", (preset: any) => {
       if (preset) {
         this.settings.set({
           appName: preset.appName || "Angular Micro-App",
           language: preset.language || "en",
           notifications: preset.notifications ?? true,
-          theme: preset.theme || this.theme(),
+          theme: preset.theme || (this.theme() as "dark" | "light") || "light",
         });
-        if (preset.theme) {
-          this.theme.set(preset.theme);
-        }
         this.saveMessage.set(`Preset "${preset.name || "custom"}" loaded`);
         setTimeout(() => this.saveMessage.set(""), 2000);
       }
     });
 
     // Listen for data refresh request
-    const unsub4 = frameSDK.on("data-refresh", () => {
-      // Reload props
-      const currentProps = this.props();
-      if (currentProps.theme) {
-        this.theme.set(currentProps.theme);
-        this.settings.update((s) => ({
-          ...s,
-          theme: currentProps.theme!,
-        }));
-      }
-      if (currentProps.user) {
-        this.user.set(currentProps.user);
+    const unsub4 = this.frameProps.on("data-refresh", () => {
+      const currentTheme = this.theme();
+      if (currentTheme) {
+        this.settings.update((s) => ({ ...s, theme: currentTheme }));
       }
       this.saveMessage.set("Data refreshed");
       setTimeout(() => this.saveMessage.set(""), 2000);
@@ -163,7 +114,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
     try {
       this.saveMessage.set("Settings saved successfully!");
 
-      frameSDK.emit("settings-saved", {
+      this.frameProps.emit("settings-saved", {
         settings: this.settings(),
         timestamp: Date.now(),
       });
@@ -175,7 +126,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
       console.error("Error saving settings:", error);
       this.saveMessage.set("Error saving settings");
 
-      frameSDK.emit("error", {
+      this.frameProps.emit("error", {
         component: "Settings",
         error: error instanceof Error ? error.message : String(error),
         timestamp: Date.now(),
@@ -194,12 +145,12 @@ export class SettingsComponent implements OnInit, OnDestroy {
       appName: "Angular Micro-App",
       language: "en",
       notifications: true,
-      theme: this.theme(),
+      theme: (this.theme() as "dark" | "light") || "light",
     });
 
     this.saveMessage.set("Settings reset to defaults");
 
-    frameSDK.emit("settings-reset", {
+    this.frameProps.emit("settings-reset", {
       timestamp: Date.now(),
     });
 
@@ -240,8 +191,8 @@ export class SettingsComponent implements OnInit, OnDestroy {
 
   set settingsTheme(value: "dark" | "light") {
     // Call parent callback to change theme
-    this.props().changeTheme?.(value);
-    // Update local settings (will be synced from parent via watch)
+    this.props.changeTheme(value);
+    // Update local settings (will be synced from parent via effect)
     this.settings.update((s) => ({ ...s, theme: value }));
   }
 
