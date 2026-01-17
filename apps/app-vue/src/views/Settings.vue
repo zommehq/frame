@@ -1,11 +1,10 @@
 <script setup lang="ts">
+import { useFrameSDK } from "@zomme/fragment-frame-vue";
 import { onMounted, onUnmounted, ref, watch } from "vue";
 import PageLayout from "../components/PageLayout.vue";
-import { useFrameSDK } from "@zomme/fragment-frame-vue";
 import type { User } from "../types";
 
 interface SettingsProps {
-  actionCallback?: (data: any) => void;
   saveCallback?: (settings: any) => Promise<{ success: boolean; message: string }>;
   theme?: "dark" | "light";
   user?: User;
@@ -32,10 +31,9 @@ onMounted(() => {
   }
 
   // Watch for theme and user changes with modern API
-  const unwatch = watchProps(['theme', 'user'], (changes) => {
-    if ('theme' in changes) {
+  const unwatch = watchProps(["theme", "user"], (changes) => {
+    if ("theme" in changes) {
       const [newTheme] = changes.theme;
-      console.log("Theme attribute changed:", newTheme);
       theme.value = newTheme as "dark" | "light";
       settings.value.theme = newTheme as "dark" | "light";
 
@@ -46,9 +44,8 @@ onMounted(() => {
       });
     }
 
-    if ('user' in changes) {
+    if ("user" in changes) {
       const [newUser] = changes.user;
-      console.log("User attribute changed:", newUser);
       user.value = newUser as User;
 
       emit("user-changed", {
@@ -132,38 +129,10 @@ function handleReset() {
     saveMessage.value = "";
   }, 3000);
 }
-
-function triggerActionCallback() {
-  if (typeof props.actionCallback === "function") {
-    props.actionCallback({
-      component: "Settings",
-      source: "callback-demo",
-      timestamp: Date.now(),
-      type: "test-action",
-    });
-
-    saveMessage.value = "Action callback triggered!";
-
-    setTimeout(() => {
-      saveMessage.value = "";
-    }, 2000);
-  } else {
-    saveMessage.value = "No action callback provided";
-
-    setTimeout(() => {
-      saveMessage.value = "";
-    }, 2000);
-  }
-}
-
-function testThemeToggle() {
-  const newTheme = theme.value === "light" ? "dark" : "light";
-  emit("change-theme", { theme: newTheme });
-}
 </script>
 
 <template>
-  <PageLayout subtitle="Demonstrating Async Callbacks + Attribute Listeners" title="Settings">
+  <PageLayout subtitle="Configure your application preferences" title="Settings">
     <div v-if="!isReady" class="loading">
       Loading SDK...
     </div>
@@ -178,18 +147,6 @@ function testThemeToggle() {
           <p>{{ user.email }}</p>
           <span class="user-role">{{ user.role }}</span>
         </div>
-      </div>
-
-      <div class="info-card">
-        <h3>About This Demo</h3>
-        <p>
-          This page demonstrates <strong>Async Callbacks</strong> and <strong>Attribute Listeners</strong>:
-        </p>
-        <ul>
-          <li>Settings can be saved using an async callback function passed from parent</li>
-          <li>Theme changes are detected via attribute listeners</li>
-          <li>User data updates are synchronized automatically</li>
-        </ul>
       </div>
 
       <form class="settings-form" @submit="handleSubmit">
@@ -246,51 +203,11 @@ function testThemeToggle() {
       <div v-if="saveMessage" class="message" :class="{ error: saveMessage.includes('Error') }">
         {{ saveMessage }}
       </div>
-
-      <div class="demo-section">
-        <h3>Callback Demo</h3>
-        <p>Test synchronous callback functions passed from parent:</p>
-        <button class="demo-btn" @click="triggerActionCallback">
-          Trigger Action Callback
-        </button>
-      </div>
-
-      <div class="demo-section">
-        <h3>Attribute Listener Demo</h3>
-        <p>Request theme change from parent (will trigger attribute listener):</p>
-        <div class="theme-demo">
-          <div class="theme-indicator" :class="theme">
-            Current theme: <strong>{{ theme }}</strong>
-          </div>
-          <button class="demo-btn" @click="testThemeToggle">
-            Request Theme Toggle
-          </button>
-        </div>
-      </div>
-
-      <div class="tech-details">
-        <h4>Technical Details</h4>
-        <ul>
-          <li>
-            <strong>Async Callbacks:</strong> saveCallback returns a Promise with result
-          </li>
-          <li>
-            <strong>Attribute Listeners:</strong> onAttr('theme', handler) detects changes
-          </li>
-          <li>
-            <strong>Bidirectional:</strong> Fragment can request changes via events
-          </li>
-          <li>
-            <strong>Type Safety:</strong> TypeScript interfaces ensure correct usage
-          </li>
-        </ul>
-      </div>
     </template>
   </PageLayout>
 </template>
 
 <style scoped>
-
 .loading {
   padding: 2rem;
   text-align: center;
@@ -340,35 +257,6 @@ function testThemeToggle() {
   border-radius: 12px;
   font-size: 0.75rem;
   font-weight: 600;
-}
-
-.info-card {
-  padding: 1.5rem;
-  background: #fef3c7;
-  border: 1px solid #fde68a;
-  border-radius: 8px;
-}
-
-.info-card h3 {
-  margin: 0 0 0.75rem;
-  color: #92400e;
-  font-size: 1.125rem;
-}
-
-.info-card p {
-  margin: 0 0 0.5rem;
-  color: #78350f;
-  line-height: 1.6;
-}
-
-.info-card ul {
-  margin: 0.5rem 0 0;
-  padding-left: 1.5rem;
-  color: #78350f;
-}
-
-.info-card li {
-  margin-bottom: 0.25rem;
 }
 
 .settings-form {
@@ -471,97 +359,5 @@ function testThemeToggle() {
   background: #f8d7da;
   border-color: #f5c6cb;
   color: #721c24;
-}
-
-.demo-section {
-  padding: 1.5rem;
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-.demo-section h3 {
-  margin: 0 0 0.75rem;
-  font-size: 1.125rem;
-  color: #1a1a1a;
-}
-
-.demo-section p {
-  margin: 0 0 1rem;
-  color: #666;
-  font-size: 0.875rem;
-}
-
-.demo-btn {
-  padding: 0.75rem 1.5rem;
-  background: #3b82f6;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 0.875rem;
-  font-weight: 600;
-  transition: background 0.2s;
-}
-
-.demo-btn:hover {
-  background: #2563eb;
-}
-
-.theme-demo {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.theme-indicator {
-  padding: 0.75rem 1rem;
-  border-radius: 6px;
-  font-size: 0.875rem;
-}
-
-.theme-indicator.light {
-  background: #f9fafb;
-  border: 2px solid #e5e7eb;
-  color: #1a1a1a;
-}
-
-.theme-indicator.dark {
-  background: #1f2937;
-  border: 2px solid #374151;
-  color: #f9fafb;
-}
-
-.tech-details {
-  padding: 1.5rem;
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-}
-
-.tech-details h4 {
-  margin: 0 0 1rem;
-  font-size: 1rem;
-  color: #1a1a1a;
-}
-
-.tech-details ul {
-  margin: 0;
-  padding-left: 1.5rem;
-  list-style: disc;
-}
-
-.tech-details li {
-  margin-bottom: 0.5rem;
-  color: #666;
-  line-height: 1.6;
-}
-
-.tech-details li:last-child {
-  margin-bottom: 0;
-}
-
-.tech-details strong {
-  color: #1a1a1a;
 }
 </style>

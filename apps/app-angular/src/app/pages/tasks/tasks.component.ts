@@ -1,9 +1,10 @@
 import { CommonModule } from "@angular/common";
-import { Component, computed, signal } from "@angular/core";
+import { Component, computed, type OnDestroy, signal } from "@angular/core";
 import { FormsModule } from "@angular/forms";
-import { frameSDK } from "@zomme/fragment-frame-angular";
-
+// biome-ignore lint/style/useImportType: FramePropsService needs to be a regular import for Angular DI
+import { FramePropsService } from "@zomme/fragment-frame-angular";
 import { PageLayoutComponent } from "../../components/page-layout/page-layout.component";
+import type { TasksFragmentProps } from "../../models/fragment-props";
 import type { Task } from "../../models/types";
 
 @Component({
@@ -13,85 +14,28 @@ import type { Task } from "../../models/types";
   templateUrl: "./tasks.component.html",
   styleUrl: "./tasks.component.css",
 })
-export class TasksComponent {
+export class TasksComponent implements OnDestroy {
   tasks = signal<Task[]>([]);
   filter = signal<"active" | "all" | "completed">("all");
   searchQuery = signal("");
   isReady = signal(false);
   editingTaskId = signal<number | null>(null);
 
-  // Random task data for generation
-  private taskTitles = [
-    "Code Review",
-    "Bug Fix",
-    "Documentation",
-    "Refactoring",
-    "Design System",
-    "API Integration",
-    "Performance Optimization",
-    "Security Audit",
-    "Unit Tests",
-    "E2E Tests",
-    "Feature Implementation",
-    "Database Migration",
-    "UI/UX Improvements",
-    "Code Cleanup",
-    "Tech Debt"
-  ];
+  // Reactive props using Signal - always current, no getter needed!
+  protected readonly props = this.framePropsService.asSignal<TasksFragmentProps>();
 
-  private taskDescriptions = [
-    "Review pull requests and provide feedback",
-    "Fix critical bug in production",
-    "Update technical documentation",
-    "Refactor legacy codebase",
-    "Create reusable component library",
-    "Integrate third-party API",
-    "Optimize application performance",
-    "Conduct security vulnerability assessment",
-    "Write comprehensive unit tests",
-    "Implement end-to-end test suite",
-    "Build new feature from scratch",
-    "Migrate database schema",
-    "Enhance user interface and experience",
-    "Remove dead code and improve structure",
-    "Address accumulated technical debt"
-  ];
+  constructor(private framePropsService: FramePropsService) {
+    // Receive initial tasks from parent if available
+    const initialProps = this.props();
+    if (initialProps.tasks) {
+      this.tasks.set(initialProps.tasks);
+    }
 
-  private priorities: Array<"high" | "medium" | "low"> = ["high", "high", "medium", "medium", "medium", "low"];
-
-  constructor() {
-    const props = (frameSDK.props ?? {}) as { tasks?: Task[] };
-    this.tasks.set(props.tasks || [
-      {
-        completed: false,
-        description: "Review pull requests",
-        id: 1,
-        priority: "high",
-        title: "Code Review",
-      },
-      {
-        completed: true,
-        description: "Fix bug in authentication",
-        id: 2,
-        priority: "high",
-        title: "Bug Fix",
-      },
-      {
-        completed: false,
-        description: "Update documentation",
-        id: 3,
-        priority: "medium",
-        title: "Documentation",
-      },
-      {
-        completed: false,
-        description: "Refactor legacy code",
-        id: 4,
-        priority: "low",
-        title: "Refactoring",
-      },
-    ]);
     this.isReady.set(true);
+  }
+
+  ngOnDestroy() {
+    // Cleanup if needed
   }
 
   filteredTasks = computed(() => {
@@ -124,63 +68,41 @@ export class TasksComponent {
   }
 
   toggleTask(taskId: number) {
-    const task = this.tasks().find((t) => t.id === taskId);
-    if (!task) return;
+    const props = this.props();
+    if (props.toggleTask) {
+      const updatedTask = props.toggleTask(taskId);
 
-    const updatedTasks = this.tasks().map((t) =>
-      t.id === taskId ? { ...t, completed: !t.completed } : t
-    );
-    this.tasks.set(updatedTasks);
-
-    frameSDK.emit("task-toggled", {
-      completed: !task.completed,
-      id: taskId,
-      timestamp: Date.now(),
-    });
-
-    frameSDK.emit("task-stats-changed", this.taskStats());
+      if (updatedTask) {
+        // Update local state to reflect parent changes
+        const updatedTasks = this.tasks().map((t) => (t.id === taskId ? updatedTask : t));
+        this.tasks.set(updatedTasks);
+      }
+    }
   }
 
   deleteTask(taskId: number) {
-    const task = this.tasks().find((t) => t.id === taskId);
-    if (!task) return;
+    const props = this.props();
+    if (props.deleteTask) {
+      props.deleteTask(taskId);
 
-    const updatedTasks = this.tasks().filter((t) => t.id !== taskId);
-    this.tasks.set(updatedTasks);
-
-    frameSDK.emit("task-deleted", {
-      id: taskId,
-      title: task.title,
-    });
-
-    frameSDK.emit("task-stats-changed", this.taskStats());
+      // Update local state to reflect parent changes
+      const updatedTasks = this.tasks().filter((t) => t.id !== taskId);
+      this.tasks.set(updatedTasks);
+    }
   }
 
   addTask() {
-    const randomTitle = this.taskTitles[Math.floor(Math.random() * this.taskTitles.length)];
-    const randomDescription = this.taskDescriptions[Math.floor(Math.random() * this.taskDescriptions.length)];
-    const randomPriority = this.priorities[Math.floor(Math.random() * this.priorities.length)];
+    const props = this.props();
+    const newTask = props.addRandomTask?.();
 
-    const newTask: Task = {
-      completed: false,
-      description: randomDescription,
-      id: Date.now(),
-      priority: randomPriority,
-      title: randomTitle,
-    };
+    if (newTask) {
+      // Update local state to reflect parent changes
+      const updatedTasks = [newTask, ...this.tasks()];
+      this.tasks.set(updatedTasks);
 
-    const updatedTasks = [newTask, ...this.tasks()];
-    this.tasks.set(updatedTasks);
-
-    frameSDK.emit("task-added", {
-      id: newTask.id,
-      title: newTask.title,
-    });
-
-    frameSDK.emit("task-stats-changed", this.taskStats());
-
-    // Automatically enter edit mode for the new task
-    this.editingTaskId.set(newTask.id);
+      // Automatically enter edit mode for the new task
+      this.editingTaskId.set(newTask.id);
+    }
   }
 
   startEdit(taskId: number) {
@@ -192,19 +114,19 @@ export class TasksComponent {
   }
 
   saveEdit(taskId: number, title: string, description: string, priority: string) {
-    const updatedTasks = this.tasks().map((t) =>
-      t.id === taskId
-        ? { ...t, title, description, priority: priority as "high" | "medium" | "low" }
-        : t
-    );
-    this.tasks.set(updatedTasks);
-    this.editingTaskId.set(null);
-
-    frameSDK.emit("task-updated", {
-      id: taskId,
+    const props = this.props();
+    const updatedTask = props.updateTask?.(taskId, {
+      description,
+      priority: priority as "high" | "medium" | "low",
       title,
-      timestamp: Date.now(),
     });
+
+    if (updatedTask) {
+      // Update local state to reflect parent changes
+      const updatedTasks = this.tasks().map((t) => (t.id === taskId ? updatedTask : t));
+      this.tasks.set(updatedTasks);
+      this.editingTaskId.set(null);
+    }
   }
 
   getPriorityColor(priority: string): string {
@@ -223,10 +145,5 @@ export class TasksComponent {
   handleSearch(event: Event) {
     const target = event.target as HTMLInputElement;
     this.searchQuery.set(target.value);
-
-    frameSDK.emit("search-performed", {
-      query: this.searchQuery(),
-      results: this.filteredTasks().length,
-    });
   }
 }

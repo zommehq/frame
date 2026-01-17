@@ -47,9 +47,102 @@
       <li><strong>Cleanup:</strong> Memory leak prevention</li>
     </ul>
   </div>
-  <div class="actions">
-    <button class="action-btn" (click)="handleEmitEvent()">
-      Emit Custom Event
-    </button>
+  <div class="content">
+    <section class="section">
+      <h2>Angular Micro-Frontend</h2>
+      <p>
+        This application is built as a micro-frontend using Angular and demonstrates the power
+        of modern web architecture patterns. It runs independently while seamlessly integrating
+        with a host application through a shared SDK.
+      </p>
+    </section>
+    <section class="section">
+      <h2>Key Technologies</h2>
+      <ul class="tech-list">
+        <li>Angular 18 with Standalone Components</li>
+        <li>Angular Router for navigation</li>
+        <li>TypeScript for type safety</li>
+        <li>Vite for fast development and optimized builds</li>
+        <li>Micro-Frontend SDK for host communication</li>
+      </ul>
+    </section>
+    <section class="section">
+      <h2>Architecture Benefits</h2>
+      <ul class="benefits-list">
+        <li><strong>Independent Development:</strong> Teams can work autonomously</li>
+        <li><strong>Technology Agnostic:</strong> Mix different frameworks</li>
+        <li><strong>Scalability:</strong> Scale teams and features independently</li>
+        <li><strong>Deployment:</strong> Deploy micro-apps separately</li>
+      </ul>
+    </section>
+    <section class="section">
+      <h2>Settings Page Demonstrations</h2>
+      <p>
+        The Settings page demonstrates advanced micro-frontend communication patterns.
+        Try the interactive demos below to see these concepts in action.
+      </p>
+    </section>
+    <div class="info-card-yellow">
+      <h3>About This Demo</h3>
+      <p>
+        This demonstrates <strong>Async Callbacks</strong> and
+        <strong>Attribute Listeners</strong>:
+      </p>
+      <ul>
+        <li>Settings can be saved using an async callback function passed from parent</li>
+        <li>Theme changes are detected via attribute listeners</li>
+        <li>User data updates are synchronized automatically</li>
+      </ul>
+    </div>
+    <div class="demo-section-about">
+      <h3>Callback Demo</h3>
+      <p>Test synchronous callback functions passed from parent:</p>
+      <button class="demo-btn" (click)="triggerActionCallback()">
+        Trigger Action Callback
+      </button>
+    </div>
+    <div class="demo-section-about">
+      <h3>Attribute Listener Demo</h3>
+      <p>Request theme change from parent (will trigger attribute listener):</p>
+      <div class="theme-demo">
+        <div class="theme-indicator" [class.light]="theme() === 'light'" [class.dark]="theme() === 'dark'">
+          Current theme: <strong>{{ theme() }}</strong>
+        </div>
+        <button class="demo-btn" (click)="testThemeToggle()">
+          Request Theme Toggle
+        </button>
+      </div>
+    </div>
+    <div class="tech-details">
+      <h4>Technical Details</h4>
+      <ul>
+        <li>
+          <strong>Async Callbacks:</strong> saveCallback returns a Promise with result
+        </li>
+        <li>
+          <strong>Attribute Listeners:</strong> onAttr('theme', handler) detects changes
+        </li>
+        <li>
+          <strong>Bidirectional:</strong> Fragment can request changes via events
+        </li>
+        <li>
+          <strong>Type Safety:</strong> TypeScript interfaces ensure correct usage
+        </li>
+      </ul>
+    </div>
+    <div *ngIf="saveMessage()" class="message" [class.error]="isErrorMessage()">
+      {{ saveMessage() }}
+    </div>
+    <div class="info-box">
+      <h3>Application Info</h3>
+      <dl class="info-list">
+        <dt>Framework:</dt>
+        <dd>Angular {{ angularVersion }}</dd>
+        <dt>Base Path:</dt>
+        <dd>{{ basePath }}</dd>
+        <dt>API URL:</dt>
+        <dd>{{ apiUrl }}</dd>
+      </dl>
+    </div>
   </div>
 </app-page-layout>

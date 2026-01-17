@@ -1,15 +1,10 @@
 import { CommonModule } from "@angular/common";
 import { Component, effect, type OnDestroy, type OnInit, signal } from "@angular/core";
 import { FormsModule } from "@angular/forms";
-import { frameSDK } from "@zomme/fragment-frame-angular";
+// biome-ignore lint/style/useImportType: FramePropsService needs to be a regular import for Angular DI
+import { FramePropsService, frameSDK } from "@zomme/fragment-frame-angular";
 import { PageLayoutComponent } from "../../components/page-layout/page-layout.component";
-
-interface User {
-  email: string;
-  id: number;
-  name: string;
-  role: string;
-}
+import type { SettingsFragmentProps } from "../../models/fragment-props";
 
 interface SettingsData {
   appName: string;
@@ -30,8 +25,10 @@ export class SettingsComponent implements OnInit, OnDestroy {
   isSaving = signal(false);
   saveMessage = signal("");
   theme = signal<"dark" | "light">("light");
-  user = signal<User | null>(null);
+  user = signal<SettingsFragmentProps["user"]>(undefined);
+
   private unwatchProps?: () => void;
+  private eventUnsubscribers: Array<() => void> = [];
 
   settings = signal<SettingsData>({
     appName: "Angular Micro-App",
@@ -40,7 +37,10 @@ export class SettingsComponent implements OnInit, OnDestroy {
     theme: "light",
   });
 
-  constructor() {
+  // Reactive props using Signal - always current, no getter needed!
+  protected readonly props = this.framePropsService.asSignal<SettingsFragmentProps>();
+
+  constructor(private framePropsService: FramePropsService) {
     // Watch theme changes
     effect(() => {
       const currentTheme = this.theme();
@@ -54,52 +54,37 @@ export class SettingsComponent implements OnInit, OnDestroy {
       await frameSDK.initialize();
       this.isReady.set(true);
 
-      const props = (frameSDK.props ?? {}) as {
-        actionCallback?: (data: any) => void;
-        saveCallback?: (
-          settings: any
-        ) => Promise<{ success: boolean; message: string }>;
-        theme?: "dark" | "light";
-        user?: User;
-      };
-
-      if (props.theme) {
-        this.theme.set(props.theme);
+      if (this.props().theme) {
+        this.theme.set(this.props().theme!);
         this.settings.update((s) => ({
           ...s,
-          theme: props.theme as "dark" | "light",
+          theme: this.props().theme!,
         }));
       }
 
-      if (props.user) {
-        this.user.set(props.user);
+      if (this.props().user) {
+        this.user.set(this.props().user);
       }
 
-      // Watch for theme and user changes with modern API
-      this.unwatchProps = frameSDK.watch(['theme', 'user'], (changes) => {
-        if ('theme' in changes && changes.theme) {
+      // Watch for theme and user changes from parent
+      this.unwatchProps = frameSDK.watch(["theme", "user"], (changes) => {
+        if ("theme" in changes && changes.theme) {
           const [newTheme] = changes.theme;
-          console.log("Theme attribute changed:", newTheme);
           this.theme.set(newTheme as "dark" | "light");
-          this.settings.update((s) => ({ ...s, theme: newTheme as "dark" | "light" }));
-
-          frameSDK.emit("theme-changed", {
-            source: "watch-listener",
-            theme: newTheme,
-            timestamp: Date.now(),
-          });
+          this.settings.update((s) => ({
+            ...s,
+            theme: newTheme as "dark" | "light",
+          }));
         }
 
-        if ('user' in changes && changes.user) {
+        if ("user" in changes && changes.user) {
           const [newUser] = changes.user;
-          console.log("User attribute changed:", newUser);
-          this.user.set(newUser as User);
-
-          frameSDK.emit("user-changed", {
-            user: newUser,
-          });
+          this.user.set(newUser as SettingsFragmentProps["user"]);
         }
       });
+
+      // Listen to events from parent
+      this.setupParentEventListeners();
     } catch (error) {
       console.error("Failed to initialize SDK:", error);
       // Still set isReady to true so the component renders in standalone mode
@@ -109,42 +94,79 @@ export class SettingsComponent implements OnInit, OnDestroy {
 
   ngOnDestroy() {
     this.unwatchProps?.();
+    // Cleanup all event listeners
+    for (const unsub of this.eventUnsubscribers) {
+      unsub();
+    }
   }
 
-  async handleSubmit() {
+  private setupParentEventListeners() {
+    // Listen for force theme change from parent
+    const unsub1 = frameSDK.on("force-theme-change", (data: any) => {
+      if (data?.theme) {
+        this.theme.set(data.theme);
+        this.settings.update((s) => ({ ...s, theme: data.theme }));
+        this.saveMessage.set(`Theme forced to ${data.theme} by parent`);
+        setTimeout(() => this.saveMessage.set(""), 2000);
+      }
+    });
+
+    // Listen for reset settings command
+    const unsub2 = frameSDK.on("reset-settings", () => {
+      this.handleReset();
+      this.saveMessage.set("Settings reset by parent");
+      setTimeout(() => this.saveMessage.set(""), 2000);
+    });
+
+    // Listen for load preset command
+    const unsub3 = frameSDK.on("load-preset", (preset: any) => {
+      if (preset) {
+        this.settings.set({
+          appName: preset.appName || "Angular Micro-App",
+          language: preset.language || "en",
+          notifications: preset.notifications ?? true,
+          theme: preset.theme || this.theme(),
+        });
+        if (preset.theme) {
+          this.theme.set(preset.theme);
+        }
+        this.saveMessage.set(`Preset "${preset.name || "custom"}" loaded`);
+        setTimeout(() => this.saveMessage.set(""), 2000);
+      }
+    });
+
+    // Listen for data refresh request
+    const unsub4 = frameSDK.on("data-refresh", () => {
+      // Reload props
+      const currentProps = this.props();
+      if (currentProps.theme) {
+        this.theme.set(currentProps.theme);
+        this.settings.update((s) => ({
+          ...s,
+          theme: currentProps.theme!,
+        }));
+      }
+      if (currentProps.user) {
+        this.user.set(currentProps.user);
+      }
+      this.saveMessage.set("Data refreshed");
+      setTimeout(() => this.saveMessage.set(""), 2000);
+    });
+
+    this.eventUnsubscribers.push(unsub1, unsub2, unsub3, unsub4);
+  }
+
+  handleSubmit() {
     this.isSaving.set(true);
     this.saveMessage.set("");
 
     try {
-      const props = frameSDK.props as {
-        saveCallback?: (
-          settings: any
-        ) => Promise<{ success: boolean; message: string }>;
-      };
+      this.saveMessage.set("Settings saved successfully!");
 
-      if (typeof props.saveCallback === "function") {
-        const result = await props.saveCallback(this.settings());
-
-        if (result.success) {
-          this.saveMessage.set(
-            result.message || "Settings saved successfully!"
-          );
-
-          frameSDK.emit("settings-saved", {
-            settings: this.settings(),
-            timestamp: Date.now(),
-          });
-        } else {
-          this.saveMessage.set(result.message || "Failed to save settings");
-        }
-      } else {
-        this.saveMessage.set("Settings saved successfully!");
-
-        frameSDK.emit("settings-saved", {
-          settings: this.settings(),
-          timestamp: Date.now(),
-        });
-      }
+      frameSDK.emit("settings-saved", {
+        settings: this.settings(),
+        timestamp: Date.now(),
+      });
 
       setTimeout(() => {
         this.saveMessage.set("");
@@ -186,38 +208,6 @@ export class SettingsComponent implements OnInit, OnDestroy {
     }, 3000);
   }
 
-  triggerActionCallback() {
-    const props = frameSDK.props as {
-      actionCallback?: (data: any) => void;
-    };
-
-    if (typeof props.actionCallback === "function") {
-      props.actionCallback({
-        component: "Settings",
-        source: "callback-demo",
-        timestamp: Date.now(),
-        type: "test-action",
-      });
-
-      this.saveMessage.set("Action callback triggered!");
-
-      setTimeout(() => {
-        this.saveMessage.set("");
-      }, 2000);
-    } else {
-      this.saveMessage.set("No action callback provided");
-
-      setTimeout(() => {
-        this.saveMessage.set("");
-      }, 2000);
-    }
-  }
-
-  testThemeToggle() {
-    const newTheme = this.theme() === "light" ? "dark" : "light";
-    frameSDK.emit("change-theme", { theme: newTheme });
-  }
-
   getUserInitial(): string {
     const currentUser = this.user();
     return currentUser ? currentUser.name.charAt(0).toUpperCase() : "";
@@ -249,6 +239,9 @@ export class SettingsComponent implements OnInit, OnDestroy {
   }
 
   set settingsTheme(value: "dark" | "light") {
+    // Call parent callback to change theme
+    this.props().changeTheme?.(value);
+    // Update local settings (will be synced from parent via watch)
     this.settings.update((s) => ({ ...s, theme: value }));
   }
 

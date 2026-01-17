@@ -1,5 +1,5 @@
-import { CSSProperties, useEffect, useState } from "react";
 import { useFrameSDK } from "@zomme/fragment-frame-react";
+import { type CSSProperties, useEffect, useState } from "react";
 import type { Metrics } from "../types";
 import { calculateMetrics, deserializeMetrics, serializeMetrics } from "../utils/metrics";
 
@@ -74,11 +74,6 @@ export default function Analytics() {
         metrics,
         size: buffer.byteLength,
         timestamp: Date.now(),
-      });
-
-      console.log("Metrics sent as Transferable ArrayBuffer:", {
-        byteLength: buffer.byteLength,
-        metrics,
       });
     } catch (error) {
       console.error("Failed to send metrics:", error);
@@ -312,8 +307,8 @@ export default function Analytics() {
           <h3 style={styles.infoCardH3}>About Transferable Objects</h3>
           <p style={styles.infoCardP}>
             This page demonstrates the use of <strong>Transferable Objects</strong> with
-            ArrayBuffer. Data is serialized to binary format and transferred efficiently between
-            the parent and child frames without copying, improving performance for large datasets.
+            ArrayBuffer. Data is serialized to binary format and transferred efficiently between the
+            parent and child frames without copying, improving performance for large datasets.
           </p>
           {lastUpdate && (
             <p style={styles.lastUpdate}>Last updated: {lastUpdate.toLocaleTimeString()}</p>
@@ -376,7 +371,8 @@ export default function Analytics() {
               <p style={styles.scoreInfoP}>
                 Your productivity score is based on task completion rate.
                 {metrics.productivityScore >= 75 && " Excellent work!"}
-                {metrics.productivityScore >= 50 && metrics.productivityScore < 75 &&
+                {metrics.productivityScore >= 50 &&
+                  metrics.productivityScore < 75 &&
                   " Good progress!"}
                 {metrics.productivityScore < 50 && " Keep going!"}
               </p>
@@ -428,8 +424,8 @@ export default function Analytics() {
               to UTF-8 bytes using TextEncoder
             </li>
             <li style={styles.techDetailsLi}>
-              <strong style={styles.techDetailsStrong}>Transfer:</strong> ArrayBuffer is
-              transferred (not copied) via postMessage
+              <strong style={styles.techDetailsStrong}>Transfer:</strong> ArrayBuffer is transferred
+              (not copied) via postMessage
             </li>
             <li style={styles.techDetailsLi}>
               <strong style={styles.techDetailsStrong}>Performance:</strong> Zero-copy transfer

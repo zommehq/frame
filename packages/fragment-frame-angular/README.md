@@ -12,6 +12,7 @@ bun add @zomme/fragment-frame-angular
 
 - 🔄 **Automatic Router Sync**: One-line setup for bidirectional routing between parent shell and child app
 - 📡 **FrameSDKService**: Injectable service with RxJS observables for reactive programming
+- 🔒 **FramePropsService**: Type-safe access to parent props with dependency injection
 - 🎯 **Type-safe**: Full TypeScript support with generics for props
 - 🧩 **FragmentFrameComponent**: Angular component for embedding child apps in shells
 
@@ -34,10 +35,9 @@ async function bootstrap() {
 
   try {
     await frameSDK.initialize();
-    const base = (frameSDK.props.base as string) || '/my-app/';
 
     // ✨ One line to sync routes with parent shell
-    setupRouterSync(router, base);
+    setupRouterSync(router);
 
     console.log('App initialized successfully');
   } catch (error) {
@@ -98,19 +98,18 @@ export class ShellComponent {
 
 ## API Reference
 
-### `setupRouterSync(router, base)`
+### `setupRouterSync(router)`
 
 Standalone function for automatic router synchronization.
 
 **Parameters:**
 - `router: Router` - Angular Router instance
-- `base: string` - Base path for the app (e.g., '/my-app/')
 
 **Returns:** `() => void` - Cleanup function
 
 **Example:**
 ```typescript
-const cleanup = setupRouterSync(router, '/my-app/');
+const cleanup = setupRouterSync(router);
 
 // Later, when unmounting:
 cleanup();
@@ -191,6 +190,99 @@ export class AppComponent implements OnInit {
 
 **Note:** For router synchronization, use the standalone `setupRouterSync()` function in your bootstrap (see above).
 
+### `FramePropsService`
+
+Injectable service for type-safe access to props from parent shell. This is the **recommended way** to access props in your components.
+
+**Use this when:** You need to access props passed from the parent shell with full type safety.
+
+**Methods:**
+
+#### `get<T>(): T`
+Get current props from parent shell with type safety.
+
+**Example:**
+```typescript
+import { Component, inject } from '@angular/core';
+import { FramePropsService } from '@zomme/fragment-frame-angular';
+
+interface TasksFragmentProps {
+  tasks?: Task[];
+  theme?: 'light' | 'dark';
+  handleAddTask?: (task: Omit<Task, 'id'>) => Task;
+  handleDeleteTask?: (taskId: number) => void;
+}
+
+@Component({
+  selector: 'app-tasks',
+  template: `
+    <button (click)="addTask()">Add Task</button>
+    <div *ngFor="let task of tasks()">
+      {{ task.title }}
+      <button (click)="deleteTask(task.id)">Delete</button>
+    </div>
+  `
+})
+export class TasksComponent {
+  tasks = signal<Task[]>([]);
+
+  // Inject the service
+  constructor(private frameProps: FramePropsService) {
+    // Initialize with props from parent
+    if (this.props.tasks) {
+      this.tasks.set(this.props.tasks);
+    }
+  }
+
+  // Getter for type-safe props access
+  protected get props() {
+    return this.frameProps.get<TasksFragmentProps>();
+  }
+
+  addTask() {
+    // Call parent callback with type safety
+    const newTask = this.props.handleAddTask?.({
+      title: 'New Task',
+      completed: false
+    });
+    if (newTask) {
+      this.tasks.update(tasks => [...tasks, newTask]);
+    }
+  }
+
+  deleteTask(taskId: number) {
+    // Call parent callback
+    this.props.handleDeleteTask?.(taskId);
+    this.tasks.update(tasks => tasks.filter(t => t.id !== taskId));
+  }
+}
+```
+
+**Why use FramePropsService?**
+- ✅ **Always current** - Props are accessed dynamically, not copied
+- ✅ **Type-safe** - Full TypeScript support with generics
+- ✅ **DI-friendly** - Works with Angular's dependency injection
+- ✅ **Testable** - Easy to mock for unit tests
+- ✅ **No boilerplate** - No need to manually sync props
+
+**Alternative (not recommended):**
+```typescript
+// ❌ Don't do this - props are copied once and may become stale
+constructor() {
+  const props = (frameSDK.props ?? {}) as TasksFragmentProps;
+  this.callbacks = {
+    handleAddTask: props.handleAddTask, // May be undefined!
+  };
+}
+
+// ✅ Do this instead - always get current values
+constructor(private frameProps: FramePropsService) {}
+
+protected get props() {
+  return this.frameProps.get<TasksFragmentProps>();
+}
+```
+
 ### `FragmentFrameComponent`
 
 Angular component for embedding micro-frontend apps in parent shells.
@@ -254,14 +346,11 @@ async function bootstrap() {
   const appRef = await bootstrapApplication(AppComponent, appConfig);
   const router = appRef.injector.get(Router);
 
-  let base = '/analytics/';
-
   try {
     await frameSDK.initialize();
-    base = (frameSDK.props.base as string) || '/analytics/';
 
     // Setup router sync
-    setupRouterSync(router, base);
+    setupRouterSync(router);
 
     // Listen to custom events
     frameSDK.on('refresh-data', () => {
@@ -423,7 +512,6 @@ Make sure your `tsconfig.json` includes:
 
 ### Router sync not working
 - Ensure `setupRouterSync` is called AFTER `frameSDK.initialize()`
-- Check that the `base` path matches your app's route configuration
 - Verify fragment-frame element is emitting events in parent shell
 
 ### Props not updating

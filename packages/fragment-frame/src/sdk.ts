@@ -96,7 +96,6 @@ export class FrameSDK {
 
   constructor() {
     this._instanceId = ++FrameSDK._instanceCounter;
-    console.log(`[frameSDK] New instance created: #${this._instanceId}`);
   }
 
   /**
@@ -125,11 +124,8 @@ export class FrameSDK {
   initialize(expectedOrigin?: string, timeout = 10000): Promise<void> {
     // Prevent reinitialization
     if (this._initialized) {
-      console.log(`[frameSDK #${this._instanceId}] Already initialized, ignoring duplicate call`);
       return Promise.resolve();
     }
-
-    console.log(`[frameSDK #${this._instanceId}] Starting initialization...`);
 
     return new Promise((resolve, reject) => {
       let timeoutId: ReturnType<typeof setTimeout> | undefined;
@@ -244,10 +240,6 @@ export class FrameSDK {
           logger.warn("Invalid EVENT message:", message);
           return;
         }
-        console.log(
-          `[frameSDK #${this._instanceId}] Received event '${eventMsg.name}' with data:`,
-          eventMsg.data,
-        );
         this._emitLocalEvent(eventMsg.name, eventMsg.data);
         break;
       }
@@ -351,10 +343,7 @@ export class FrameSDK {
           try {
             handler(changes as any);
           } catch (error) {
-            console.error(
-              `[frameSDK #${this._instanceId}] Error in watch handler for '${attribute}':`,
-              error,
-            );
+            logger.error(`Error in watch handler for '${attribute}':`, error);
           }
         }
       });
@@ -380,8 +369,6 @@ export class FrameSDK {
       logger.error("Invalid event name:", eventName);
       return;
     }
-
-    console.log(`[frameSDK #${this._instanceId}] Emitting CUSTOM_EVENT '${eventName}' to parent`);
 
     const { serialized, transferables } = this._functionManager.serialize(data);
 
@@ -494,24 +481,15 @@ export class FrameSDK {
       this._eventListeners.set(eventName, new Set());
     }
     this._eventListeners.get(eventName)?.add(handler);
-    console.log(
-      `[frameSDK #${this._instanceId}] Registered handler for '${eventName}'. Total: ${this._eventListeners.get(eventName)?.size}`,
-    );
 
     // Replay buffered events for this event name
     const bufferedEvents = this._eventBuffer.get(eventName);
     if (bufferedEvents && bufferedEvents.length > 0) {
-      console.log(
-        `[frameSDK #${this._instanceId}] Replaying ${bufferedEvents.length} buffered event(s) for '${eventName}'`,
-      );
       bufferedEvents.forEach((data) => {
         try {
           handler(data);
         } catch (error) {
-          console.error(
-            `[frameSDK #${this._instanceId}] Error replaying buffered event for '${eventName}':`,
-            error,
-          );
+          logger.error(`Error replaying buffered event for '${eventName}':`, error);
         }
       });
       // Clear the buffer after replay
@@ -619,14 +597,9 @@ export class FrameSDK {
       props: watchProps,
     });
 
-    console.log(
-      `[frameSDK #${this._instanceId}] Registered watch handler for ${watchProps ? `props: ${watchProps.join(", ")}` : "all props"}`,
-    );
-
     // Return unwatch function
     return () => {
       this._watchHandlers.delete(watchId);
-      console.log(`[frameSDK #${this._instanceId}] Unregistered watch handler`);
     };
   }
 
@@ -685,9 +658,6 @@ export class FrameSDK {
    */
   private _emitLocalEvent(eventName: string, data: unknown) {
     const handlers = this._eventListeners.get(eventName);
-    console.log(
-      `[frameSDK #${this._instanceId}] _emitLocalEvent('${eventName}'): ${handlers ? handlers.size : 0} handlers registered`,
-    );
 
     if (handlers && handlers.size > 0) {
       // Handlers exist - deliver event immediately
@@ -695,18 +665,12 @@ export class FrameSDK {
         try {
           handler(data);
         } catch (error) {
-          console.error(
-            `[frameSDK #${this._instanceId}] Error in event handler for '${eventName}':`,
-            error,
-          );
+          logger.error(`Error in event handler for '${eventName}':`, error);
           // Continue executing other handlers even if one throws
         }
       });
     } else {
       // No handlers yet - buffer the event for later delivery
-      console.log(
-        `[frameSDK #${this._instanceId}] Buffering event '${eventName}' for later delivery`,
-      );
       if (!this._eventBuffer.has(eventName)) {
         this._eventBuffer.set(eventName, []);
       }
@@ -726,14 +690,6 @@ export class FrameSDK {
     }
 
     try {
-      const msg = message as any;
-      if (msg.type === MessageEvent.CUSTOM_EVENT) {
-        console.log(
-          `[frameSDK #${this._instanceId}] Sending to parent via MessagePort:`,
-          msg.type,
-          msg.payload?.name,
-        );
-      }
       this._port.postMessage(message, transferables);
       return true;
     } catch (error) {

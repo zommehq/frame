@@ -30,8 +30,6 @@ function App({ sdkAvailable }: FrameProps = {}) {
   const [user, setUser] = useState<User | null>(props.user || null);
 
   useEffect(() => {
-    console.log("React App Component initialized with user:", user);
-
     if (typeof props.successCallback === "function") {
       props.successCallback({ message: "React app initialized successfully" });
     }
@@ -45,7 +43,6 @@ function App({ sdkAvailable }: FrameProps = {}) {
 
     const handleRouteChange = (data: any) => {
       const { path } = data as { path: string; replace?: boolean };
-      console.log("[React] Received route-change from parent:", path);
       navigate(path, { replace: false });
     };
 
@@ -63,16 +60,11 @@ function App({ sdkAvailable }: FrameProps = {}) {
     // Use module-level flag to persist through StrictMode remounts
     if (!hasEmittedInitialPathGlobal) {
       hasEmittedInitialPathGlobal = true;
-      console.log(
-        "[React] Initial path load, skipping navigate event emission for:",
-        location.pathname,
-      );
       return;
     }
 
     // location.pathname is already relative to basename, no need to replace
     const path = location.pathname;
-    console.log("[React] Emitting navigate event:", path);
     emit("navigate", { path, replace: false, state: {} });
   }, [location.pathname, sdkAvailable, emit]);
 
@@ -81,50 +73,18 @@ function App({ sdkAvailable }: FrameProps = {}) {
     const unwatch = watchProps(['theme', 'user'], (changes) => {
       if ('theme' in changes && changes.theme) {
         const [newTheme] = changes.theme;
-        console.log("Theme changed:", newTheme);
         setTheme(newTheme as "dark" | "light");
         document.body.className = newTheme as string;
       }
 
       if ('user' in changes && changes.user) {
         const [newUser] = changes.user;
-        console.log("User updated:", newUser);
         setUser(newUser as User);
       }
     });
 
     return unwatch;
   }, [watchProps]);
-
-  const triggerAction = () => {
-    console.log("Action triggered");
-
-    emit("action-clicked", {
-      component: "AppComponent",
-      timestamp: Date.now(),
-    });
-
-    if (typeof props.actionCallback === "function") {
-      props.actionCallback({
-        source: "navigation",
-        type: "button-click",
-      });
-    }
-  };
-
-  const triggerError = () => {
-    try {
-      throw new Error("Test error from React AppComponent");
-    } catch (error) {
-      console.error("Error triggered:", error);
-
-      emit("error", {
-        component: "AppComponent",
-        error: error instanceof Error ? error.message : String(error),
-        timestamp: Date.now(),
-      });
-    }
-  };
 
   const styles: Record<string, CSSProperties> = {
     appContainer: {
@@ -175,26 +135,6 @@ function App({ sdkAvailable }: FrameProps = {}) {
     },
     navLinkActive: {
       backgroundColor: "rgba(255, 255, 255, 0.25)",
-    },
-    demoBtn: {
-      background: "#35495e",
-      color: "white",
-      border: "none",
-      padding: "0.5rem 1rem",
-      borderRadius: "6px",
-      cursor: "pointer",
-      fontSize: "0.875rem",
-      transition: "background-color 0.2s",
-      fontWeight: 600,
-    },
-    demoBtnHover: {
-      background: "#2c3e50",
-    },
-    errorBtn: {
-      background: "#ef4444",
-    },
-    errorBtnHover: {
-      background: "#dc2626",
     },
     mainContent: {
       flex: 1,
@@ -254,38 +194,6 @@ function App({ sdkAvailable }: FrameProps = {}) {
             >
               Settings
             </Link>
-          </li>
-          <li style={styles.navItem}>
-            <Link
-              to="/about"
-              style={{
-                ...styles.navLink,
-                ...(location.pathname === "/about" ? styles.navLinkActive : {}),
-              }}
-            >
-              About
-            </Link>
-          </li>
-          <li style={styles.navItem}>
-            <Link
-              to="/contact"
-              style={{
-                ...styles.navLink,
-                ...(location.pathname === "/contact" ? styles.navLinkActive : {}),
-              }}
-            >
-              Contact
-            </Link>
-          </li>
-          <li style={styles.navItem}>
-            <button style={styles.demoBtn} onClick={triggerAction}>
-              Test Action
-            </button>
-          </li>
-          <li style={styles.navItem}>
-            <button style={{ ...styles.demoBtn, ...styles.errorBtn }} onClick={triggerError}>
-              Test Error
-            </button>
           </li>
         </ul>
       </nav>

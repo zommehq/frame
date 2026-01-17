@@ -36,10 +36,7 @@ export class AnalyticsComponent implements OnInit {
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
 
-    if (hours > 0) {
-      return `${hours}h ${mins}m`;
-    }
-    return `${mins}m`;
+    return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
   });
 
   bufferSize = computed(() => {
@@ -112,11 +109,6 @@ export class AnalyticsComponent implements OnInit {
         metrics: this.metrics(),
         size: buffer.byteLength,
         timestamp: Date.now(),
-      });
-
-      console.log("Metrics sent as Transferable ArrayBuffer:", {
-        byteLength: buffer.byteLength,
-        metrics: this.metrics(),
       });
     } catch (error) {
       console.error("Failed to send metrics:", error);

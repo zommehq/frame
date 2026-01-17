@@ -13,10 +13,8 @@ async function bootstrap() {
     await frameSDK.initialize();
     base = frameSDK.props.base || "/react";
     sdkAvailable = true;
-
-    console.log("FrameSDK initialized successfully");
   } catch (error) {
-    console.warn("FrameSDK not available, running in standalone mode:", error);
+    console.error("FrameSDK not available, running in standalone mode:", error);
     sdkAvailable = false;
   }
 
@@ -33,10 +31,6 @@ async function bootstrap() {
       </BrowserRouter>
     </React.StrictMode>,
   );
-
-  console.log(`React app rendered with base: ${base} (SDK available: ${sdkAvailable})`);
 }
 
-bootstrap().catch((error) => {
-  console.error("Failed to bootstrap React micro app:", error);
-});
+bootstrap().catch(console.error);

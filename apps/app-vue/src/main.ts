@@ -5,12 +5,12 @@ import App from "./App.vue";
 import { createAppRouter } from "./router";
 
 async function bootstrap() {
-  let base = "/vue/";
+  let base = "/vue";
   let sdkAvailable = false;
 
   try {
     await frameSDK.initialize();
-    base = frameSDK.props.base || "/vue/";
+    base = frameSDK.props.base || "/vue";
     sdkAvailable = true;
 
     frameSDK.on("route-change", (data) => {
@@ -24,7 +24,7 @@ async function bootstrap() {
       }
     });
 
-    console.log("FrameSDK initialized successfully");
+    sdkAvailable = true;
   } catch (error) {
     console.warn("FrameSDK not available, running in standalone mode:", error);
     sdkAvailable = false;
@@ -39,12 +39,10 @@ async function bootstrap() {
       // Skip emitting event for initial navigation
       if (isInitialNavigation) {
         isInitialNavigation = false;
-        console.log("[Vue] Initial navigation, skipping navigate event emission");
         return;
       }
 
       const path = to.fullPath.replace(base, "/");
-      console.log("[Vue] Emitting navigate event:", path);
       frameSDK.emit("navigate", { path, replace: false, state: to.meta });
     });
   }
@@ -52,8 +50,6 @@ async function bootstrap() {
   const app = createApp(App);
   app.use(router);
   app.mount("#app");
-
-  console.log(`Vue app rendered with base: ${base} (SDK available: ${sdkAvailable})`);
 }
 
 bootstrap().catch((error) => {

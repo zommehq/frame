@@ -206,11 +206,10 @@ export class AppComponent {
   ) {}
 
   ngOnInit() {
-    // Wait for SDK to initialize and get base path
+    // Wait for SDK to initialize
     this.frameSDK.initialize().then(() => {
-      const base = (this.frameSDK.props.base as string) || '/angular';
       // Setup bidirectional route sync
-      setupRouterSync(this.router, base);
+      setupRouterSync(this.router);
     });
   }
 }

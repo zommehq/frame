@@ -31,7 +31,6 @@ export function DataVisualization() {
       buffer[i] = Math.random() * 100;
     }
 
-    console.log("Sending ArrayBuffer to parent:", buffer.byteLength, "bytes");
     emit("large-data", buffer.buffer); // Transferable!
   };
 

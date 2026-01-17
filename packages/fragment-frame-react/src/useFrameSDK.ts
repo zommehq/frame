@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
-import type { PropChanges } from "@zomme/fragment-frame";
 import { frameSDK } from "@zomme/fragment-frame/sdk";
+import type { PropChanges } from "@zomme/fragment-frame/types";
+import { useCallback, useEffect, useState } from "react";
 
 /**
  * React hook for using the Fragment Frame SDK
@@ -54,8 +54,6 @@ export function useFrameSDK<T = Record<string, unknown>>() {
     (event: string, data?: unknown) => {
       if (sdkAvailable) {
         frameSDK.emit(event, data);
-      } else {
-        console.log(`[Standalone] Event emitted: ${event}`, data);
       }
     },
     [sdkAvailable],
@@ -83,26 +81,23 @@ export function useFrameSDK<T = Record<string, unknown>>() {
    * }, [watch]);
    * ```
    */
-  const watch = useCallback(
-    (handler: (changes: PropChanges<T>) => void): (() => void) => {
-      const wrappedHandler = (changes: PropChanges<T>) => {
-        // Update local state with new values
-        setProps((prev) => {
-          const updates = Object.fromEntries(
-            Object.entries(changes).map(([key, tuple]) => {
-              const value = tuple as any;
-              return [key, value?.[0]];
-            }),
-          );
-          return { ...prev, ...updates };
-        });
-        handler(changes);
-      };
+  const watch = useCallback((handler: (changes: PropChanges<T>) => void): (() => void) => {
+    const wrappedHandler = (changes: PropChanges<T>) => {
+      // Update local state with new values
+      setProps((prev) => {
+        const updates = Object.fromEntries(
+          Object.entries(changes).map(([key, tuple]) => {
+            const value = tuple as any;
+            return [key, value?.[0]];
+          }),
+        );
+        return { ...prev, ...updates };
+      });
+      handler(changes);
+    };
 
-      return frameSDK.watch(wrappedHandler as any);
-    },
-    [],
-  );
+    return frameSDK.watch(wrappedHandler as any);
+  }, []);
 
   /**
    * Watch for specific property changes with modern API
@@ -125,7 +120,10 @@ export function useFrameSDK<T = Record<string, unknown>>() {
    * ```
    */
   const watchProps = useCallback(
-    <K extends keyof T>(propNames: K[], handler: (changes: PropChanges<T, K>) => void): (() => void) => {
+    <K extends keyof T>(
+      propNames: K[],
+      handler: (changes: PropChanges<T, K>) => void,
+    ): (() => void) => {
       const wrappedHandler = (changes: PropChanges<T, K>) => {
         // Update local state with new values
         setProps((prev) => {

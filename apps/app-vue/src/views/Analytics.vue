@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
 import { useFrameSDK } from "@zomme/fragment-frame-vue";
+import { onMounted, ref } from "vue";
 import PageLayout from "../components/PageLayout.vue";
 import type { Metrics } from "../types";
 import { calculateMetrics, deserializeMetrics, serializeMetrics } from "../utils/metrics";
@@ -70,11 +70,6 @@ function sendMetricsToParent() {
       metrics: metrics.value,
       size: buffer.byteLength,
       timestamp: Date.now(),
-    });
-
-    console.log("Metrics sent as Transferable ArrayBuffer:", {
-      byteLength: buffer.byteLength,
-      metrics: metrics.value,
     });
   } catch (error) {
     console.error("Failed to send metrics:", error);

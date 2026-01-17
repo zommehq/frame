@@ -1,6 +1,6 @@
 import { Injectable } from "@angular/core";
-import type { PropChanges } from "@zomme/fragment-frame";
 import { frameSDK } from "@zomme/fragment-frame/sdk";
+import type { PropChanges } from "@zomme/fragment-frame/types";
 import { BehaviorSubject, Observable } from "rxjs";
 
 /**
@@ -87,7 +87,6 @@ export class FrameSDKService<T = Record<string, unknown>> {
       this.propsSubject.next(frameSDK.props as T);
       this.isReadySubject.next(true);
       this.sdkAvailableSubject.next(true);
-      console.log("FrameSDK initialized successfully");
     } catch (error) {
       console.warn("FrameSDK not available, running in standalone mode", error);
       this.isReadySubject.next(true);
@@ -104,8 +103,6 @@ export class FrameSDKService<T = Record<string, unknown>> {
   emit(event: string, data?: unknown): void {
     if (this.sdkAvailable) {
       frameSDK.emit(event, data);
-    } else {
-      console.log(`[Standalone] Event emitted: ${event}`, data);
     }
   }
 

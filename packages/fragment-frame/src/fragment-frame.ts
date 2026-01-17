@@ -204,8 +204,6 @@ export class FragmentFrame extends HTMLElement {
   attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null) {
     if (oldValue === newValue) return;
 
-    console.log(`[fragment-frame] Attribute '${name}' changed from '${oldValue}' to '${newValue}'`);
-
     // If element is connected and we now have both name and src, initialize
     if (this.isConnected && this.name && this.src && !this._iframe) {
       try {
@@ -288,10 +286,6 @@ export class FragmentFrame extends HTMLElement {
     // Setup message handler on our port
     this._portMessageHandler = (event) => {
       try {
-        console.log(
-          `[fragment-frame '${this.name}'] MessagePort received [WATCH-TEST]:`,
-          event.data?.type,
-        );
         this._handleMessageFromIframe(event.data);
       } catch (error) {
         logger.error("Error handling message from iframe:", error);
@@ -464,9 +458,6 @@ export class FragmentFrame extends HTMLElement {
         // Deserialize payload data to convert function tokens into callable proxies
         const deserializedData = this._manager.deserialize(payload.data);
 
-        console.log(
-          `[fragment-frame '${this.name}'] Received CUSTOM_EVENT '${payload.name}' from child, dispatching to parent`,
-        );
         this._dispatchLocalEvent(payload.name, deserializedData);
         break;
       }
@@ -554,11 +545,6 @@ export class FragmentFrame extends HTMLElement {
       return;
     }
 
-    console.log(
-      `[fragment-frame] Emitting '${eventName}' to child '${this.name}' with data:`,
-      data,
-    );
-
     const { serialized, transferables } = this._manager.serialize(data);
 
     this._sendToIframe(
@@ -606,8 +592,8 @@ export class FragmentFrame extends HTMLElement {
     // Dispatch DOM CustomEvent
     this._emit(name, detail);
 
-    // Try property handler (e.g., frame.onready)
-    const handlerName = `on${name.replace(/[:.-]/g, "")}`;
+    // Try property handler (e.g., frame.handleReady)
+    const handlerName = name.replace(/[:.-]/g, "");
     if (Object.hasOwn(this, handlerName)) {
       const handler = Reflect.get(this, handlerName);
       if (typeof handler === "function") {
@@ -685,7 +671,6 @@ export class FragmentFrame extends HTMLElement {
 // Register the custom element
 if (!customElements.get("fragment-frame")) {
   customElements.define("fragment-frame", FragmentFrame);
-  console.log("[fragment-frame] fragment-frame custom element registered");
 } else {
-  console.warn("[fragment-frame] fragment-frame already registered");
+  logger.warn("fragment-frame already registered");
 }

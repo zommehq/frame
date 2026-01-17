@@ -1,6 +1,6 @@
-import { onMounted, onUnmounted, reactive, ref, type Ref } from "vue";
-import type { PropChanges } from "@zomme/fragment-frame";
 import { frameSDK } from "@zomme/fragment-frame/sdk";
+import type { PropChanges } from "@zomme/fragment-frame/types";
+import { onMounted, onUnmounted, type Ref, reactive, ref } from "vue";
 
 interface UseFrameSDKReturn<T = Record<string, unknown>> {
   emit: (event: string, data?: unknown) => void;
@@ -11,7 +11,7 @@ interface UseFrameSDKReturn<T = Record<string, unknown>> {
   watch: (handler: (changes: PropChanges<T>) => void) => () => void;
   watchProps: <K extends keyof T>(
     propNames: K[],
-    handler: (changes: PropChanges<T, K>) => void
+    handler: (changes: PropChanges<T, K>) => void,
   ) => () => void;
 }
 
@@ -70,7 +70,7 @@ export function useFrameSDK<T = Record<string, unknown>>(): UseFrameSDKReturn<T>
     if (sdkAvailable.value) {
       frameSDK.emit(event, data);
     } else {
-      console.log(`[Standalone] Event emitted: ${event}`, data);
+      console.warn(`[Standalone] Event emitted: ${event}`, data);
     }
   };
 
@@ -141,7 +141,7 @@ export function useFrameSDK<T = Record<string, unknown>>(): UseFrameSDKReturn<T>
    */
   const watchProps = <K extends keyof T>(
     propNames: K[],
-    handler: (changes: PropChanges<T, K>) => void
+    handler: (changes: PropChanges<T, K>) => void,
   ): (() => void) => {
     const wrappedHandler = (changes: PropChanges<T, K>) => {
       // Update reactive props with new values

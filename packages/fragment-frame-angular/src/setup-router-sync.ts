@@ -10,7 +10,6 @@ import { filter } from "rxjs/operators";
  * - Emits 'navigate' events to parent when Angular router navigates
  *
  * @param router - Angular Router instance
- * @param base - Base path for the app (e.g., '/angular')
  * @returns Cleanup function to remove listeners
  *
  * @example
@@ -25,16 +24,11 @@ import { filter } from "rxjs/operators";
  *   const appRef = await bootstrapApplication(AppComponent, appConfig);
  *   const router = appRef.injector.get(Router);
  *
- *   let base = '/angular/';
- *   let sdkAvailable = false;
- *
  *   try {
  *     await frameSDK.initialize();
- *     base = (frameSDK.props.base as string) || '/angular/';
- *     sdkAvailable = true;
  *
  *     // Setup router sync in a single line
- *     const cleanup = setupRouterSync(router, base);
+ *     const cleanup = setupRouterSync(router);
  *
  *     console.log('FrameSDK initialized successfully');
  *   } catch (error) {
@@ -45,12 +39,10 @@ import { filter } from "rxjs/operators";
  * bootstrap();
  * ```
  */
-export function setupRouterSync(router: Router, base: string): () => void {
+export function setupRouterSync(router: Router): () => void {
   // Listen to route-change events from parent shell
   const routeChangeHandler = (data: unknown) => {
     const payload = data as { path: string; replace?: boolean };
-
-    console.log(`[Angular] Received route-change: path="${payload.path}"`);
 
     if (payload.replace) {
       router.navigateByUrl(payload.path, { replaceUrl: true });
@@ -62,33 +54,20 @@ export function setupRouterSync(router: Router, base: string): () => void {
   frameSDK.on("route-change", routeChangeHandler);
 
   // Capture the current route immediately to avoid treating first navigation as initial
-  const currentUrl = router.url;
-  const currentPath = currentUrl.replace(base, "/");
-  let lastEmittedPath: string | null = currentPath;
-
-  console.log(
-    `[Angular] setupRouterSync initialized with currentPath="${currentPath}"`
-  );
+  let lastEmittedPath = router.url;
 
   const subscription = router.events
     .pipe(filter((event) => event instanceof NavigationEnd))
     .subscribe((event: NavigationEnd) => {
       const url = event.urlAfterRedirects || event.url;
-      const path = url.replace(base, "/");
-
-      console.log(
-        `[Angular] NavigationEnd: url="${url}", base="${base}", path="${path}", lastEmitted="${lastEmittedPath}"`
-      );
 
       // Don't emit if path hasn't changed
-      if (path === lastEmittedPath) {
-        console.log("[Angular] Path unchanged, skipping emission");
+      if (url === lastEmittedPath) {
         return;
       }
 
-      lastEmittedPath = path;
-      console.log("[Angular] Emitting navigate event to parent:", { path, url, base });
-      frameSDK.emit("navigate", { path, replace: false, state: {} });
+      lastEmittedPath = url;
+      frameSDK.emit("navigate", { path: url, replace: false, state: {} });
     });
 
   // Return cleanup function

@@ -21,16 +21,6 @@ const routes = [
     name: "settings",
     path: "/settings",
   },
-  {
-    component: () => import("./views/About.vue"),
-    name: "about",
-    path: "/about",
-  },
-  {
-    component: () => import("./views/Contact.vue"),
-    name: "contact",
-    path: "/contact",
-  },
 ];
 
 export function createAppRouter(base: string) {

@@ -1,4 +1,4 @@
-<app-page-layout title="Settings" subtitle="Demonstrating Async Callbacks + Attribute Listeners">
+<app-page-layout title="Settings" subtitle="Configure your application preferences">
 	<div *ngIf="!isReady()" class="loading">Loading SDK...</div>
 	<div *ngIf="isReady()" class="content">
 		<div *ngIf="user()" class="user-card">
@@ -10,18 +10,6 @@
 				<p>{{ user()?.email }}</p>
 				<span class="user-role">{{ user()?.role }}</span>
 			</div>
-		</div>
-		<div class="info-card">
-			<h3>About This Demo</h3>
-			<p>
-				This page demonstrates <strong>Async Callbacks</strong> and
-				<strong>Attribute Listeners</strong>:
-			</p>
-			<ul>
-				<li>Settings can be saved using an async callback function passed from parent</li>
-				<li>Theme changes are detected via attribute listeners</li>
-				<li>User data updates are synchronized automatically</li>
-			</ul>
 		</div>
 		<form class="settings-form" (submit)="handleSubmit(); $event.preventDefault()">
 			<div class="form-group">
@@ -66,42 +54,6 @@
 			[class.error]="isErrorMessage()"
 		>
 			{{ saveMessage() }}
-		</div>
-		<div class="demo-section">
-			<h3>Callback Demo</h3>
-			<p>Test synchronous callback functions passed from parent:</p>
-			<button class="demo-btn" (click)="triggerActionCallback()">
-				Trigger Action Callback
-			</button>
-		</div>
-		<div class="demo-section">
-			<h3>Attribute Listener Demo</h3>
-			<p>Request theme change from parent (will trigger attribute listener):</p>
-			<div class="theme-demo">
-				<div class="theme-indicator" [class.light]="theme() === 'light'" [class.dark]="theme() === 'dark'">
-					Current theme: <strong>{{ theme() }}</strong>
-				</div>
-				<button class="demo-btn" (click)="testThemeToggle()">
-					Request Theme Toggle
-				</button>
-			</div>
-		</div>
-		<div class="tech-details">
-			<h4>Technical Details</h4>
-			<ul>
-				<li>
-					<strong>Async Callbacks:</strong> saveCallback returns a Promise with result
-				</li>
-				<li>
-					<strong>Attribute Listeners:</strong> onAttr('theme', handler) detects changes
-				</li>
-				<li>
-					<strong>Bidirectional:</strong> Fragment can request changes via events
-				</li>
-				<li>
-					<strong>Type Safety:</strong> TypeScript interfaces ensure correct usage
-				</li>
-			</ul>
 		</div>
 	</div>
 </app-page-layout>

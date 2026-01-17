@@ -2,48 +2,149 @@
 
 Fragment Frame supports passing functions between parent and fragment, enabling powerful callback patterns.
 
-== How It Works
+== Important: Functions Are NOT Actually Serialized
 
-Functions cannot be directly serialized with `JSON.stringify()`, so Fragment Frame uses a proxy pattern:
+Despite the name "function serialization", **functions themselves are never serialized**. This is technically impossible in JavaScript because you cannot serialize:
 
-1. **Serialize**: Function is replaced with a UUID token
-2. **Store**: Original function is stored in a registry
-3. **Deserialize**: Token is converted to a proxy function
-4. **Call**: Proxy sends a message to invoke the original function
-5. **Cleanup**: Function is released when no longer needed
+* Function code and implementation
+* Closures and captured variables
+* Execution context and `this` binding
+
+Instead, Fragment Frame implements a **Remote Procedure Call (RPC)** system over `postMessage`:
+
+[cols="1,1", options="header"]
+|===
+| What IS Serialized | What is NOT Serialized
+
+| Function call arguments
+| Function code
+
+| Function return values
+| Function closures
+
+| Function reference IDs (UUIDs)
+| Execution context
+
+| Error messages
+| Variable scope
+|===
+
+== How It Really Works: RPC via postMessage
+
+Fragment Frame creates a **registry-based proxy system**:
+
+1. **Register**: Function is stored in a registry with a UUID reference
+2. **Send Reference**: Only the UUID is sent across the iframe boundary
+3. **Create Proxy**: Receiver creates a proxy function that references the UUID
+4. **RPC Call**: When proxy is called, it sends a postMessage with:
+   - Function UUID (which function to call)
+   - Arguments (these ARE serialized via `structuredClone`)
+5. **Execute**: Sender looks up the real function and executes it
+6. **Return Result**: Result is serialized and sent back via postMessage
+7. **Cleanup**: UUID references are released when no longer needed
+
+**Analogy**: It's like calling a restaurant for delivery. You don't get the recipe (function code), you get a menu item number (UUID). When you "call" that number with your preferences (arguments), the restaurant executes the real recipe and delivers the result.
+
+== Visual Example: What Gets Sent
+
+[source,typescript]
+----
+// PARENT SIDE
+const realFunction = async (data) => {
+  console.log('Executing in parent:', data);
+  return { success: true };
+};
+
+// Step 1: Register function → get UUID
+functionRegistry.set('abc-123', realFunction);
+
+// Step 2: Send ONLY the reference ID
+postMessage({
+  type: 'PROPS_UPDATED',
+  props: {
+    saveCallback: { __fn: 'abc-123' }  // ← Only ID, NOT the function code!
+  }
+});
+----
+
+[source,typescript]
+----
+// FRAGMENT SIDE
+// Step 3: Receive ID and create proxy
+const proxy = (...args) => {
+  // When called, notify parent to execute 'abc-123'
+  return new Promise((resolve) => {
+    postMessage({
+      type: 'FUNCTION_CALL',
+      fnId: 'abc-123',
+      args: args  // ← Arguments ARE serialized
+    });
+
+    // Wait for response...
+    waitForResponse(resolve);
+  });
+};
+
+// Step 4: Use proxy as normal function
+await proxy({ name: 'John' });  // args are serialized and sent
+----
+
+[source,typescript]
+----
+// PARENT SIDE
+// Step 5: Receive FUNCTION_CALL
+const fn = functionRegistry.get('abc-123');  // Get real function
+const result = await fn({ name: 'John' });    // Execute
+
+// Step 6: Send result back
+postMessage({
+  type: 'FUNCTION_RESULT',
+  fnId: 'abc-123',
+  result: { success: true }  // ← Result IS serialized
+});
+----
 
 [mermaid]
 ----
 flowchart TD
     A[Function Assignment] --> B[Generate UUID]
     B --> C[Store in Registry]
-    C --> D[Create Token]
-    D --> E[Serialize to JSON]
-    E --> F[Send via PostMessage]
-    F --> G[Receive Message]
-    G --> H[Deserialize Token]
-    H --> I[Create Proxy Function]
-    I --> J{Function Called?}
-    J -->|Yes| K[Send __FUNCTION_CALL__]
-    K --> L[Lookup in Registry]
-    L --> M[Execute Original Function]
+    C --> D[Create Reference Token]
+    D --> E[Send Token via PostMessage]
+    E --> F[Receive Token]
+    F --> G[Create Proxy Function]
+    G --> H{Proxy Called?}
+    H -->|Yes| I[Serialize Arguments]
+    I --> J[Send RPC: FUNCTION_CALL<br/>fnId + args]
+    J --> K[Lookup UUID in Registry]
+    K --> L[Get Real Function]
+    L --> M[Execute with Args]
     M --> N{Success?}
     N -->|Yes| O[Serialize Result]
     N -->|No| P[Serialize Error]
-    O --> Q[Send __FUNCTION_RESPONSE__]
+    O --> Q[Send RPC: FUNCTION_RESULT<br/>result]
     P --> Q
-    Q --> R[Receive Response]
+    Q --> R[Receive Result]
     R --> S{Success?}
     S -->|Yes| T[Resolve Promise]
     S -->|No| U[Reject Promise]
-    J -->|Cleanup| V[Send __FUNCTION_RELEASE__]
+    H -->|Cleanup| V[Send FUNCTION_RELEASE]
     V --> W[Remove from Registry]
 
     style A fill:#4A90E2,stroke:#2563EB,stroke-width:2px,color:#fff
+    style C fill:#FFA726,stroke:#F57C00,stroke-width:2px,color:#000
     style M fill:#FFA726,stroke:#F57C00,stroke-width:2px,color:#000
     style T fill:#66BB6A,stroke:#388E3C,stroke-width:2px,color:#fff
     style U fill:#EF5350,stroke:#C62828,stroke-width:2px,color:#fff
     style W fill:#757575,stroke:#616161,stroke-width:2px,color:#fff
+
+    note1[Real function NEVER leaves<br/>its original context]
+    note2[Only UUID references<br/>cross the boundary]
+    note3[Arguments & results<br/>are serialized]
+
+    style note1 fill:#FFF9C4,stroke:#F57F17,stroke-width:2px
+    style note2 fill:#FFF9C4,stroke:#F57F17,stroke-width:2px
+    style note3 fill:#FFF9C4,stroke:#F57F17,stroke-width:2px
 ----
 
 == Parent → Fragment
@@ -267,7 +368,7 @@ logger('Validation passed'); // Logs: [UserForm] Validation passed
 
 == Lifecycle
 
-=== Function Registration
+=== Function Registration (Initial Setup)
 
 When a function is passed:
 
@@ -276,24 +377,51 @@ When a function is passed:
 fragment.onSave = async (data) => { ... };
 ----
 
-1. Function is assigned a UUID: `"abc-123"`
-2. Stored in `_functionRegistry`: `Map { "abc-123" => [Function] }`
-3. Added to `_trackedFunctions`: `Set { "abc-123" }`
-4. Serialized to: `{ __fn: "abc-123", __meta: { name: "onSave" } }`
-5. Sent in `__ATTRIBUTE_CHANGE__` message
+**What happens:**
 
-=== Function Invocation
+1. **Function is stored locally**: `_functionRegistry.set("abc-123", realFunction)`
+   - The function **stays in parent memory**
+   - Only accessible from parent context
 
-When the fragment calls the function:
+2. **UUID reference is created**: Token `{ __fn: "abc-123" }`
+   - This is what gets sent across the boundary
+   - Not the function code itself!
+
+3. **Reference is sent via postMessage**:
+   ```json
+   {
+     "type": "__ATTRIBUTE_CHANGE__",
+     "props": {
+       "onSave": { "__fn": "abc-123" }
+     }
+   }
+   ```
+
+4. **Fragment creates proxy**:
+   ```typescript
+   // Fragment receives token and creates callable proxy
+   frameSDK.props.onSave = (...args) => {
+     return sendRPCCall("abc-123", args);
+   };
+   ```
+
+=== RPC Function Call (Remote Execution)
+
+When the fragment calls the proxy:
 
 [source,typescript]
 ----
 await frameSDK.props.onSave({ name: 'John' });
 ----
 
-1. Proxy function is called
-2. Generates call ID: `"call-456"`
-3. Sends `__FUNCTION_CALL__` message:
+**Complete RPC flow:**
+
+1. **Fragment: Serialize arguments**
+   ```typescript
+   const serializedArgs = structuredClone([{ name: 'John' }]);
+   ```
+
+2. **Fragment: Send RPC request via postMessage**
    ```json
    {
      "type": "__FUNCTION_CALL__",
@@ -302,9 +430,18 @@ await frameSDK.props.onSave({ name: 'John' });
      "params": [{ "name": "John" }]
    }
    ```
-4. Parent receives message, looks up function in registry
-5. Executes function with deserialized params
-6. Sends `__FUNCTION_RESPONSE__` message:
+
+3. **Parent: Receive RPC request**
+   - Look up function in registry: `const fn = registry.get("abc-123")`
+   - Function found: `async (data) => { ... }`
+
+4. **Parent: Execute real function**
+   ```typescript
+   const result = await fn({ name: 'John' });
+   // result = { success: true }
+   ```
+
+5. **Parent: Serialize result and send RPC response**
    ```json
    {
      "type": "__FUNCTION_RESPONSE__",
@@ -313,7 +450,18 @@ await frameSDK.props.onSave({ name: 'John' });
      "result": { "success": true }
    }
    ```
-7. Fragment resolves promise with result
+
+6. **Fragment: Deserialize result**
+   ```typescript
+   const result = structuredClone(response.result);
+   ```
+
+7. **Fragment: Resolve proxy promise**
+   ```typescript
+   proxyPromise.resolve({ success: true });
+   ```
+
+**Summary**: The function **never leaves the parent**. Only **messages with IDs and arguments** travel across the iframe boundary.
 
 [mermaid]
 ----
@@ -503,12 +651,159 @@ Functions are validated:
 * **Function ID check**: Only registered functions can be called
 * **No eval**: Functions are called directly, never evaluated from strings
 
+== What Actually Gets Serialized
+
+To be crystal clear about what crosses the iframe boundary:
+
+=== ✅ DOES Get Serialized (Crosses Boundary)
+
+[cols="1,2", options="header"]
+|===
+| Item | Example
+
+| Function reference IDs (UUIDs)
+| `{ __fn: "abc-123" }`
+
+| Function call arguments
+| `{ name: "John", age: 30 }`
+
+| Function return values
+| `{ success: true, data: [...] }`
+
+| Error messages
+| `"Validation failed: email required"`
+
+| Primitive types
+| `string`, `number`, `boolean`, `null`
+
+| Plain objects
+| `{ key: "value" }`
+
+| Arrays
+| `[1, 2, 3]`, `["a", "b"]`
+
+| Transferable objects
+| `ArrayBuffer`, `ImageBitmap`
+|===
+
+=== ❌ Does NOT Get Serialized (Stays Local)
+
+[cols="1,2", options="header"]
+|===
+| Item | Why Not
+
+| Function implementation code
+| Cannot serialize code/logic
+
+| Closures and captured variables
+| Scoping doesn't transfer
+
+| `this` binding context
+| Context is environment-specific
+
+| Prototypes and class instances
+| Only plain objects work
+
+| DOM nodes
+| Cannot be cloned across origins
+
+| Functions in nested objects
+| These become UUID references
+
+| Symbols
+| Not serializable
+
+| `undefined` values
+| Converted to `null` in transfer
+|===
+
+=== What This Means in Practice
+
+[source,typescript]
+----
+// PARENT
+let counter = 0;  // Local variable
+
+fragment.increment = () => {
+  counter++;  // ✅ Works: accesses parent's closure
+  return counter;
+};
+
+// FRAGMENT
+const result1 = await frameSDK.props.increment();  // 1
+const result2 = await frameSDK.props.increment();  // 2
+
+// ✅ Function has access to its original closure (counter)
+// ❌ Fragment does NOT have access to counter directly
+// ✅ Only the return values (1, 2) cross the boundary
+----
+
+[source,typescript]
+----
+// PARENT
+class UserService {
+  constructor(apiKey) {
+    this.apiKey = apiKey;
+  }
+
+  async save(data) {
+    // ✅ 'this' works: function executes in parent context
+    return fetch('/api/save', {
+      headers: { 'Authorization': this.apiKey },
+      body: JSON.stringify(data)
+    });
+  }
+}
+
+const service = new UserService('secret-key');
+
+// Pass instance method
+fragment.onSave = service.save.bind(service);
+
+// FRAGMENT
+await frameSDK.props.onSave({ name: 'John' });
+// ✅ Works: 'this.apiKey' is accessed in parent context
+// ✅ Arguments { name: 'John' } are serialized and sent
+// ✅ Return value is serialized and sent back
+// ❌ Fragment never sees 'apiKey' or UserService class
+----
+
 == Limitations
 
-* **Function serialization**: Only function calls work, not function inspection
-* **Context binding**: `this` binding may not work as expected
-* **Closures**: Closed-over variables are not accessible across boundaries
-* **Timeout**: 5-second limit on function execution
+Understanding what gets serialized helps explain the limitations:
+
+* **Function inspection**: Cannot read function source code or properties from the other side
+* **Context binding**: `this` works only because function executes in its original context
+* **Closures**: Work perfectly because function never leaves its environment
+* **Timeout**: 5-second limit on RPC calls (not function execution itself)
+* **Argument types**: Only serializable types work (no DOM nodes, class instances, etc.)
+
+== Why Call It "Serialization" Then?
+
+The term "function serialization" is used because:
+
+1. **From the developer's perspective**, it *feels* like functions are being serialized
+   - You pass a function on one side
+   - You call it on the other side
+   - It "just works"
+
+2. **The API hides the RPC complexity**
+   - No need to manually send messages
+   - No need to manage callbacks
+   - No need to handle promise resolution
+
+3. **Industry convention**
+   - Common term in remote communication frameworks
+   - Easier to search and learn about
+   - Conveys "making functions work across boundaries"
+
+But technically, it's more accurate to say:
+
+* **Function references are serialized** (as UUIDs)
+* **Function calls are executed remotely** (via RPC)
+* **Arguments and results are serialized** (via `structuredClone`)
+
+The actual function code never leaves its original context!
 
 == Best Practices
 
@@ -517,4 +812,6 @@ Functions are validated:
 3. **Handle errors**: Always catch and handle errors
 4. **Document function signatures**: Use TypeScript types
 5. **Batch operations**: Reduce message overhead
-6. **Cleanup**: Functions are auto-cleaned, but can manually release if needed
+6. **Understand the boundary**: Remember that only serializable data crosses
+7. **Keep functions in their context**: Don't expect closures to transfer
+8. **Cleanup**: Functions are auto-cleaned, but can manually release if needed

@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
 import { useFrameSDK } from "@zomme/fragment-frame-react";
+import { useEffect, useRef, useState } from "react";
 import type { User } from "../types";
 
 interface SettingsProps {
@@ -42,10 +42,9 @@ export default function Settings() {
 
   // Watch for theme and user changes with modern API
   useEffect(() => {
-    const unwatch = watchProps(['theme', 'user'], (changes) => {
-      if ('theme' in changes && changes.theme) {
+    const unwatch = watchProps(["theme", "user"], (changes) => {
+      if ("theme" in changes && changes.theme) {
         const [newTheme] = changes.theme;
-        console.log("Theme attribute changed:", newTheme);
         setTheme(newTheme as "dark" | "light");
         setSettings((prev) => ({ ...prev, theme: newTheme as "dark" | "light" }));
 
@@ -56,9 +55,8 @@ export default function Settings() {
         });
       }
 
-      if ('user' in changes && changes.user) {
+      if ("user" in changes && changes.user) {
         const [newUser] = changes.user;
-        console.log("User attribute changed:", newUser);
         setUser(newUser as User);
 
         emit("user-changed", {
@@ -151,39 +149,11 @@ export default function Settings() {
     }, 3000);
   };
 
-  const triggerActionCallback = () => {
-    if (typeof props.actionCallback === "function") {
-      props.actionCallback({
-        component: "Settings",
-        source: "callback-demo",
-        timestamp: Date.now(),
-        type: "test-action",
-      });
-
-      setSaveMessage("Action callback triggered!");
-
-      timeoutRef.current = setTimeout(() => {
-        setSaveMessage("");
-      }, 2000);
-    } else {
-      setSaveMessage("No action callback provided");
-
-      timeoutRef.current = setTimeout(() => {
-        setSaveMessage("");
-      }, 2000);
-    }
-  };
-
-  const testThemeToggle = () => {
-    const newTheme = theme === "light" ? "dark" : "light";
-    emit("change-theme", { theme: newTheme });
-  };
-
   return (
     <div style={styles.settingsPage}>
       <div style={styles.header}>
         <h1 style={styles.headerH1}>Settings</h1>
-        <p style={styles.subtitle}>Demonstrating Async Callbacks + Attribute Listeners</p>
+        <p style={styles.subtitle}>Configure your application preferences</p>
       </div>
 
       {!isReady ? (
@@ -200,21 +170,6 @@ export default function Settings() {
               </div>
             </div>
           )}
-
-          <div style={styles.infoCard}>
-            <h3 style={styles.infoCardH3}>About This Demo</h3>
-            <p style={styles.infoCardP}>
-              This page demonstrates <strong>Async Callbacks</strong> and{" "}
-              <strong>Attribute Listeners</strong>:
-            </p>
-            <ul style={styles.infoCardUl}>
-              <li style={styles.infoCardLi}>
-                Settings can be saved using an async callback function passed from parent
-              </li>
-              <li style={styles.infoCardLi}>Theme changes are detected via attribute listeners</li>
-              <li style={styles.infoCardLi}>User data updates are synchronized automatically</li>
-            </ul>
-          </div>
 
           <form style={styles.settingsForm} onSubmit={handleSubmit}>
             <div style={styles.formGroup}>
@@ -307,59 +262,6 @@ export default function Settings() {
               {saveMessage}
             </div>
           )}
-
-          <div style={styles.demoSection}>
-            <h3 style={styles.demoSectionH3}>Callback Demo</h3>
-            <p style={styles.demoSectionP}>
-              Test synchronous callback functions passed from parent:
-            </p>
-            <button style={styles.demoBtn} type="button" onClick={triggerActionCallback}>
-              Trigger Action Callback
-            </button>
-          </div>
-
-          <div style={styles.demoSection}>
-            <h3 style={styles.demoSectionH3}>Attribute Listener Demo</h3>
-            <p style={styles.demoSectionP}>
-              Request theme change from parent (will trigger attribute listener):
-            </p>
-            <div style={styles.themeDemo}>
-              <div
-                style={
-                  theme === "light"
-                    ? { ...styles.themeIndicator, ...styles.themeIndicatorLight }
-                    : { ...styles.themeIndicator, ...styles.themeIndicatorDark }
-                }
-              >
-                Current theme: <strong>{theme}</strong>
-              </div>
-              <button style={styles.demoBtn} type="button" onClick={testThemeToggle}>
-                Request Theme Toggle
-              </button>
-            </div>
-          </div>
-
-          <div style={styles.techDetails}>
-            <h4 style={styles.techDetailsH4}>Technical Details</h4>
-            <ul style={styles.techDetailsUl}>
-              <li style={styles.techDetailsLi}>
-                <strong style={styles.techDetailsStrong}>Async Callbacks:</strong> saveCallback
-                returns a Promise with result
-              </li>
-              <li style={styles.techDetailsLi}>
-                <strong style={styles.techDetailsStrong}>Attribute Listeners:</strong>{" "}
-                onAttr('theme', handler) detects changes
-              </li>
-              <li style={styles.techDetailsLi}>
-                <strong style={styles.techDetailsStrong}>Bidirectional:</strong> Fragment can
-                request changes via events
-              </li>
-              <li style={styles.techDetailsLi}>
-                <strong style={styles.techDetailsStrong}>Type Safety:</strong> TypeScript interfaces
-                ensure correct usage
-              </li>
-            </ul>
-          </div>
         </div>
       )}
     </div>
@@ -439,30 +341,6 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: "0.75rem",
     fontWeight: 600,
     alignSelf: "flex-start",
-  },
-  infoCard: {
-    padding: "1.5rem",
-    background: "#fef3c7",
-    border: "1px solid #fde68a",
-    borderRadius: "8px",
-  },
-  infoCardH3: {
-    margin: "0 0 0.75rem",
-    color: "#92400e",
-    fontSize: "1.125rem",
-  },
-  infoCardP: {
-    margin: "0 0 0.5rem",
-    color: "#78350f",
-    lineHeight: 1.6,
-  },
-  infoCardUl: {
-    margin: "0.5rem 0 0",
-    paddingLeft: "1.5rem",
-    color: "#78350f",
-  },
-  infoCardLi: {
-    marginBottom: "0.25rem",
   },
   settingsForm: {
     background: "white",
@@ -545,76 +423,5 @@ const styles: Record<string, React.CSSProperties> = {
     background: "#f8d7da",
     borderColor: "#f5c6cb",
     color: "#721c24",
-  },
-  demoSection: {
-    padding: "1.5rem",
-    background: "white",
-    borderRadius: "8px",
-    boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
-  },
-  demoSectionH3: {
-    margin: "0 0 0.75rem",
-    fontSize: "1.125rem",
-    color: "#1a1a1a",
-  },
-  demoSectionP: {
-    margin: "0 0 1rem",
-    color: "#666",
-    fontSize: "0.875rem",
-  },
-  demoBtn: {
-    padding: "0.75rem 1.5rem",
-    background: "#3b82f6",
-    color: "white",
-    border: "none",
-    borderRadius: "6px",
-    cursor: "pointer",
-    fontSize: "0.875rem",
-    fontWeight: 600,
-    transition: "background 0.2s",
-  },
-  themeDemo: {
-    display: "flex",
-    alignItems: "center",
-    gap: "1rem",
-  },
-  themeIndicator: {
-    padding: "0.75rem 1rem",
-    borderRadius: "6px",
-    fontSize: "0.875rem",
-  },
-  themeIndicatorLight: {
-    background: "#f9fafb",
-    border: "2px solid #e5e7eb",
-    color: "#1a1a1a",
-  },
-  themeIndicatorDark: {
-    background: "#1f2937",
-    border: "2px solid #374151",
-    color: "#f9fafb",
-  },
-  techDetails: {
-    padding: "1.5rem",
-    background: "#f9fafb",
-    border: "1px solid #e5e7eb",
-    borderRadius: "8px",
-  },
-  techDetailsH4: {
-    margin: "0 0 1rem",
-    fontSize: "1rem",
-    color: "#1a1a1a",
-  },
-  techDetailsUl: {
-    margin: 0,
-    paddingLeft: "1.5rem",
-    listStyle: "disc",
-  },
-  techDetailsLi: {
-    marginBottom: "0.5rem",
-    color: "#666",
-    lineHeight: 1.6,
-  },
-  techDetailsStrong: {
-    color: "#1a1a1a",
   },
 };
