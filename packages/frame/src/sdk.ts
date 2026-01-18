@@ -26,7 +26,7 @@ type EventHandler = (data: unknown) => void | Promise<void>;
 /**
  * SDK for frame applications to communicate with the parent
  *
- * Provides APIs for events and configuration access.
+ * Provides APIs for events, function registration, and configuration access.
  * Must be initialized before use.
  *
  * @example
@@ -36,16 +36,22 @@ type EventHandler = (data: unknown) => void | Promise<void>;
  * // Initialize SDK
  * await frameSDK.initialize();
  *
- * // Access props directly
+ * // Access props directly (functions are async via RPC)
  * console.log(frameSDK.props.name, frameSDK.props.base);
- * frameSDK.props.onSuccess({ status: 'ok' });
+ * await frameSDK.props.onSuccess({ status: 'ok' });
  *
- * // Emit events
- * frameSDK.emit('state-change', { theme: 'dark' });
+ * // Emit events to parent
+ * frameSDK.emit('navigate', { path: '/settings' });
+ * frameSDK.emit('task-created', { id: 123 });
  *
  * // Listen to events from parent
- * frameSDK.on('theme-changed', (theme) => {
- *   applyTheme(theme);
+ * frameSDK.on('route-change', ({ path }) => {
+ *   router.navigate(path);
+ * });
+ *
+ * // Register functions that parent can call
+ * frameSDK.register('refreshData', async () => {
+ *   await loadData();
  * });
  * ```
  */
@@ -446,7 +452,7 @@ export class FrameSDK {
       throw new TypeError("First parameter must be a string (name) or object (functions)");
     }
 
-    // Emit standard 'register' event with functions
+    // Emit 'register' event with functions
     this.emit("register", functionsToRegister);
 
     // Return cleanup function
@@ -468,9 +474,13 @@ export class FrameSDK {
    *
    * @example
    * ```typescript
-   * const dispose = frameSDK.on('theme-changed', (theme) => {
-   *   applyTheme(theme);
+   * // Listen to 'route-change' event
+   * const dispose = frameSDK.on('route-change', ({ path }) => {
+   *   router.navigate(path);
    * });
+   *
+   * // Listen to 'data-refresh' event
+   * frameSDK.on('data-refresh', () => loadData());
    *
    * // Later: remove listener
    * dispose();

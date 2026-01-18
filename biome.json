@@ -187,6 +187,16 @@
 			}
 		},
 		{
+			"includes": ["**/apps/*-angular/**/*.ts", "**/packages/*-angular/**/*.ts"],
+			"linter": {
+				"rules": {
+					"style": {
+						"useImportType": "off"
+					}
+				}
+			}
+		},
+		{
 			"includes": ["**/apps/app-angular/**/*.ts"],
 			"linter": {
 				"rules": {

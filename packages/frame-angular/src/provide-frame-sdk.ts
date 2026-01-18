@@ -2,6 +2,7 @@ import {
   APP_INITIALIZER,
   DestroyRef,
   type EnvironmentProviders,
+  Injector,
   inject,
   makeEnvironmentProviders,
 } from "@angular/core";
@@ -47,8 +48,9 @@ export interface FrameSDKConfig {
   /**
    * Callback invoked when SDK initialization succeeds.
    * Use this for any post-initialization setup.
+   * Receives the Angular Injector to access services.
    */
-  onReady?: () => void;
+  onReady?: (injector: Injector) => void;
 }
 
 /**
@@ -76,8 +78,9 @@ export interface FrameSDKConfig {
  *       onStandalone: () => {
  *         console.log('Running in standalone mode');
  *       },
- *       onReady: () => {
- *         console.log('SDK initialized successfully');
+ *       onReady: (injector) => {
+ *         // Access services via injector
+ *         injector.get(MyFrameActionsService).register();
  *       },
  *     }),
  *   ],
@@ -98,6 +101,7 @@ export function provideFrameSDK(config: FrameSDKConfig = {}): EnvironmentProvide
     {
       provide: APP_INITIALIZER,
       useFactory: () => {
+        const injector = inject(Injector);
         const destroyRef = inject(DestroyRef);
         const router = inject(Router, { optional: true });
 
@@ -114,8 +118,8 @@ export function provideFrameSDK(config: FrameSDKConfig = {}): EnvironmentProvide
             // Setup cleanup on destroy
             destroyRef.onDestroy(() => frameSDK.cleanup());
 
-            // Call onReady callback
-            config.onReady?.();
+            // Call onReady callback with injector
+            config.onReady?.(injector);
           } catch (error) {
             console.warn("[provideFrameSDK] Running in standalone mode:", error);
             config.onStandalone?.();

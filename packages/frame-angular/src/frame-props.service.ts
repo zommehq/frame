@@ -59,15 +59,6 @@ export class FramePropsService {
         this._propsVersion.update((v) => v + 1);
       });
     });
-
-    // Watch for any prop changes from the parent and increment version
-    // CRITICAL: Run inside NgZone so Angular detects the Signal change!
-    // postMessage callbacks run outside Angular's zone by default
-    frameSDK.watch(() => {
-      this._zone.run(() => {
-        this._propsVersion.update((v) => v + 1);
-      });
-    });
   }
 
   /**

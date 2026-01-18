@@ -62,7 +62,7 @@ export class TasksComponent {
       // Functions are async RPC - transparent cross-iframe calls
       const newTask = await this.props.addTask({ title: "New Task", completed: false });
       console.log("Created:", newTask);
-      
+
       // Emit custom event to parent shell
       this.frameProps.emit("task-created", { task: newTask });
     } catch (error) {
@@ -76,8 +76,80 @@ export class TasksComponent {
 **Key concepts:**
 - `injectFrameProps<T>()` returns a Proxy where each prop is a Signal
 - Access values with `this.props.propName()` (reactive, auto-updates)
-- Functions passed from parent are async (RPC over PostMessage)
+- Functions passed from parent are **always async** (RPC over PostMessage)
 - Use `FramePropsService.emit()` to send custom events to parent
+
+### Important: Callbacks are Always Async
+
+All functions passed from parent to child are executed via **RPC (Remote Procedure Call)** over PostMessage. This means:
+
+1. **Always use `await`** when calling parent functions
+2. **Always define callbacks as `async`** in the parent
+3. **Always return `Promise<T>`** in your type definitions
+4. **Handle errors** with try/catch
+
+```typescript
+// In parent shell - define callbacks as async
+handleAddTask = async (task: Omit<Task, "id">): Promise<Task> => {
+  const newTask = { ...task, id: Date.now() };
+  this.tasks.update((t) => [...t, newTask]);
+  return newTask;  // Return value is sent back to child
+};
+
+// In child app - always await
+async addTask() {
+  try {
+    const newTask = await this.props.addTask({ title: "New Task" });
+    console.log("Created:", newTask);
+  } catch (error) {
+    console.error("RPC call failed:", error);
+  }
+}
+```
+
+### Event Naming Convention
+
+The framework uses two event formats:
+
+| Type | Format | Examples | Usage |
+|------|--------|----------|-------|
+| **Internal** | `ready`, `route-change` | Framework events |
+| **Custom** | `kebab-case` | `task-created`, `user-updated` | Your app events |
+
+**Internal events:**
+- `error` - Error in child frame
+- `navigate` - Child notifies navigation to parent
+- `ready` - Child frame initialized
+- `register` - Child registers callable functions
+- `route-change` - Parent sends route to child
+- `unregister` - Child unregisters functions
+
+**Custom events:** Use `kebab-case` for your application events:
+```typescript
+this.frameProps.emit("task-created", { task: newTask });
+this.frameProps.emit("user-updated", { userId: 123 });
+```
+
+### Registered Functions
+
+Child frames can register functions that the parent can call directly:
+
+```typescript
+// Child registers functions
+frameSDK.register('refreshData', async () => {
+  await loadData();
+  return { success: true };
+});
+
+frameSDK.register({
+  getStats: () => ({ total: 10, active: 5 }),
+  exportPdf: async (format) => generatePdf(format),
+});
+
+// Parent calls registered functions (via z-frame element)
+const stats = await frame.getStats();
+await frame.refreshData();
+```
 
 ### Router Synchronization
 
@@ -99,17 +171,27 @@ This keeps the browser URL in sync with the actual view, even though the child a
 
 ## Quick Start (Parent Shell)
 
-Use `FrameComponent` to embed child apps:
+Use the native `<z-frame>` custom element directly with `CUSTOM_ELEMENTS_SCHEMA`:
 
 ```typescript
 // shell.component.ts
-import { Component, inject, signal } from "@angular/core";
+import { Component, CUSTOM_ELEMENTS_SCHEMA, inject, signal } from "@angular/core";
 import { Router } from "@angular/router";
-import { FrameComponent } from "@zomme/frame-angular";
+
+// Type helper for z-frame with registered actions
+type ZFrame<TActions = Record<string, never>> = HTMLElement & {
+  [K in keyof TActions]: TActions[K];
+};
+
+// Define actions registered by child
+interface TasksFrameActions {
+  getStats(): Promise<{ currentRoute: string; timestamp: number }>;
+  refreshData(): Promise<{ success: boolean }>;
+}
 
 @Component({
   selector: "app-shell",
-  imports: [FrameComponent],
+  schemas: [CUSTOM_ELEMENTS_SCHEMA],
   template: `
     <z-frame
       name="tasks-app"
@@ -122,13 +204,14 @@ import { FrameComponent } from "@zomme/frame-angular";
       (ready)="onReady($event)"
       (navigate)="onNavigate($event)"
       (task-created)="onTaskCreated($event)"
-      (error)="onError($event)"
     />
+    <button (click)="testChildAction()">Call Child Action</button>
   `,
 })
 export class ShellComponent {
   private router = inject(Router);
-  
+  private tasksFrame: ZFrame<TasksFrameActions> | null = null;
+
   tasks = signal<Task[]>([]);
   currentFilter = "all";
 
@@ -143,23 +226,29 @@ export class ShellComponent {
     return true;
   };
 
-  onReady(event: CustomEvent) {
-    console.log("Child app ready");
+  onReady(event: Event) {
+    const { name } = (event as CustomEvent).detail;
+    if (name === "tasks-app") {
+      this.tasksFrame = event.target as ZFrame<TasksFrameActions>;
+    }
   }
 
-  onNavigate(event: CustomEvent) {
-    const { path } = event.detail;
-    // Navigate using base path: /tasks + /details = /tasks/details
+  onNavigate(event: Event) {
+    const { path } = (event as CustomEvent).detail;
     this.router.navigateByUrl(`/tasks${path}`);
   }
 
-  onTaskCreated(event: CustomEvent) {
-    // Listen to custom events from child
-    console.log("Task created in child:", event.detail.task);
+  onTaskCreated(event: Event) {
+    console.log("Task created:", (event as CustomEvent).detail.task);
   }
 
-  onError(event: CustomEvent) {
-    console.error("Error from child:", event.detail.message);
+  // Call registered functions in child frame
+  async testChildAction() {
+    const stats = await this.tasksFrame?.getStats();
+    console.log("Stats from child:", stats);
+
+    const result = await this.tasksFrame?.refreshData();
+    console.log("Refresh result:", result);
   }
 }
 ```
@@ -203,9 +292,9 @@ const user = props.user();        // Auto-updates when parent changes
 await props.saveData({ ... });    // Returns Promise
 ```
 
-### `FrameComponent`
+### `<z-frame>` Custom Element
 
-Angular component wrapping the `<z-frame>` custom element.
+Use the native `<z-frame>` custom element directly. No Angular wrapper needed.
 
 **Required attributes:**
 - `name` - Unique identifier for the frame
@@ -214,19 +303,43 @@ Angular component wrapping the `<z-frame>` custom element.
 **Optional attributes:**
 - `base` - Base path for routing (defaults to `/{name}`)
 
-**Outputs:** `ready`, `navigate`, `error`, and any custom events.
+**Events:**
+- `ready` - Frame initialized
+- `navigate` - Child navigated
+- `error` - Frame error
+- `register` - Child registered functions
+- `unregister` - Child unregistered functions
 
-Any other attribute is passed as a prop to the child app.
+**Calling child functions:**
+
+Child frames can register functions via `frameSDK.register()`. Parent can call them directly:
 
 ```typescript
-// Example: base defaults to "/tasks-app" (same as name)
-<z-frame name="tasks-app" src="http://localhost:4200/" />
+// Store typed reference on ready
+onReady(event: Event) {
+  this.childFrame = event.target as ZFrame<ChildActions>;
+}
 
-// Example: custom base path
-<z-frame name="tasks-app" base="/tasks" src="http://localhost:4200/" />
+// Call registered functions directly
+const stats = await this.childFrame.getStats();
+await this.childFrame.refreshData();
 ```
 
-The `base` prop is automatically passed to the child app and is used for router synchronization. When the child emits a `navigate` event with `{ path: '/details' }`, the shell knows to navigate to `{base}/details` (e.g., `/tasks/details`).
+**Example:**
+
+```html
+<z-frame
+  name="tasks-app"
+  base="/tasks"
+  src="http://localhost:4200/"
+  [tasks]="tasks()"
+  [addTask]="handleAddTask"
+  (ready)="onReady($event)"
+  (navigate)="onNavigate($event)"
+/>
+```
+
+The `base` prop is automatically passed to the child app and is used for router synchronization.
 
 ### `FramePropsService`
 

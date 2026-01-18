@@ -37,10 +37,10 @@ Web Component `<z-frame>` for embedding micro-frontends in isolated iframes.
 - Watch API for reactive prop changes
 
 ### @zomme/frame-angular
-Angular wrapper with components and services for integration.
+Angular wrapper with services for integration. Use native `<z-frame>` directly.
 
 **Exports:**
-- `FrameComponent` - Angular component for `<z-frame>`
+- `frameSDK` - Re-exported SDK instance
 - `FramePropsService` - Service to access props reactively
 - `injectFrameProps()` - Injection function with PropsProxy
 - `provideFrameSDK()` - Provider to configure SDK

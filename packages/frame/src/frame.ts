@@ -2,7 +2,6 @@ import { MessageEvent } from "./constants";
 import { FunctionManager } from "./helpers/function-manager";
 import { createLogger } from "./helpers/logger";
 import { validateMessage } from "./helpers/message-validators";
-import { kebabCase } from "./helpers/string-utils";
 import type {
   CustomEventMessage,
   FrameProps,
@@ -17,7 +16,16 @@ const logger = createLogger("z-frame");
  * Web Component for embedding micro-frontend frames in iframes
  *
  * Provides secure iframe isolation with bidirectional PostMessage communication.
- * Supports dynamic attributes/properties, method calls, and event system.
+ * Supports dynamic attributes/properties, registered function calls, and event system.
+ *
+ * ## Event Naming Convention
+ * - Internal events use `namespace:action` format: `frame:ready`, `route:change`
+ * - Custom events use `kebab-case` format: `task-created`, `user-updated`
+ *
+ * ## Registered Functions
+ * Child frames can register functions via `frameSDK.register()` that parent can call:
+ * - Child: `frameSDK.register('refreshData', () => loadData())`
+ * - Parent: `frame.refreshData()` → calls the registered function (returns Promise)
  *
  * @example
  * ```html
@@ -38,9 +46,12 @@ const logger = createLogger("z-frame");
  * frame.theme = 'dark';
  * frame.user = currentUser;
  *
- * // Send event to frame (two equivalent ways)
- * frame.emit('theme-change', { theme: 'dark' });
- * frame.themeChange({ theme: 'dark' }); // camelCase alias
+ * // Send event to frame
+ * frame.emit('route-change', { path: '/settings' });
+ *
+ * // Call registered function from child (returns Promise)
+ * const stats = await frame.getStats();
+ * await frame.refreshData();
  *
  * // Listen to frame events
  * frame.addEventListener('ready', () => console.log('Ready'));
@@ -77,6 +88,9 @@ export class Frame extends HTMLElement {
 
   // Set of properties that have been defined with getter/setter
   _definedProps = new Set<string>();
+
+  // Functions registered by child frame via frame:register event
+  _registeredFunctions = new Map<string, Function>();
 
   /**
    * Creates a new z-frame element
@@ -469,18 +483,14 @@ export class Frame extends HTMLElement {
   /**
    * Send event to child iframe
    *
-   * Can be called directly or via camelCase method syntax.
-   *
-   * @param eventName - Event name (kebab-case)
+   * @param eventName - Event name
    * @param data - Event data
    *
    * @example
    * ```typescript
-   * // Direct call
-   * frame.emit('theme-change', { theme: 'dark' });
+   * frame.emit('route-change', { path: '/settings' });
    *
-   * // CamelCase alias (equivalent)
-   * frame.themeChange({ theme: 'dark' });
+   * frame.emit('data-refresh', { force: true });
    * ```
    */
   emit(eventName: string, data?: unknown) {
@@ -543,6 +553,25 @@ export class Frame extends HTMLElement {
     if (!name || !/^[a-zA-Z0-9_:.-]+$/.test(name)) {
       logger.warn("Invalid event name:", name);
       return;
+    }
+
+    // Intercept frame:register event to store registered functions
+    if (name === "register" && detail && typeof detail === "object") {
+      for (const [fnName, fn] of Object.entries(detail as Record<string, unknown>)) {
+        if (typeof fn === "function") {
+          this._registeredFunctions.set(fnName, fn as Function);
+        }
+      }
+    }
+
+    // Intercept frame:unregister event to remove registered functions
+    if (name === "unregister" && detail && typeof detail === "object") {
+      const { functions } = detail as { functions?: string[] };
+      if (Array.isArray(functions)) {
+        for (const fnName of functions) {
+          this._registeredFunctions.delete(fnName);
+        }
+      }
     }
 
     // Dispatch DOM CustomEvent
@@ -613,6 +642,7 @@ export class Frame extends HTMLElement {
     this._dynamicMethods?.clear();
     this._propValues?.clear();
     this._definedProps?.clear();
+    this._registeredFunctions?.clear();
     this._iframe?.remove();
 
     // Reset ready state
@@ -633,7 +663,8 @@ export class Frame extends HTMLElement {
  * Setup Proxy on prototype to intercept property access and assignment.
  *
  * GET trap: Creates dynamic methods for camelCase property access
- *   - frame.themeChange({ data }) → frame.emit('theme-change', { data })
+ *   - frame.refreshData() → calls registered function 'refreshData' in child
+ *   - Returns Promise.reject if function not registered
  *
  * SET trap: Creates reactive getter/setter for dynamic properties
  *   - frame.myProp = value → syncs to iframe automatically
@@ -647,16 +678,31 @@ const setupPrototypeProxy = () => {
       const value = Reflect.get(target, prop, receiver);
       if (value !== undefined) return value;
 
-      // Dynamic method pattern for camelCase event emitters
-      // frame.themeChange({ ... }) → emit('theme-change', { ... })
-      if (typeof prop === "string" && /^[a-z][a-zA-Z0-9]*$/.test(prop) && /[A-Z]/.test(prop)) {
+      // Dynamic method pattern for camelCase function calls
+      // frame.refreshData() → calls registered function 'refreshData'
+      if (typeof prop === "string" && /^[a-z][a-zA-Z0-9]*$/.test(prop)) {
         const instance = receiver as Frame;
-        if (!instance._dynamicMethods?.has(prop)) {
-          instance._dynamicMethods?.set(prop, (data?: unknown) =>
-            instance._emitToChild(kebabCase(prop), data),
-          );
+
+        // Check if we have a cached method
+        if (instance._dynamicMethods?.has(prop)) {
+          return instance._dynamicMethods.get(prop);
         }
-        return instance._dynamicMethods?.get(prop);
+
+        // Create method that calls registered function or rejects
+        const method = (...args: unknown[]): Promise<unknown> => {
+          const fn = instance._registeredFunctions?.get(prop);
+          if (fn) {
+            // Call the registered function (already async via RPC)
+            return Promise.resolve(fn(...args));
+          }
+          // Function not registered - reject with clear error
+          return Promise.reject(
+            new Error(`Function '${prop}' not registered by child frame '${instance.name}'`),
+          );
+        };
+
+        instance._dynamicMethods?.set(prop, method);
+        return method;
       }
 
       return undefined;
