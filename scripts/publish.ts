@@ -130,6 +130,7 @@ async function runCommand(
   cwd: string,
   command: string,
   args: string[],
+  silent = false,
 ): Promise<{ success: boolean; output: string }> {
   const fullPath = join(process.cwd(), cwd);
 
@@ -146,7 +147,7 @@ async function runCommand(
     for await (const chunk of proc.stdout) {
       const text = decoder.decode(chunk);
       output += text;
-      process.stdout.write(text);
+      if (!silent) process.stdout.write(text);
     }
   }
 
@@ -154,7 +155,7 @@ async function runCommand(
     for await (const chunk of proc.stderr) {
       const text = decoder.decode(chunk);
       output += text;
-      process.stderr.write(text);
+      if (!silent) process.stderr.write(text);
     }
   }
 
@@ -195,6 +196,60 @@ async function getPackageInfo(pkgPath: string): Promise<{ name: string; version:
   return { name: pkgJson.name, version: pkgJson.version };
 }
 
+/**
+ * Calculate the next version based on semver rules
+ */
+function calculateNextVersion(
+  currentVersion: string,
+  versionType: VersionType,
+  preid?: string,
+): string {
+  // Parse current version (e.g., "1.2.3" or "1.2.3-beta.0")
+  const match = currentVersion.match(/^(\d+)\.(\d+)\.(\d+)(?:-([a-zA-Z]+)\.(\d+))?$/);
+
+  if (!match) {
+    throw new Error(`Invalid version format: ${currentVersion}`);
+  }
+
+  const [, major, minor, patch, prereleaseId, prereleaseNum] = match;
+  let majorNum = Number.parseInt(major, 10);
+  let minorNum = Number.parseInt(minor, 10);
+  let patchNum = Number.parseInt(patch, 10);
+
+  switch (versionType) {
+    case "major":
+      majorNum++;
+      minorNum = 0;
+      patchNum = 0;
+      return `${majorNum}.${minorNum}.${patchNum}`;
+
+    case "minor":
+      minorNum++;
+      patchNum = 0;
+      return `${majorNum}.${minorNum}.${patchNum}`;
+
+    case "patch":
+      patchNum++;
+      return `${majorNum}.${minorNum}.${patchNum}`;
+
+    case "prerelease": {
+      const id = preid || prereleaseId || "beta";
+      if (prereleaseId === id && prereleaseNum !== undefined) {
+        // Increment prerelease number
+        return `${majorNum}.${minorNum}.${patchNum}-${id}.${Number.parseInt(prereleaseNum, 10) + 1}`;
+      }
+      // Start new prerelease
+      return `${majorNum}.${minorNum}.${patchNum}-${id}.0`;
+    }
+
+    default:
+      throw new Error(`Unknown version type: ${versionType}`);
+  }
+}
+
+/**
+ * Bump version by directly modifying package.json (avoids npm version issues with workspace:*)
+ */
 async function bumpVersion(
   pkgPath: string,
   name: string,
@@ -202,36 +257,46 @@ async function bumpVersion(
   preid?: string,
   dryRun?: boolean,
 ): Promise<{ success: boolean; newVersion?: string }> {
-  const args = ["version", versionType, "--no-git-tag-version"];
+  const pkgJsonPath = join(process.cwd(), pkgPath, "package.json");
 
-  if (versionType === "prerelease" && preid) {
-    args.push("--preid", preid);
-  }
+  try {
+    // Read current package.json
+    const pkgJsonContent = await Bun.file(pkgJsonPath).text();
+    const pkgJson = JSON.parse(pkgJsonContent);
+    const currentVersion = pkgJson.version;
 
-  console.log(`${dryRun ? "[DRY RUN] " : ""}Bumping ${name} (${versionType})...`);
+    // Calculate new version
+    const newVersion = calculateNextVersion(currentVersion, versionType, preid);
 
-  if (dryRun) {
-    // In dry-run, just show what would happen
-    const currentInfo = await getPackageInfo(pkgPath);
-    console.log(`  Current: ${currentInfo.version}\n`);
-    return { success: true };
-  }
+    console.log(`${dryRun ? "[DRY RUN] " : ""}Bumping ${name} (${versionType})...`);
+    console.log(`  ${currentVersion} -> ${newVersion}`);
 
-  const result = await runCommand(pkgPath, "npm", args);
+    if (dryRun) {
+      console.log("");
+      return { success: true, newVersion };
+    }
 
-  if (!result.success) {
-    console.error(`Version bump failed for ${name}\n`);
+    // Update version in package.json
+    pkgJson.version = newVersion;
+
+    // Write back with proper formatting (preserve tabs from original)
+    await Bun.write(pkgJsonPath, `${JSON.stringify(pkgJson, null, "\t")}\n`);
+
+    console.log(`  Updated ${name}@${newVersion}\n`);
+    return { success: true, newVersion };
+  } catch (error) {
+    console.error(`Version bump failed for ${name}:`, error);
     return { success: false };
   }
-
-  // Re-read the version after bump
-  const newInfo = await getPackageInfo(pkgPath);
-  console.log(`  ${name}@${newInfo.version}\n`);
-  return { success: true, newVersion: newInfo.version };
 }
 
-async function buildPackage(pkgPath: string, name: string): Promise<boolean> {
-  console.log(`Building ${name}...`);
+async function buildPackage(pkgPath: string, name: string, dryRun: boolean): Promise<boolean> {
+  console.log(`${dryRun ? "[DRY RUN] " : ""}Building ${name}...`);
+
+  if (dryRun) {
+    console.log(`  Skipped (dry run)\n`);
+    return true;
+  }
 
   const result = await runCommand(pkgPath, "bun", ["run", "build"]);
 
@@ -247,15 +312,12 @@ async function buildPackage(pkgPath: string, name: string): Promise<boolean> {
 async function publishPackage(
   pkgPath: string,
   name: string,
+  version: string,
   dryRun: boolean,
   tag?: string,
   otp?: string,
 ): Promise<boolean> {
   const args = ["publish", "--access", "public"];
-
-  if (dryRun) {
-    args.push("--dry-run");
-  }
 
   if (tag) {
     args.push("--tag", tag);
@@ -266,8 +328,13 @@ async function publishPackage(
   }
 
   console.log(
-    `${dryRun ? "[DRY RUN] " : ""}Publishing ${name}${tag ? ` with tag "${tag}"` : ""}...`,
+    `${dryRun ? "[DRY RUN] " : ""}Publishing ${name}@${version}${tag ? ` with tag "${tag}"` : ""}...`,
   );
+
+  if (dryRun) {
+    console.log(`  Skipped (dry run)\n`);
+    return true;
+  }
 
   const result = await runCommand(pkgPath, "npm", args);
 
@@ -276,7 +343,7 @@ async function publishPackage(
     return false;
   }
 
-  console.log(`${dryRun ? "[DRY RUN] " : ""}Published ${name}\n`);
+  console.log(`Published ${name}@${version}\n`);
   return true;
 }
 
@@ -305,7 +372,7 @@ async function main() {
   }
   console.log("");
 
-  // Check npm auth
+  // Check npm auth (skip in dry-run)
   if (!options.dryRun) {
     const isAuthenticated = await checkNpmAuth();
     if (!isAuthenticated) {
@@ -343,6 +410,10 @@ async function main() {
       if (!result.success) {
         process.exit(1);
       }
+      // Update version in packagesInfo for dry-run display
+      if (result.newVersion) {
+        pkg.version = result.newVersion;
+      }
     }
 
     // Re-read package info after version bump (unless dry-run)
@@ -354,13 +425,13 @@ async function main() {
           ...(await getPackageInfo(PACKAGES[pkg])),
         })),
       );
-
-      console.log("Updated versions:\n");
-      for (const pkg of packagesInfo) {
-        console.log(`  - ${pkg.name}@${pkg.version}`);
-      }
-      console.log("");
     }
+
+    console.log("Updated versions:\n");
+    for (const pkg of packagesInfo) {
+      console.log(`  - ${pkg.name}@${pkg.version}`);
+    }
+    console.log("");
   }
 
   // Build packages
@@ -368,7 +439,7 @@ async function main() {
     console.log("--- Building Packages ---\n");
 
     for (const pkg of packagesInfo) {
-      const success = await buildPackage(pkg.path, pkg.name);
+      const success = await buildPackage(pkg.path, pkg.name, options.dryRun);
       if (!success) {
         process.exit(1);
       }
@@ -384,6 +455,7 @@ async function main() {
     const success = await publishPackage(
       pkg.path,
       pkg.name,
+      pkg.version,
       options.dryRun,
       options.tag,
       options.otp,
@@ -403,7 +475,7 @@ async function main() {
   const failed = results.filter((r) => !r.success);
 
   if (successful.length > 0) {
-    console.log(`Published (${successful.length}):`);
+    console.log(`${options.dryRun ? "Would publish" : "Published"} (${successful.length}):`);
     for (const r of successful) {
       console.log(`   - ${r.name}@${r.version}`);
     }
