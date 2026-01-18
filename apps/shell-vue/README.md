@@ -1,14 +1,14 @@
 # Shell Vue - Micro Frontend Host Application
 
-Shell application em Vue 3 que orquestra múltiplos fragments (Angular, Vue, React, Solid) usando `fragment-frame` custom elements.
+Shell application em Vue 3 que orquestra múltiplos frames (Angular, Vue, React, Solid) usando `z-frame` custom elements.
 
 ## Características
 
 - **Vue 3 + Vite**: Build rápido e HMR
-- **Vue Router**: Navegação entre fragments
-- **Custom Elements**: Usa `<fragment-frame>` para carregar fragments
+- **Vue Router**: Navegação entre frames
+- **Custom Elements**: Usa `<z-frame>` para carregar frames
 - **TypeScript**: Type-safe
-- **Comunicação bidirecional**: Props, eventos e callbacks entre shell e fragments
+- **Comunicação bidirecional**: Props, eventos e callbacks entre shell e frames
 
 ## Desenvolvimento
 
@@ -37,7 +37,7 @@ bun run type-check
 shell-vue/
 ├── src/
 │   ├── App.vue          # Componente principal com lógica do shell
-│   ├── main.ts          # Entry point (registra fragment-frame)
+│   ├── main.ts          # Entry point (registra z-frame)
 │   ├── router.ts        # Configuração do Vue Router
 │   └── env.d.ts         # Type definitions
 ├── index.html
@@ -46,24 +46,24 @@ shell-vue/
 └── vite.config.ts
 ```
 
-### Fragment Configuration
+### Frame Configuration
 
-Cada fragment é configurado com:
+Cada frame é configurado com:
 
 ```typescript
 interface FrameConfig {
   baseUrl: string; // Base URL (ex: http://localhost)
-  name: string; // Nome do fragment (angular, vue, react, solid)
+  name: string; // Nome do frame (angular, vue, react, solid)
   port: number; // Porta do dev server
 }
 ```
 
-### Comunicação Shell → Fragment
+### Comunicação Shell → Frame
 
 **Via Props:**
 
 ```vue
-<fragment-frame
+<z-frame
   ref="angularFrame"
   :user="currentUser"
   :theme="currentTheme"
@@ -85,12 +85,12 @@ watchEffect(() => {
 
 > **Nota**: Vue não suporta attribute binding direto em custom elements. Usamos `refs` + `watchEffect` para setar `name` e `src`.
 
-### Comunicação Fragment → Shell
+### Comunicação Frame → Shell
 
 **Via Eventos:**
 
 ```vue
-<fragment-frame
+<z-frame
   @ready="onFrameReady"
   @navigate="onFrameNavigate"
   @error="onFrameError"
@@ -103,7 +103,7 @@ watchEffect(() => {
 ```typescript
 const onFrameReady = (event: CustomEvent) => {
   const { name } = event.detail;
-  console.log(`Fragment '${name}' is ready`);
+  console.log(`Frame '${name}' is ready`);
 
   // Sincronizar rota atual
   syncRouteToFrame(name);
@@ -118,21 +118,21 @@ const onFrameNavigate = (event: CustomEvent) => {
 };
 ```
 
-## Fragments Suportados
+## Frames Suportados
 
-### 1. Angular Fragment (porta 4000)
+### 1. Angular Frame (porta 4000)
 
 - **Props**: `user`, `theme`, `successCallback`, `actionCallback`
 - **Eventos**: `ready`, `navigate`, `error`, `action-clicked`
 - **Features**: Callbacks bidirecionais, error handling
 
-### 2. React Fragment (porta 4201)
+### 2. React Frame (porta 4201)
 
 - **Props**: `metricsData` (ArrayBuffer), `fetchDataCallback` (async)
 - **Eventos**: `ready`, `navigate`, `error`, `data-loaded`, `large-data`
 - **Features**: Transferable objects, async callbacks
 
-### 3. Vue Fragment (porta 4202)
+### 3. Vue Frame (porta 4202)
 
 - **Props**: `theme`
 - **Eventos**: `ready`, `navigate`, `error`, `counter-changed`
@@ -145,17 +145,17 @@ O shell gerencia navegação em 2 níveis:
 ### 1. Navegação do Shell (Vue Router)
 
 ```
-http://localhost:4000/angular     → Carrega Angular fragment
-http://localhost:4000/react       → Carrega React fragment
-http://localhost:4000/vue         → Carrega Vue fragment
+http://localhost:4000/angular     → Carrega Angular frame
+http://localhost:4000/react       → Carrega React frame
+http://localhost:4000/vue         → Carrega Vue frame
 ```
 
-### 2. Navegação Interna do Fragment
+### 2. Navegação Interna do Frame
 
-Quando um fragment navega internamente (ex: `/users`), ele emite evento `navigate`:
+Quando um frame navega internamente (ex: `/users`), ele emite evento `navigate`:
 
 ```typescript
-// Fragment emite
+// Frame emite
 frameSDK.emit('navigate', { path: '/users' });
 
 // Shell recebe e atualiza URL
@@ -214,7 +214,7 @@ const chatMessages = ref([
   { id: 2, text: "Demo message", timestamp: Date.now() },
 ]);
 
-// Quando fragment envia mensagem
+// Quando frame envia mensagem
 const onMessageSent = (event: CustomEvent) => {
   chatMessages.value.push({
     id: chatMessages.value.length + 1,
@@ -226,20 +226,20 @@ const onMessageSent = (event: CustomEvent) => {
 
 ## Theme Toggle
 
-Demonstra reatividade entre shell e fragments:
+Demonstra reatividade entre shell e frames:
 
 ```typescript
 const currentTheme = ref<"light" | "dark">("light");
 
 const toggleTheme = () => {
   currentTheme.value = currentTheme.value === "light" ? "dark" : "light";
-  // Atualização reativa propagada para todos os fragments
+  // Atualização reativa propagada para todos os frames
 };
 ```
 
 ## Troubleshooting
 
-### Fragment não carrega (iframe não aparece)
+### Frame não carrega (iframe não aparece)
 
 1. Verificar se `name` e `src` estão sendo setados:
 
@@ -258,30 +258,30 @@ watchEffect(() => {
 
 ### Comunicação não funciona
 
-1. Verificar se fragment está emitindo eventos:
+1. Verificar se frame está emitindo eventos:
 
 ```typescript
-// No fragment
+// No frame
 frameSDK.emit("navigate", { path: "/users" });
 ```
 
 2. Verificar se shell está escutando:
 
 ```vue
-<fragment-frame @navigate="onFrameNavigate" />
+<z-frame @navigate="onFrameNavigate" />
 ```
 
 ## Performance
 
-- Cada fragment roda em iframe isolado
-- Mudança de fragment destrói iframe anterior (evita memory leaks)
+- Cada frame roda em z-frame isolado
+- Mudança de frame destrói iframe anterior (evita memory leaks)
 - Props reativas atualizam automaticamente
-- HMR funciona tanto no shell quanto nos fragments
+- HMR funciona tanto no shell quanto nos frames
 
 ## Links
 
-- [Fragment Elements Package](../../packages/fragment-elements)
-- [Angular Fragment](../app-angular)
-- [Vue Fragment](../app-vue)
-- [React Fragment](../app-react)
-- [Solid Fragment](../app-solid)
+- [Frame Package](../../packages/frame)
+- [Angular Frame](../app-angular)
+- [Vue Frame](../app-vue)
+- [React Frame](../app-react)
+- [Solid Frame](../app-solid)

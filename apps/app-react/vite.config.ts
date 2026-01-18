@@ -18,7 +18,7 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      "@zomme/fragment-elements": resolve(__dirname, "../../packages/fragment-elements/src"),
+      "@zomme/frame": resolve(__dirname, "../../packages/frame/src"),
     },
   },
   server: {

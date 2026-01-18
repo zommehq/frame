@@ -1,5 +1,5 @@
+import { useFrameSDK } from "@zomme/frame-react";
 import { useMemo, useState } from "react";
-import { useFrameSDK } from "@zomme/fragment-frame-react";
 import type { Task } from "../types";
 
 interface TasksProps {
@@ -77,7 +77,9 @@ export default function Tasks(props: TasksProps) {
     const task = tasks.find((t) => t.id === taskId);
     if (!task) return;
 
-    const updatedTasks = tasks.map((t) => (t.id === taskId ? { ...t, completed: !t.completed } : t));
+    const updatedTasks = tasks.map((t) =>
+      t.id === taskId ? { ...t, completed: !t.completed } : t,
+    );
     setTasks(updatedTasks);
 
     emit("task-toggled", {
@@ -180,7 +182,9 @@ export default function Tasks(props: TasksProps) {
             </div>
             <div style={styles.stat}>
               <span style={styles.statLabel}>Active</span>
-              <span style={{ ...styles.statValue, ...styles.statValueActive }}>{taskStats.active}</span>
+              <span style={{ ...styles.statValue, ...styles.statValueActive }}>
+                {taskStats.active}
+              </span>
             </div>
             <div style={styles.stat}>
               <span style={styles.statLabel}>Completed</span>

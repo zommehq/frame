@@ -1,5 +1,5 @@
-// IMPORTANT: Import and register the fragment-frame Web Component BEFORE Vue imports
-import "@zomme/fragment-frame";
+// IMPORTANT: Import and register the z-frame Web Component BEFORE Vue imports
+import "@zomme/frame";
 
 import { createPinia } from "pinia";
 import { createApp } from "vue";

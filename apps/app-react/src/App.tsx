@@ -1,6 +1,6 @@
+import { useFrameSDK } from "@zomme/frame-react";
 import { type CSSProperties, useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { useFrameSDK } from "@zomme/fragment-frame-react";
 import { AppRoutes } from "./router";
 import type { User } from "./types";
 
@@ -70,14 +70,14 @@ function App({ sdkAvailable }: FrameProps = {}) {
 
   // Watch for theme and user changes with modern API
   useEffect(() => {
-    const unwatch = watchProps(['theme', 'user'], (changes) => {
-      if ('theme' in changes && changes.theme) {
+    const unwatch = watchProps(["theme", "user"], (changes) => {
+      if ("theme" in changes && changes.theme) {
         const [newTheme] = changes.theme;
         setTheme(newTheme as "dark" | "light");
         document.body.className = newTheme as string;
       }
 
-      if ('user' in changes && changes.user) {
+      if ("user" in changes && changes.user) {
         const [newUser] = changes.user;
         setUser(newUser as User);
       }

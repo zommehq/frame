@@ -5,8 +5,8 @@
 		"types": ["node"],
 		"useDefineForClassFields": false,
 		"paths": {
-			"@zomme/fragment-elements": ["../../packages/fragment-elements/src/index.ts"],
-			"@zomme/fragment-elements/*": ["../../packages/fragment-elements/src/*"]
+			"@zomme/frame": ["../../packages/frame/src/index.ts"],
+			"@zomme/frame/*": ["../../packages/frame/src/*"]
 		}
 	},
 	"files": ["src/main.ts"],

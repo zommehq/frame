@@ -1,8 +1,8 @@
 import { CommonModule } from "@angular/common";
 import { Component, computed, effect, inject, signal } from "@angular/core";
-import { FramePropsService, injectFrameProps } from "@zomme/fragment-frame-angular";
+import { FramePropsService, injectFrameProps } from "@zomme/frame-angular";
 import { PageLayoutComponent } from "../../components/page-layout/page-layout.component";
-import type { AnalyticsFragmentProps } from "../../models/fragment-props";
+import type { AnalyticsFrameProps } from "../../models/frame-props";
 
 interface Metrics {
   averageCompletionTime: number;
@@ -21,7 +21,7 @@ interface Metrics {
 })
 export class AnalyticsComponent {
   private frameProps = inject(FramePropsService);
-  private props = injectFrameProps<AnalyticsFragmentProps>();
+  private props = injectFrameProps<AnalyticsFrameProps>();
 
   // Reactive data from parent
   protected metricsData = this.props.metricsData;

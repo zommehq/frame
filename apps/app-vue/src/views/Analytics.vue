@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useFrameSDK } from "@zomme/fragment-frame-vue";
+import { useFrameSDK } from "@zomme/frame-vue";
 import { onMounted, ref } from "vue";
 import PageLayout from "../components/PageLayout.vue";
 import type { Metrics } from "../types";

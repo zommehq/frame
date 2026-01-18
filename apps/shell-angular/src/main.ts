@@ -1,5 +1,5 @@
-// IMPORTANT: Import and register the fragment-frame Web Component BEFORE Angular imports
-import "@zomme/fragment-frame";
+// IMPORTANT: Import and register the z-frame Web Component BEFORE Angular imports
+import "@zomme/frame";
 
 import { bootstrapApplication } from "@angular/platform-browser";
 import { AppComponent } from "./app/app.component";

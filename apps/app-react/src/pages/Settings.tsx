@@ -1,4 +1,4 @@
-import { useFrameSDK } from "@zomme/fragment-frame-react";
+import { useFrameSDK } from "@zomme/frame-react";
 import { useEffect, useRef, useState } from "react";
 import type { User } from "../types";
 

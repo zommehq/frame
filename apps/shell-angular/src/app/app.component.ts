@@ -61,7 +61,7 @@ export class AppComponent implements OnInit {
 
   private frameElements = new Map<string, HTMLElement>();
   private isSyncing = false;
-  private fragmentActions = new Map<string, any>();
+  private frameActions = new Map<string, any>();
 
   constructor(
     private router: Router,
@@ -81,11 +81,9 @@ export class AppComponent implements OnInit {
   }
 
   // Callbacks para Angular
-  handleAngularSuccess = (data: any) => {
-  };
+  handleAngularSuccess = (data: any) => {};
 
-  handleAngularAction = (data: any) => {
-  };
+  handleAngularAction = (data: any) => {};
 
   // Callback assíncrono para React
   handleFetchData = (query: any): Promise<any> => {
@@ -104,7 +102,6 @@ export class AppComponent implements OnInit {
       }, 1000);
     });
   };
-
 
   ngOnInit() {
     // Criar ArrayBuffer para React (1000 floats)
@@ -134,7 +131,7 @@ export class AppComponent implements OnInit {
     return `${app.baseUrl}:${app.port}${basePath}`;
   }
 
-  // Theme management callback for fragments
+  // Theme management callback for frames
   handleChangeTheme = (theme: "dark" | "light"): void => {
     this.settingsService.setTheme(theme);
   };
@@ -143,16 +140,13 @@ export class AppComponent implements OnInit {
     this.settingsService.toggleTheme();
   }
 
-  // Event handlers específicos de cada fragment
+  // Event handlers específicos de cada frame
 
-  onActionClicked(event: CustomEvent) {
-  }
+  onActionClicked(event: CustomEvent) {}
 
-  onCounterChanged(event: CustomEvent) {
-  }
+  onCounterChanged(event: CustomEvent) {}
 
-  onDataLoaded(event: CustomEvent) {
-  }
+  onDataLoaded(event: CustomEvent) {}
 
   onLargeData(event: CustomEvent) {
     const buffer = event.detail as ArrayBuffer;
@@ -171,7 +165,6 @@ export class AppComponent implements OnInit {
     // Adicionar mensagem à lista e atualizar prop (Solid receberá via watch handler)
     this.chatMessages = [...this.chatMessages, event.detail];
   }
-
 
   onFrameReady(event: Event) {
     const customEvent = event as CustomEvent;
@@ -194,7 +187,7 @@ export class AppComponent implements OnInit {
     const { path } = customEvent.detail;
     const frameName = (event.target as any).getAttribute("name");
 
-    // Update browser URL when fragment-frame navigates
+    // Update browser URL when z-frame navigates
     const fullPath = `/${frameName}${path}`;
 
     if (this.isSyncing) {
@@ -204,14 +197,17 @@ export class AppComponent implements OnInit {
     if (this.router.url !== fullPath) {
       // Set flag to prevent sync loop
       this.isSyncing = true;
-      this.router.navigateByUrl(fullPath).then(() => {
-        // Reset flag after navigation completes
-        setTimeout(() => {
+      this.router
+        .navigateByUrl(fullPath)
+        .then(() => {
+          // Reset flag after navigation completes
+          setTimeout(() => {
+            this.isSyncing = false;
+          }, 100);
+        })
+        .catch((error) => {
           this.isSyncing = false;
-        }, 100);
-      }).catch((error) => {
-        this.isSyncing = false;
-      });
+        });
     }
   }
 
@@ -220,13 +216,13 @@ export class AppComponent implements OnInit {
     const { name, error } = customEvent.detail;
   }
 
-  onFragmentRegister(event: Event) {
+  onFrameRegister(event: Event) {
     const customEvent = event as CustomEvent;
     const frameName = (event.target as any).getAttribute("name");
     const functions = customEvent.detail;
 
     // Store functions for later use
-    this.fragmentActions.set(frameName, functions);
+    this.frameActions.set(frameName, functions);
 
     // Demonstrate immediate usage
     if (frameName === "angular" && functions.getStats) {
@@ -234,12 +230,12 @@ export class AppComponent implements OnInit {
     }
   }
 
-  onFragmentUnregister(event: Event) {
+  onFrameUnregister(event: Event) {
     const customEvent = event as CustomEvent;
     const frameName = (event.target as any).getAttribute("name");
     const { functions } = customEvent.detail;
 
-    this.fragmentActions.delete(frameName);
+    this.frameActions.delete(frameName);
   }
 
   private updateActiveApp(url: string) {
@@ -278,13 +274,13 @@ export class AppComponent implements OnInit {
       return;
     }
 
-    // Extract the path within the fragment-frame
+    // Extract the path within the z-frame
     const fullPath = this.router.url;
-    const fragmentPath = fullPath.replace(`/${appName}`, "") || "/";
+    const framePath = fullPath.replace(`/${appName}`, "") || "/";
 
     // Use emit method (camelCase methods require direct property access)
     (frameElement as any).emit("route-change", {
-      path: fragmentPath,
+      path: framePath,
       replace: false,
     });
   }

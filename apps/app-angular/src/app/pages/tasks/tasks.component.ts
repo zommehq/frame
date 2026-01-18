@@ -1,9 +1,9 @@
 import { CommonModule } from "@angular/common";
 import { Component, signal } from "@angular/core";
 import { FormsModule } from "@angular/forms";
-import { injectFrameProps } from "@zomme/fragment-frame-angular";
+import { injectFrameProps } from "@zomme/frame-angular";
 import { PageLayoutComponent } from "../../components/page-layout/page-layout.component";
-import type { TasksFragmentProps } from "../../models/fragment-props";
+import type { TasksFrameProps } from "../../models/frame-props";
 import type { Task } from "../../models/types";
 
 @Component({
@@ -14,7 +14,7 @@ import type { Task } from "../../models/types";
   styleUrl: "./tasks.component.css",
 })
 export class TasksComponent {
-  private tasks = injectFrameProps<TasksFragmentProps>();
+  private tasks = injectFrameProps<TasksFrameProps>();
 
   // Expose data as signals for template - reactive, auto-updates from parent
   protected filteredTasks = this.tasks.filteredTasks;

@@ -1,4 +1,4 @@
-import { frameSDK } from "@zomme/fragment-frame-react";
+import { frameSDK } from "@zomme/frame-react";
 import React from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";

@@ -47,7 +47,7 @@
     </nav>
   </header>
   <main class="main">
-    <fragment-frame
+    <z-frame
       *ngIf="activeApp === 'angular'"
       name="angular"
       [attr.src]="getFrameUrl('angular')"
@@ -71,10 +71,10 @@
       (ready)="onFrameReady($event)"
       (navigate)="onFrameNavigate($event)"
       (error)="onFrameError($event)"
-      (register)="onFragmentRegister($event)"
-      (unregister)="onFragmentUnregister($event)"
-    ></fragment-frame>
-    <fragment-frame
+      (register)="onFrameRegister($event)"
+      (unregister)="onFrameUnregister($event)"
+    ></z-frame>
+    <z-frame
       *ngIf="activeApp === 'vue'"
       name="vue"
       [attr.src]="getFrameUrl('vue')"
@@ -83,8 +83,8 @@
       (navigate)="onFrameNavigate($event)"
       (error)="onFrameError($event)"
       (counter-changed)="onCounterChanged($event)"
-    ></fragment-frame>
-    <fragment-frame
+    ></z-frame>
+    <z-frame
       *ngIf="activeApp === 'react'"
       name="react"
       [attr.src]="getFrameUrl('react')"
@@ -96,6 +96,6 @@
       (error)="onFrameError($event)"
       (data-loaded)="onDataLoaded($event)"
       (large-data)="onLargeData($event)"
-    ></fragment-frame>
+    ></z-frame>
   </main>
 </div>

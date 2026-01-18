@@ -1,0 +1,21 @@
+{
+	"extends": "../../tsconfig.base.json",
+	"compilerOptions": {
+		"outDir": "./dist",
+		"rootDir": "./src",
+		"declaration": true,
+		"declarationMap": true,
+		"experimentalDecorators": true,
+		"emitDecoratorMetadata": true,
+		"module": "ESNext",
+		"target": "ES2022",
+		"lib": ["ES2022", "DOM"],
+		"paths": {
+			"@zomme/frame": ["../frame/dist/frame.d.ts"],
+			"@zomme/frame/sdk": ["../frame/dist/sdk.d.ts"],
+			"@zomme/frame/types": ["../frame/dist/types.d.ts"]
+		}
+	},
+	"include": ["src/**/*"],
+	"exclude": ["node_modules", "dist", "**/*.spec.ts"]
+}

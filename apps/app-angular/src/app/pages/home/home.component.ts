@@ -1,9 +1,9 @@
 import { CommonModule } from "@angular/common";
 import { Component, effect, inject, signal, VERSION } from "@angular/core";
 import { RouterLink } from "@angular/router";
-import { FramePropsService, injectFrameProps } from "@zomme/fragment-frame-angular";
+import { FramePropsService, injectFrameProps } from "@zomme/frame-angular";
 import { PageLayoutComponent } from "../../components/page-layout/page-layout.component";
-import type { HomeFragmentProps } from "../../models/fragment-props";
+import type { HomeFrameProps } from "../../models/frame-props";
 
 @Component({
   imports: [CommonModule, RouterLink, PageLayoutComponent],
@@ -14,7 +14,7 @@ import type { HomeFragmentProps } from "../../models/fragment-props";
 })
 export class HomeComponent {
   private frameProps = inject(FramePropsService);
-  private props = injectFrameProps<HomeFragmentProps>();
+  private props = injectFrameProps<HomeFrameProps>();
 
   // Reactive data from parent
   protected theme = this.props.theme;

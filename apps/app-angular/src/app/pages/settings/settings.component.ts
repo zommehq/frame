@@ -1,9 +1,9 @@
 import { CommonModule } from "@angular/common";
 import { Component, effect, inject, type OnDestroy, signal } from "@angular/core";
 import { FormsModule } from "@angular/forms";
-import { FramePropsService, injectFrameProps } from "@zomme/fragment-frame-angular";
+import { FramePropsService, injectFrameProps } from "@zomme/frame-angular";
 import { PageLayoutComponent } from "../../components/page-layout/page-layout.component";
-import type { SettingsFragmentProps } from "../../models/fragment-props";
+import type { SettingsFrameProps } from "../../models/frame-props";
 
 interface SettingsData {
   appName: string;
@@ -21,7 +21,7 @@ interface SettingsData {
 })
 export class SettingsComponent implements OnDestroy {
   private frameProps = inject(FramePropsService);
-  private props = injectFrameProps<SettingsFragmentProps>();
+  private props = injectFrameProps<SettingsFrameProps>();
 
   // Reactive data from parent
   protected theme = this.props.theme;

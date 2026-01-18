@@ -1,6 +1,6 @@
 <script setup lang="ts">
+import { useFrameSDK } from "@zomme/frame-vue";
 import { onMounted, onUnmounted, ref } from "vue";
-import { useFrameSDK } from "@zomme/fragment-frame-vue";
 import type { User } from "./types";
 
 interface AppProps {
@@ -22,14 +22,14 @@ onMounted(() => {
   document.body.className = theme.value;
 
   // Watch for theme and user changes with modern API
-  const unwatch = watchProps(['theme', 'user'], (changes) => {
-    if ('theme' in changes) {
+  const unwatch = watchProps(["theme", "user"], (changes) => {
+    if ("theme" in changes) {
       const [newTheme] = changes.theme;
       theme.value = newTheme as "dark" | "light";
       document.body.className = newTheme as string;
     }
 
-    if ('user' in changes) {
+    if ("user" in changes) {
       const [newUser] = changes.user;
       user.value = newUser as User;
     }

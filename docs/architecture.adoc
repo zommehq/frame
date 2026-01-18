@@ -10,9 +10,9 @@
 ----
 micro-fe/
 ├── packages/
-│   └── fragment-elements/      # Web Component + SDK compartilhado
+│   └── frame/                  # Web Component + SDK compartilhado
 │       ├── src/
-│       │   ├── fragment-frame.ts       # <fragment-frame> Web Component
+│       │   ├── frame.ts                # <z-frame> Web Component
 │       │   ├── sdk.ts                  # SDK para apps (frameSDK)
 │       │   ├── types.ts                # TypeScript types
 │       │   ├── constants.ts            # Message types
@@ -36,7 +36,7 @@ micro-fe/
 
 === 1. Web Component como Proxy Puro
 
-* `<fragment-frame>` encapsula iframe e comunicação
+* `<z-frame>` encapsula iframe e comunicação
 * Zero side-effects (sem history, fetch, localStorage)
 * Interface declarativa: props/attributes → events
 * *Serialização automática de funções* via UUID tokens
@@ -58,7 +58,7 @@ micro-fe/
 
 [source,text]
 ----
-App (Angular) → frameSDK → postMessage → <fragment-frame> → CustomEvent → Shell
+App (Angular) → frameSDK → postMessage → <z-frame> → CustomEvent → Shell
 ----
 
 *Exemplo de Navegação:*
@@ -165,7 +165,7 @@ frame.addEventListener('large-data', (e) => {
 [source,text]
 ----
 ┌─────────────────┐                    ┌──────────────┐
-│ fragment-frame  │                    │   iframe     │
+│    z-frame      │                    │   iframe     │
 └────────┬────────┘                    └──────┬───────┘
          │                                    │
          ├─ connectedCallback()               │
@@ -187,7 +187,7 @@ frame.addEventListener('large-data', (e) => {
 [source,text]
 ----
 ┌─────────────────┐                    ┌──────────────┐
-│ fragment-frame  │                    │   iframe     │
+│    z-frame      │                    │   iframe     │
 └────────┬────────┘                    └──────┬───────┘
          │                                    │
          ├─ frame.theme = 'dark'              │
@@ -207,7 +207,7 @@ frame.addEventListener('large-data', (e) => {
 [source,text]
 ----
 ┌─────────────────┐                    ┌──────────────┐
-│ fragment-frame  │                    │   iframe     │
+│    z-frame      │                    │   iframe     │
 └────────┬────────┘                    └──────┬───────┘
          │                                    │
          │                                    ├─ frameSDK.emit('action', data)
@@ -224,7 +224,7 @@ frame.addEventListener('large-data', (e) => {
 [source,text]
 ----
 ┌─────────────────┐                    ┌──────────────┐
-│ fragment-frame  │                    │   iframe     │
+│    z-frame      │                    │   iframe     │
 └────────┬────────┘                    └──────┬───────┘
          │                                    │
          ├─ disconnectedCallback()            │
@@ -349,6 +349,6 @@ const timeout = setTimeout(() => {
 
 == Referências
 
-* link:../packages/fragment-elements/README.adoc[Fragment Elements Documentation]
-* link:../packages/fragment-elements/docs/concepts/architecture.adoc[Detailed Architecture]
-* link:../packages/fragment-elements/docs/advanced/function-serialization.adoc[Function Serialization]
+* link:../packages/frame/README.adoc[Frame Documentation]
+* link:../packages/frame/docs/concepts/architecture.adoc[Detailed Architecture]
+* link:../packages/frame/docs/advanced/function-serialization.adoc[Function Serialization]

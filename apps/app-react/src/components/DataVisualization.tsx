@@ -1,5 +1,5 @@
+import { useFrameSDK } from "@zomme/frame-react";
 import { useEffect, useState } from "react";
-import { useFrameSDK } from "@zomme/fragment-frame-react";
 
 export function DataVisualization() {
   const { props, emit } = useFrameSDK();

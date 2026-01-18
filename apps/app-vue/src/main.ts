@@ -1,4 +1,4 @@
-import { frameSDK } from "@zomme/fragment-frame-vue";
+import { frameSDK } from "@zomme/frame-vue";
 import { createApp } from "vue";
 
 import App from "./App.vue";

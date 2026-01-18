@@ -34,20 +34,20 @@ Acesse: http://localhost:4200
 == Documentação
 
 * link:docs/architecture.adoc[Arquitetura Detalhada]
-* link:packages/fragment-elements/README.adoc[Fragment Elements Package]
-* link:packages/fragment-elements/docs/[Documentação Completa]
+* link:packages/frame/README.adoc[Frame Package]
+* link:packages/frame/docs/[Documentação Completa]
 
 == API Reference
 
-=== Fragment Frame (Parent)
+=== Frame (Parent)
 
 [source,html]
 ----
-<fragment-frame
+<z-frame
   name="admin"
   src="https://..."
   base="/admin"
-></fragment-frame>
+></z-frame>
 ----
 
 [source,typescript]
@@ -66,13 +66,13 @@ frame.addEventListener('ready', () => {});
 frame.addEventListener('user-created', (e) => {});
 ----
 
-link:packages/fragment-elements/docs/references/fragment-frame.adoc[Documentação Completa →]
+link:packages/frame/docs/references/frame.adoc[Documentação Completa →]
 
 === Frame SDK (Child)
 
 [source,typescript]
 ----
-import { frameSDK } from '@zomme/fragment-elements/sdk';
+import { frameSDK } from '@zomme/frame/sdk';
 
 // Inicializar
 await frameSDK.initialize();
@@ -94,7 +94,7 @@ const unwatch = frameSDK.watch(['apiUrl', 'theme'], (changes) => {
 });
 ----
 
-link:packages/fragment-elements/docs/references/sdk.adoc[Documentação Completa →]
+link:packages/frame/docs/references/sdk.adoc[Documentação Completa →]
 
 == Recursos
 
@@ -111,7 +111,7 @@ frame.onSuccess = (data) => console.log(data);
 frameSDK.props.onSuccess({ status: 'ok' });
 ----
 
-link:packages/fragment-elements/docs/advanced/function-serialization.adoc[Mais detalhes →]
+link:packages/frame/docs/advanced/function-serialization.adoc[Mais detalhes →]
 
 === Transferables
 
@@ -125,10 +125,10 @@ frameSDK.emit('data', { buffer }); // zero-copy transfer
 
 == Frameworks
 
-* link:packages/fragment-elements/docs/frameworks/angular.adoc[Angular]
-* link:packages/fragment-elements/docs/frameworks/react.adoc[React]
-* link:packages/fragment-elements/docs/frameworks/vue.adoc[Vue]
-* link:packages/fragment-elements/docs/frameworks/solid.adoc[Solid]
+* link:packages/frame/docs/frameworks/angular.adoc[Angular]
+* link:packages/frame/docs/frameworks/react.adoc[React]
+* link:packages/frame/docs/frameworks/vue.adoc[Vue]
+* link:packages/frame/docs/frameworks/solid.adoc[Solid]
 
 == Deploy
 
@@ -144,7 +144,7 @@ aws s3 sync dist/app-angular/ s3://cdn/angular/v1.0.0/
 [source,html]
 ----
 <!-- Shell aponta para versão específica -->
-<fragment-frame src="https://cdn.example.com/angular/v1.0.0/" />
+<z-frame src="https://cdn.example.com/angular/v1.0.0/" />
 ----
 
 == Vantagens vs Desvantagens
@@ -195,10 +195,21 @@ bun test --coverage
 
 == Troubleshooting
 
-link:packages/fragment-elements/docs/[Ver documentação completa]
+link:packages/frame/docs/[Ver documentação completa]
 
 == Referências
 
 * https://developer.mozilla.org/en-US/docs/Web/Web_Components[Web Components MDN]
 * https://developer.mozilla.org/en-US/docs/Web/API/Window/postMessage[postMessage API]
 * https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Transferable_objects[Transferable Objects]
+
+== Acknowledgments
+
+This project was inspired by architectural patterns from:
+
+* https://github.com/krakenjs/zoid[zoid] by PayPal
+* https://github.com/krakenjs/post-robot[post-robot] by PayPal
+
+== License
+
+MIT License - see link:LICENSE[LICENSE] for details.

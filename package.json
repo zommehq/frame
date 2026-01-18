@@ -10,7 +10,8 @@
 	"scripts": {
 		"build": "bun scripts/build.ts",
 		"dev": "bun scripts/build.ts --watch",
-		"lint": "bun run --filter '*' lint"
+		"lint": "bun run --filter '*' lint",
+		"publish": "bun scripts/publish.ts"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.3.11",

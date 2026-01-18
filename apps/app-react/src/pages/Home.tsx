@@ -1,8 +1,7 @@
-import { CSSProperties, useEffect, useRef, useState } from "react";
-import { version } from "react";
+import { useFrameSDK } from "@zomme/frame-react";
+import { type CSSProperties, useEffect, useRef, useState, version } from "react";
 import { Link } from "react-router-dom";
 import { PageLayout } from "../components/PageLayout";
-import { useFrameSDK } from "@zomme/fragment-frame-react";
 
 interface HomeProps {
   actionCallback?: (data: any) => void;
@@ -73,7 +72,7 @@ function Home() {
   return (
     <PageLayout
       title="Welcome to React Task Dashboard"
-      subtitle="A comprehensive demonstration of fragment-elements SDK capabilities using React 18 and modern micro-frontend patterns"
+      subtitle="A comprehensive demonstration of Frame SDK capabilities using React 18 and modern micro-frontend patterns"
     >
       <div style={styles.infoCard}>
         <h3 style={styles.infoCardH3}>Props from Parent</h3>
@@ -162,9 +161,9 @@ function Home() {
       <section style={styles.section}>
         <h2 style={styles.sectionH2}>React 18 Micro-Frontend</h2>
         <p style={styles.sectionP}>
-          This application is built as a micro-frontend using React 18 and demonstrates the power
-          of modern web architecture patterns. It runs independently while seamlessly integrating
-          with a host application through a shared SDK.
+          This application is built as a micro-frontend using React 18 and demonstrates the power of
+          modern web architecture patterns. It runs independently while seamlessly integrating with
+          a host application through a shared SDK.
         </p>
       </section>
 
@@ -254,12 +253,12 @@ function Home() {
               returns a Promise with result
             </li>
             <li style={styles.techDetailsLi}>
-              <strong style={styles.techDetailsStrong}>Attribute Listeners:</strong>{" "}
-              onAttr('theme', handler) detects changes
+              <strong style={styles.techDetailsStrong}>Attribute Listeners:</strong> onAttr('theme',
+              handler) detects changes
             </li>
             <li style={styles.techDetailsLi}>
-              <strong style={styles.techDetailsStrong}>Bidirectional:</strong> Fragment can
-              request changes via events
+              <strong style={styles.techDetailsStrong}>Bidirectional:</strong> Frame can request
+              changes via events
             </li>
             <li style={styles.techDetailsLi}>
               <strong style={styles.techDetailsStrong}>Type Safety:</strong> TypeScript interfaces

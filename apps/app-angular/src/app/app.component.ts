@@ -1,8 +1,8 @@
 import { CommonModule } from "@angular/common";
 import { Component, effect, inject } from "@angular/core";
 import { RouterLink, RouterLinkActive, RouterOutlet } from "@angular/router";
-import { FramePropsService, injectFrameProps } from "@zomme/fragment-frame-angular";
-import type { AppFragmentProps } from "./models/fragment-props";
+import { FramePropsService, injectFrameProps } from "@zomme/frame-angular";
+import type { AppFrameProps } from "./models/frame-props";
 import type { User } from "./models/types";
 
 @Component({
@@ -14,7 +14,7 @@ import type { User } from "./models/types";
 })
 export class AppComponent {
   private frameProps = inject(FramePropsService);
-  private props = injectFrameProps<AppFragmentProps>();
+  private props = injectFrameProps<AppFrameProps>();
 
   // Reactive data from parent - auto-updates via Signals
   protected theme = this.props.theme;

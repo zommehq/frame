@@ -7,7 +7,7 @@ export default defineConfig({
       template: {
         compilerOptions: {
           // Register custom elements
-          isCustomElement: (tag) => tag === "fragment-frame",
+          isCustomElement: (tag) => tag === "z-frame",
         },
       },
     }),

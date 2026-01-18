@@ -1,12 +1,12 @@
 # React 18 Task & Analytics Dashboard
 
-A comprehensive React 18 micro-frontend application demonstrating all fragment-elements SDK capabilities including task management, analytics, and settings with full parent-child communication.
+A comprehensive React 18 micro-frontend application demonstrating all Frame SDK capabilities including task management, analytics, and settings with full parent-child communication.
 
 ## Features
 
 - **React 18** with modern hooks and Composition API patterns
 - **React Router v6** for client-side routing
-- **Fragment Elements SDK** full feature demonstration
+- **Frame SDK** full feature demonstration
 - **TypeScript** for complete type safety
 - **Vite** for fast development and optimized builds
 - **Comprehensive CSS** with light/dark theme support
@@ -39,7 +39,7 @@ A comprehensive React 18 micro-frontend application demonstrating all fragment-e
 
 ### 5. Navigation Integration
 
-- Route synchronization between fragment and parent
+- Route synchronization between frame and parent
 - Browser history integration
 - Deep linking support
 
@@ -116,7 +116,7 @@ app-react/
 
 ## Parent App Integration
 
-The React fragment expects the following props from parent:
+The React frame expects the following props from parent:
 
 ```typescript
 interface Props {
@@ -139,7 +139,7 @@ interface Props {
 }
 ```
 
-The fragment emits the following events:
+The frame emits the following events:
 
 ```typescript
 // Navigation changes
@@ -155,7 +155,7 @@ emit("error", { error: any, message: string });
 ## Example Parent Configuration
 
 ```html
-<fragment-frame
+<z-frame
   name="react"
   src="http://localhost:4201/react/"
   base="/react"

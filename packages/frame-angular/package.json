@@ -1,0 +1,52 @@
+{
+	"name": "@zomme/frame-angular",
+	"version": "1.0.0",
+	"description": "Angular wrapper for @zomme/frame - components and services for micro-frontend integration",
+	"license": "MIT",
+	"author": "Zomme",
+	"repository": {
+		"type": "git",
+		"url": "git+ssh://git@github.com/djalmajr/frame.git",
+		"directory": "packages/frame-angular"
+	},
+	"keywords": [
+		"micro-frontend",
+		"microfrontend",
+		"angular",
+		"iframe",
+		"postmessage",
+		"web-component"
+	],
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"default": "./dist/index.js"
+		}
+	},
+	"files": [
+		"dist",
+		"README.md"
+	],
+	"scripts": {
+		"build": "tsc",
+		"dev": "tsc --watch",
+		"lint:format": "bun biome check --write",
+		"lint:types": "bun tsc --noEmit",
+		"lint": "bun run lint:format && bun run lint:types"
+	},
+	"peerDependencies": {
+		"@angular/core": "^21.0.0",
+		"@angular/router": "^21.0.0",
+		"@zomme/frame": "^1.0.0",
+		"rxjs": "^7.0.0"
+	},
+	"devDependencies": {
+		"@angular/core": "^21.0.0",
+		"@angular/router": "^21.0.0",
+		"rxjs": "^7.0.0",
+		"typescript": "^5.3.3"
+	}
+}

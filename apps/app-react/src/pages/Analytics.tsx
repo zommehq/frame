@@ -1,4 +1,4 @@
-import { useFrameSDK } from "@zomme/fragment-frame-react";
+import { useFrameSDK } from "@zomme/frame-react";
 import { type CSSProperties, useEffect, useState } from "react";
 import type { Metrics } from "../types";
 import { calculateMetrics, deserializeMetrics, serializeMetrics } from "../utils/metrics";

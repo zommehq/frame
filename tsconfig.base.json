@@ -14,8 +14,8 @@
 		"declarationMap": true,
 		"sourceMap": true,
 		"paths": {
-			"@zomme/fragment-elements": ["./packages/fragment-elements/src/index.ts"],
-			"@zomme/fragment-elements/*": ["./packages/fragment-elements/src/*"]
+			"@zomme/frame": ["./packages/frame/src/index.ts"],
+			"@zomme/frame/*": ["./packages/frame/src/*"]
 		}
 	},
 	"exclude": ["node_modules", "dist", "build"]

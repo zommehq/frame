@@ -20,7 +20,7 @@ export const useDashboardStore = defineStore("dashboard", {
       },
       {
         id: 2,
-        title: "Test fragment communication",
+        title: "Test frame communication",
         description: "Verify props, events, and callbacks",
         priority: "medium",
         completed: false,

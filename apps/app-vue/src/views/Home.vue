@@ -1,6 +1,6 @@
 <script setup lang="ts">
+import { useFrameSDK } from "@zomme/frame-vue";
 import { computed, onMounted, onUnmounted, ref, version, watch } from "vue";
-import { useFrameSDK } from "@zomme/fragment-frame-vue";
 import PageLayout from "../components/PageLayout.vue";
 
 interface HomeProps {
@@ -23,8 +23,8 @@ onMounted(() => {
   }
 
   // Watch for theme changes with modern API
-  const unwatch = watchProps(['theme'], (changes) => {
-    if ('theme' in changes) {
+  const unwatch = watchProps(["theme"], (changes) => {
+    if ("theme" in changes) {
       const [newTheme] = changes.theme;
       theme.value = newTheme as "dark" | "light";
 
@@ -82,7 +82,7 @@ function testThemeToggle() {
 
 <template>
   <PageLayout
-    subtitle="A comprehensive demonstration of fragment-elements SDK capabilities using Vue 3 Composition API and modern micro-frontend patterns"
+    subtitle="A comprehensive demonstration of Frame SDK capabilities using Vue 3 Composition API and modern micro-frontend patterns"
     title="Welcome to Vue Task Dashboard"
   >
 
@@ -222,7 +222,7 @@ function testThemeToggle() {
             <strong>Attribute Listeners:</strong> onAttr('theme', handler) detects changes
           </li>
           <li>
-            <strong>Bidirectional:</strong> Fragment can request changes via events
+            <strong>Bidirectional:</strong> Frame can request changes via events
           </li>
           <li>
             <strong>Type Safety:</strong> TypeScript interfaces ensure correct usage

@@ -4,10 +4,10 @@ import { join } from "node:path";
 import { spawn } from "bun";
 
 const PACKAGES = [
-  "packages/fragment-frame",
-  "packages/fragment-frame-angular",
-  "packages/fragment-frame-react",
-  "packages/fragment-frame-vue",
+  "packages/frame",
+  "packages/frame-angular",
+  "packages/frame-react",
+  "packages/frame-vue",
 ];
 
 const APPS = ["apps/shell-angular", "apps/app-angular", "apps/app-react", "apps/app-vue"];

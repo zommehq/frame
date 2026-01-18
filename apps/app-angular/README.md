@@ -1,11 +1,11 @@
-# Angular Fragment App
+# Angular Frame App
 
-Angular 18 micro-frontend application integrated with the Fragment Elements SDK.
+Angular 18 micro-frontend application integrated with the Frame SDK.
 
 ## Features
 
 - Angular 18 with standalone components
-- Integrated with `@zomme/fragment-elements/sdk` for micro-frontend communication
+- Integrated with `@zomme/frame/sdk` for micro-frontend communication
 - Automatic navigation sync with parent app
 - Theme and attribute change listeners
 - Sample pages: Home, Users, Settings
@@ -38,7 +38,7 @@ apps/app-angular/
 
 ## SDK Integration
 
-The app integrates with the Fragment Elements SDK in `src/main.ts`:
+The app integrates with the Frame SDK in `src/main.ts`:
 
 1. **Initialize SDK** - Waits for parent app initialization via `frameSDK.initialize()`
 2. **Access Props** - Receives props from parent via `frameSDK.props`
@@ -117,4 +117,4 @@ Configured in `angular.json` with:
 - Angular 18.2.x
 - RxJS 7.8.x
 - Zone.js 0.14.x
-- @zomme/fragment-elements (workspace package)
+- @zomme/frame (workspace package)

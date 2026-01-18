@@ -1,6 +1,6 @@
 # Vue 3 Task Dashboard
 
-A comprehensive Vue 3 micro-frontend application demonstrating ALL capabilities of the Fragment Elements SDK through a Task & Analytics Dashboard.
+A comprehensive Vue 3 micro-frontend application demonstrating ALL capabilities of the Frame Elements SDK through a Task & Analytics Dashboard.
 
 ## Features
 
@@ -8,7 +8,7 @@ A comprehensive Vue 3 micro-frontend application demonstrating ALL capabilities 
 - **Vue Router** - Client-side routing synchronized with parent
 - **TypeScript** - Full type safety with interfaces
 - **Vite** - Fast development and optimized builds
-- **Fragment Elements SDK** - Complete integration demonstrating:
+- **Frame Elements SDK** - Complete integration demonstrating:
   - Props access and reactivity
   - Event emission and listening
   - Attribute listeners for dynamic updates
@@ -38,7 +38,7 @@ bun run type-check
 
 ## Architecture
 
-This application uses the Fragment Elements SDK to communicate with the host application:
+This application uses the Frame Elements SDK to communicate with the host application:
 
 - **Initialization**: The app waits for initialization from the parent via `frameSDK.initialize()`
 - **Navigation**: Route changes are synchronized with the parent using `frameSDK.emit('navigate', { path })`
@@ -151,11 +151,11 @@ src/
 
 ## Integration with Parent
 
-The app is designed to be loaded within a `<fragment-frame>` element by the host application.
+The app is designed to be loaded within a `<z-frame>` element by the host application.
 
 **Parent HTML:**
 ```html
-<fragment-frame
+<z-frame
   name="vue-app"
   src="http://localhost:4202"
   base="/vue/"
@@ -164,11 +164,11 @@ The app is designed to be loaded within a `<fragment-frame>` element by the host
   actionCallback={handleAction}
   saveCallback={handleSave}
   successCallback={handleSuccess}
-></fragment-frame>
+></z-frame>
 ```
 
 **Props received:**
-- `name` - Fragment identifier
+- `name` - Frame identifier
 - `base` - Base path for routing
 - `theme` - Current theme (light/dark)
 - `user` - User object
@@ -178,7 +178,7 @@ The app is designed to be loaded within a `<fragment-frame>` element by the host
 
 ## Development Tips
 
-1. **Testing with Parent**: Run the shell app alongside this fragment to test full integration
+1. **Testing with Parent**: Run the shell app alongside this frame to test full integration
 2. **Theme Testing**: Use the Settings page to test theme attribute changes
 3. **ArrayBuffer Testing**: Use Analytics page to test transferable object performance
 4. **Error Testing**: Use the "Test Error" button in navigation to test error handling

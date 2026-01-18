@@ -6,7 +6,7 @@ export const routes: Routes = [
     children: [
       {
         path: "**",
-        component: {} as any, // Routes handled by fragment-frame
+        component: {} as any, // Routes handled by z-frame
       },
     ],
   },
@@ -15,7 +15,7 @@ export const routes: Routes = [
     children: [
       {
         path: "**",
-        component: {} as any, // Routes handled by fragment-frame
+        component: {} as any, // Routes handled by z-frame
       },
     ],
   },
@@ -24,7 +24,7 @@ export const routes: Routes = [
     children: [
       {
         path: "**",
-        component: {} as any, // Routes handled by fragment-frame
+        component: {} as any, // Routes handled by z-frame
       },
     ],
   },

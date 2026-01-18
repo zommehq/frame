@@ -1,6 +1,6 @@
 import { type ApplicationConfig, provideZoneChangeDetection } from "@angular/core";
 import { provideRouter } from "@angular/router";
-import { provideFrameSDK } from "@zomme/fragment-frame-angular";
+import { provideFrameSDK } from "@zomme/frame-angular";
 import { routes } from "./app.routes";
 
 export const appConfig: ApplicationConfig = {

@@ -87,7 +87,7 @@ const handleSearchCallback = async (params: any) => {
     {
       id: 3,
       title: `Result for "${params.query}" - Task 3`,
-      description: "Parent app can provide data to fragments",
+      description: "Parent app can provide data to frames",
     },
   ];
 
@@ -164,22 +164,24 @@ const onFrameReady = (event: CustomEvent) => {
   }
 
   console.log(
-    `[Shell] Fragment '${name}' is ready. Active app: ${activeApp.value}, Will sync: ${name === activeApp.value}`,
+    `[Shell] Frame '${name}' is ready. Active app: ${activeApp.value}, Will sync: ${name === activeApp.value}`,
   );
 
-  // Store reference to fragment-frame element
+  // Store reference to z-frame element
   const frameElement = event.target as HTMLElement;
   frameElements.set(name, frameElement);
 
   // Only sync route if this is the currently active app
   if (name === activeApp.value) {
-    console.log(`[Shell] Syncing route for active fragment '${name}' (with small delay for handler registration)`);
+    console.log(
+      `[Shell] Syncing route for active frame '${name}' (with small delay for handler registration)`,
+    );
     // Small delay to allow React/Vue/Angular to register their event handlers after initialization
     setTimeout(() => {
       syncRouteToFrame(name);
     }, 50);
   } else {
-    console.log(`[Shell] Skipping sync for inactive fragment '${name}'`);
+    console.log(`[Shell] Skipping sync for inactive frame '${name}'`);
   }
 };
 
@@ -187,9 +189,9 @@ const onFrameNavigate = (event: CustomEvent) => {
   const { path } = event.detail;
   const frameName = (event.target as any).getAttribute("name");
 
-  console.log(`[Shell] Fragment '${frameName}' navigated to:`, path);
+  console.log(`[Shell] Frame '${frameName}' navigated to:`, path);
 
-  // Update browser URL when fragment-frame navigates
+  // Update browser URL when z-frame navigates
   const fullPath = `/${frameName}${path}`;
   console.log(
     `[Shell] Current route.path: ${route.path}, fullPath: ${fullPath}, will push: ${route.path !== fullPath}`,
@@ -204,7 +206,7 @@ const onFrameNavigate = (event: CustomEvent) => {
 const onFrameError = (event: CustomEvent) => {
   const { error, message } = event.detail;
   const frameName = (event.target as any).getAttribute("name");
-  console.error(`[Shell] Error from fragment '${frameName}':`, message || error);
+  console.error(`[Shell] Error from frame '${frameName}':`, message || error);
   store.addNotification({
     type: "error",
     message: message || error,
@@ -264,7 +266,7 @@ const onCustomEvent = (event: CustomEvent) => {
   console.log("CustomEvent handled in parent", { event });
 };
 
-// Sync route to the newly activated fragment-frame
+// Sync route to the newly activated z-frame
 const syncRouteToFrame = (frameName: string) => {
   const frameElement = frameElements.get(frameName);
   if (!frameElement) {
@@ -272,18 +274,18 @@ const syncRouteToFrame = (frameName: string) => {
     return;
   }
 
-  // Extract the path within the fragment-frame
+  // Extract the path within the z-frame
   const fullPath = route.path;
-  const fragmentPath = fullPath.replace(`/${frameName}`, "") || "/";
+  const framePath = fullPath.replace(`/${frameName}`, "") || "/";
 
   console.log(
-    `[Shell] Syncing route to ${frameName}: fullPath="${fullPath}", fragmentPath="${fragmentPath}"`,
+    `[Shell] Syncing route to ${frameName}: fullPath="${fullPath}", framePath="${framePath}"`,
   );
 
-  // Send navigation message to the fragment-frame using the correct emit method
-  // This will be handled by the fragment's SDK
+  // Send navigation message to the z-frame using the correct emit method
+  // This will be handled by the frame's SDK
   (frameElement as any).emit("route-change", {
-    path: fragmentPath,
+    path: framePath,
     replace: false,
   });
 };
@@ -386,7 +388,7 @@ onMounted(() => {
       </nav>
     </header>
     <main class="main">
-      <fragment-frame
+      <z-frame
         v-for="app in apps"
         :key="app.name"
         :ref="(el: HTMLElement) => setFrameRef(app.name, el)"
@@ -529,7 +531,7 @@ html, body {
   overflow: hidden;
 }
 
-fragment-frame {
+z-frame {
   display: block;
   width: 100%;
   height: 100%;

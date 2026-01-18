@@ -1,0 +1,62 @@
+{
+	"name": "@zomme/frame",
+	"version": "1.0.0",
+	"description": "Web Component for embedding micro-frontends in isolated iframes with bidirectional PostMessage communication",
+	"license": "MIT",
+	"author": "Zomme",
+	"repository": {
+		"type": "git",
+		"url": "git+ssh://git@github.com/djalmajr/frame.git",
+		"directory": "packages/frame"
+	},
+	"keywords": [
+		"micro-frontend",
+		"microfrontend",
+		"iframe",
+		"postmessage",
+		"web-component",
+		"custom-element",
+		"rpc"
+	],
+	"type": "module",
+	"main": "./dist/frame.js",
+	"types": "./dist/frame.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/frame.d.ts",
+			"default": "./dist/frame.js"
+		},
+		"./constants": {
+			"types": "./dist/constants.d.ts",
+			"default": "./dist/constants.js"
+		},
+		"./sdk": {
+			"types": "./dist/sdk.d.ts",
+			"default": "./dist/sdk.js"
+		},
+		"./types": {
+			"types": "./dist/types.d.ts",
+			"default": "./dist/types.js"
+		}
+	},
+	"files": [
+		"dist",
+		"README.md"
+	],
+	"scripts": {
+		"build": "bun build src/*.ts --outdir dist --target browser --format esm && tsc --emitDeclarationOnly",
+		"dev": "bun build src/*.ts --outdir dist --target browser --format esm --watch",
+		"lint:format": "bun biome check --write",
+		"lint:types": "bun tsc --noEmit",
+		"lint": "bun run lint:format && bun run lint:types",
+		"test": "bun test --preload ./tests/test-setup.ts"
+	},
+	"dependencies": {
+		"flatted": "^3.3.1"
+	},
+	"devDependencies": {
+		"@happy-dom/global-registrator": "^20.3.0",
+		"happy-dom": "^20.3.0",
+		"typescript": "^5.3.3"
+	}
+}

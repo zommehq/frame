@@ -1,6 +1,6 @@
 <script setup lang="ts">
+import { useFrameSDK } from "@zomme/frame-vue";
 import { computed, ref } from "vue";
-import { useFrameSDK } from "@zomme/fragment-frame-vue";
 import PageLayout from "../components/PageLayout.vue";
 import type { Task } from "../types";
 
