@@ -1,6 +1,7 @@
 import { CommonModule } from "@angular/common";
-import { Component, CUSTOM_ELEMENTS_SCHEMA, inject } from "@angular/core";
-import { Router, RouterModule } from "@angular/router";
+import { Component, CUSTOM_ELEMENTS_SCHEMA, inject, OnDestroy, OnInit } from "@angular/core";
+import { NavigationEnd, Router, RouterModule } from "@angular/router";
+import { filter, Subscription } from "rxjs";
 
 import { AngularFrameActions, ZFrame } from "./models/types";
 import { SettingsService } from "./services/settings.service";
@@ -14,7 +15,7 @@ import { TasksService } from "./services/tasks.service";
   templateUrl: "./app.component.html",
   styleUrl: "./app.component.css",
 })
-export class AppComponent {
+export class AppComponent implements OnInit, OnDestroy {
   private router = inject(Router);
 
   // Expose services for template bindings (signals are accessed directly)
@@ -23,6 +24,34 @@ export class AppComponent {
 
   private angularFrame: ZFrame<AngularFrameActions> | null = null;
   private isSyncing = false;
+  private routerSubscription: Subscription | null = null;
+
+  ngOnInit() {
+    // Listen to router navigation events (including browser back/forward)
+    this.routerSubscription = this.router.events
+      .pipe(filter((event) => event instanceof NavigationEnd))
+      .subscribe((event) => {
+        const navEvent = event as NavigationEnd;
+        this.syncRouteToFrame(navEvent.urlAfterRedirects);
+      });
+  }
+
+  ngOnDestroy() {
+    this.routerSubscription?.unsubscribe();
+  }
+
+  private syncRouteToFrame(url: string) {
+    if (!this.angularFrame || this.isSyncing) return;
+
+    // Extract frame name and check if URL matches this frame
+    const frameName = "angular"; // TODO: make dynamic if multiple frames
+    const basePath = `/${frameName}`;
+
+    if (url.startsWith(basePath)) {
+      const relativePath = url.slice(basePath.length) || "/";
+      this.angularFrame.emit("route-change", { path: relativePath, replace: true });
+    }
+  }
 
   // Theme management
   handleChangeTheme = (theme: "dark" | "light"): void => {
