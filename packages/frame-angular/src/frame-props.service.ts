@@ -39,6 +39,9 @@ export class FramePropsService {
   // Internal signal that triggers re-computation when props change
   private _propsVersion = signal(0);
 
+  // Exposed as readonly for components that need to track changes
+  readonly propsVersion = this._propsVersion.asReadonly();
+
   // Cached computed signal - MUST be the same instance across all calls
   private _propsSignal: Signal<unknown>;
 
@@ -47,7 +50,7 @@ export class FramePropsService {
     // This ensures all consumers share the same reactive dependency
     this._propsSignal = computed(() => {
       // Read version to create dependency - this makes Angular re-run computed when props change
-      this._propsVersion();
+      this.propsVersion();
       return (frameSDK.props ?? {}) as unknown;
     });
 

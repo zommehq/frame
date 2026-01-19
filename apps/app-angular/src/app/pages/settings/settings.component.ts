@@ -1,5 +1,5 @@
 import { CommonModule } from "@angular/common";
-import { Component, effect, inject, type OnDestroy, signal } from "@angular/core";
+import { Component, effect, inject, type OnDestroy, signal, untracked } from "@angular/core";
 import { FormsModule } from "@angular/forms";
 import { FramePropsService, injectFrameProps } from "@zomme/frame-angular";
 import { PageLayoutComponent } from "../../components/page-layout/page-layout.component";
@@ -42,14 +42,22 @@ export class SettingsComponent implements OnDestroy {
   private eventUnsubscribers: Array<() => void> = [];
 
   constructor() {
-    // Sync theme with body class
+    // Sync theme from parent to local settings
     effect(() => {
-      const currentTheme = this.theme() || "light";
-      document.body.classList.remove("light", "dark");
-      document.body.classList.add(currentTheme);
+      // Read propsVersion to create reactive dependency
+      this.frameProps.propsVersion();
+      const currentTheme = this.frameProps.get<SettingsFrameProps>()?.theme || "light";
 
-      // Also sync to local settings
-      this.settings.update((s) => ({ ...s, theme: currentTheme }));
+      // Use untracked to read settings without creating dependency (avoids loop)
+      const currentSettingsTheme = untracked(() => this.settings().theme);
+
+      // Only update if theme actually changed
+      if (currentTheme !== currentSettingsTheme) {
+        document.body.classList.remove("light", "dark");
+        document.body.classList.add(currentTheme);
+
+        this.settings.update((s) => ({ ...s, theme: currentTheme }));
+      }
     });
 
     // Setup parent event listeners

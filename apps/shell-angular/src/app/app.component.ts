@@ -1,10 +1,10 @@
 import { CommonModule } from "@angular/common";
-import { Component, CUSTOM_ELEMENTS_SCHEMA, effect } from "@angular/core";
-import { RouterModule } from "@angular/router";
+import { Component, CUSTOM_ELEMENTS_SCHEMA, inject } from "@angular/core";
+import { Router, RouterModule } from "@angular/router";
 
 import { AngularFrameActions, ZFrame } from "./models/types";
-import { SettingsService, User } from "./services/settings.service";
-import { Task, TaskStats, TasksService } from "./services/tasks.service";
+import { SettingsService } from "./services/settings.service";
+import { TasksService } from "./services/tasks.service";
 
 @Component({
   selector: "app-root",
@@ -15,38 +15,22 @@ import { Task, TaskStats, TasksService } from "./services/tasks.service";
   styleUrl: "./app.component.css",
 })
 export class AppComponent {
-  // Props synced from services (used in template bindings)
-  currentUser: User | undefined;
-  currentTheme: "dark" | "light" = "light";
-  filteredTasks: Task[] = [];
-  filter: "active" | "all" | "completed" = "all";
-  searchQuery = "";
-  taskStats: TaskStats = { active: 0, completed: 0, total: 0 };
+  private router = inject(Router);
+
+  // Expose services for template bindings (signals are accessed directly)
+  protected tasks = inject(TasksService);
+  protected settings = inject(SettingsService);
 
   private angularFrame: ZFrame<AngularFrameActions> | null = null;
-
-  constructor(
-    public tasksService: TasksService,
-    public settingsService: SettingsService,
-  ) {
-    // Sync services to component properties for template bindings
-    effect(() => {
-      this.currentTheme = this.settingsService.theme();
-      this.currentUser = this.settingsService.user();
-      this.filteredTasks = this.tasksService.filteredTasks();
-      this.filter = this.tasksService.filter();
-      this.searchQuery = this.tasksService.searchQuery();
-      this.taskStats = this.tasksService.taskStats();
-    });
-  }
+  private isSyncing = false;
 
   // Theme management
   handleChangeTheme = (theme: "dark" | "light"): void => {
-    this.settingsService.setTheme(theme);
+    this.settings.setTheme(theme);
   };
 
   toggleTheme() {
-    this.settingsService.toggleTheme();
+    this.settings.toggleTheme();
   }
 
   // Frame event handlers
@@ -56,11 +40,40 @@ export class AppComponent {
 
     const frameElement = event.target as HTMLElement;
     this.angularFrame = frameElement as ZFrame<AngularFrameActions>;
+
+    // Send initial route to frame so it navigates to the correct page on refresh
+    const frameName = frameElement.getAttribute("name");
+    const currentPath = this.router.url;
+
+    // Extract the path relative to the frame's base (e.g., "/angular/settings" -> "/settings")
+    const basePath = `/${frameName}`;
+    if (currentPath.startsWith(basePath)) {
+      const relativePath = currentPath.slice(basePath.length) || "/";
+      this.angularFrame.emit("route-change", { path: relativePath, replace: true });
+    }
   }
 
   onFrameNavigate(event: Event) {
     const customEvent = event as CustomEvent;
-    console.log("[shell] Frame navigated:", customEvent.detail);
+    const { path } = customEvent.detail;
+    const frameName = (event.target as HTMLElement).getAttribute("name");
+
+    // Update browser URL when frame navigates
+    const fullPath = `/${frameName}${path}`;
+
+    // Prevent sync loop
+    if (this.isSyncing) {
+      return;
+    }
+
+    if (this.router.url !== fullPath) {
+      this.isSyncing = true;
+      this.router.navigateByUrl(fullPath).finally(() => {
+        setTimeout(() => {
+          this.isSyncing = false;
+        }, 100);
+      });
+    }
   }
 
   onFrameError(event: Event) {

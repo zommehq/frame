@@ -12,19 +12,6 @@ async function bootstrap() {
     await frameSDK.initialize();
     base = frameSDK.props.base || "/vue";
     sdkAvailable = true;
-
-    frameSDK.on("route-change", (data) => {
-      const payload = data as { path: string; replace?: boolean };
-      const fullPath = base + payload.path.replace(/^\//, "");
-
-      if (payload.replace) {
-        router.replace(fullPath);
-      } else {
-        router.push(fullPath);
-      }
-    });
-
-    sdkAvailable = true;
   } catch (error) {
     console.warn("FrameSDK not available, running in standalone mode:", error);
     sdkAvailable = false;
@@ -33,6 +20,19 @@ async function bootstrap() {
   const router = createAppRouter(base);
 
   if (sdkAvailable) {
+    // Listen to route-change events from parent shell
+    frameSDK.on("route-change", (data: { path: string; replace?: boolean }) => {
+      const payload = data as { path: string; replace?: boolean };
+      const path = payload.path.startsWith("/") ? payload.path : `/${payload.path}`;
+
+      if (payload.replace) {
+        router.replace(path);
+      } else {
+        router.push(path);
+      }
+    });
+
+    // Emit navigation events to parent when route changes
     let isInitialNavigation = true;
 
     router.afterEach((to) => {
@@ -42,8 +42,8 @@ async function bootstrap() {
         return;
       }
 
-      const path = to.fullPath.replace(base, "/");
-      frameSDK.emit("navigate", { path, replace: false, state: to.meta });
+      // to.path is relative to the base, no need to strip base
+      frameSDK.emit("navigate", { path: to.path, replace: false, state: to.meta });
     });
   }
 

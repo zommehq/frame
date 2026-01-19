@@ -9,9 +9,9 @@
           <path fill="currentColor" d="M126.107 32.274L47.714 206.693l29.285-.498 15.739-39.347h70.325l17.233 39.845 27.99.498-82.179-174.917zm.2 55.882l26.496 55.383h-49.806l23.31-55.383z"/>
         </svg>
       </a>
-      <button class="theme-toggle" [title]="'Current theme: ' + currentTheme" (click)="toggleTheme()">
+      <button class="theme-toggle" [title]="'Current theme: ' + settings.theme()" (click)="toggleTheme()">
         <!-- Sun Icon (Light mode) -->
-        <svg *ngIf="currentTheme === 'light'" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <svg *ngIf="settings.theme() === 'light'" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="5"/>
           <line x1="12" y1="1" x2="12" y2="3"/>
           <line x1="12" y1="21" x2="12" y2="23"/>
@@ -23,7 +23,7 @@
           <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
         </svg>
         <!-- Moon Icon (Dark mode) -->
-        <svg *ngIf="currentTheme === 'dark'" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <svg *ngIf="settings.theme() === 'dark'" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
         </svg>
       </button>
@@ -40,22 +40,22 @@
     <z-frame
       name="angular"
       src="http://localhost:4200/angular/"
-      [filteredTasks]="filteredTasks"
-      [filter]="filter"
-      [searchQuery]="searchQuery"
-      [taskStats]="taskStats"
-      [theme]="currentTheme"
-      [user]="currentUser"
-      [addTask]="tasksService.addTask"
-      [addRandomTask]="tasksService.addRandomTask"
-      [deleteTask]="tasksService.deleteTask"
-      [toggleTask]="tasksService.toggleTask"
-      [updateTask]="tasksService.updateTask"
-      [getTaskStats]="tasksService.getTaskStats"
-      [refreshTasks]="tasksService.refreshTasks"
-      [clearCompleted]="tasksService.clearCompleted"
-      [setFilter]="tasksService.setFilter"
-      [setSearchQuery]="tasksService.setSearchQuery"
+      [filteredTasks]="tasks.filteredTasks()"
+      [filter]="tasks.filter()"
+      [searchQuery]="tasks.searchQuery()"
+      [taskStats]="tasks.taskStats()"
+      [theme]="settings.theme()"
+      [user]="settings.user()"
+      [addTask]="tasks.addTask"
+      [addRandomTask]="tasks.addRandomTask"
+      [deleteTask]="tasks.deleteTask"
+      [toggleTask]="tasks.toggleTask"
+      [updateTask]="tasks.updateTask"
+      [getTaskStats]="tasks.getTaskStats"
+      [refreshTasks]="tasks.refreshTasks"
+      [clearCompleted]="tasks.clearCompleted"
+      [setFilter]="tasks.setFilter"
+      [setSearchQuery]="tasks.setSearchQuery"
       [changeTheme]="handleChangeTheme"
       (ready)="onFrameReady($event)"
       (navigate)="onFrameNavigate($event)"

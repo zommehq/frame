@@ -27,13 +27,18 @@ function parseArgs(): BuildOptions {
   };
 }
 
+interface RunCommandResult {
+  proc: ReturnType<typeof spawn>;
+  label: string;
+}
+
 async function runCommand(
   cwd: string,
   command: string,
   args: string[],
   label: string,
   isWatch: boolean,
-): Promise<void> {
+): Promise<RunCommandResult> {
   const fullPath = join(process.cwd(), cwd);
 
   console.log(`[${label}] Starting ${isWatch ? "watch mode" : "build"}...`);
@@ -47,32 +52,41 @@ async function runCommand(
   // Stream output with label
   const decoder = new TextDecoder();
 
-  if (proc.stdout) {
-    for await (const chunk of proc.stdout) {
-      const text = decoder.decode(chunk).trim();
-      if (text) {
-        console.log(`[${label}] ${text}`);
+  // Handle stdout in background
+  (async () => {
+    if (proc.stdout) {
+      for await (const chunk of proc.stdout) {
+        const text = decoder.decode(chunk).trim();
+        if (text) {
+          console.log(`[${label}] ${text}`);
+        }
       }
+    }
+  })();
+
+  // Handle stderr in background
+  (async () => {
+    if (proc.stderr) {
+      for await (const chunk of proc.stderr) {
+        const text = decoder.decode(chunk).trim();
+        if (text) {
+          console.error(`[${label}] ${text}`);
+        }
+      }
+    }
+  })();
+
+  if (!isWatch) {
+    const exitCode = await proc.exited;
+    if (exitCode !== 0) {
+      throw new Error(`[${label}] Build failed with exit code ${exitCode}`);
     }
   }
 
-  if (proc.stderr) {
-    for await (const chunk of proc.stderr) {
-      const text = decoder.decode(chunk).trim();
-      if (text) {
-        console.error(`[${label}] ${text}`);
-      }
-    }
-  }
-
-  const exitCode = await proc.exited;
-
-  if (exitCode !== 0 && !isWatch) {
-    throw new Error(`[${label}] Build failed with exit code ${exitCode}`);
-  }
+  return { proc, label };
 }
 
-async function buildPackages(watch: boolean): Promise<void> {
+async function buildPackages(watch: boolean): Promise<RunCommandResult[]> {
   console.log(`\n🔨 ${watch ? "Watch mode" : "Building"} packages...\n`);
 
   const promises = PACKAGES.map((pkg) => {
@@ -82,17 +96,16 @@ async function buildPackages(watch: boolean): Promise<void> {
     return runCommand(pkg, "bun", ["run", command], name, watch);
   });
 
-  if (watch) {
-    // In watch mode, keep all processes running
-    await Promise.race(promises);
-  } else {
-    // In build mode, wait for all to complete
-    await Promise.all(promises);
+  const results = await Promise.all(promises);
+
+  if (!watch) {
     console.log("\n✅ All packages built successfully!\n");
   }
+
+  return results;
 }
 
-async function buildApps(watch: boolean): Promise<void> {
+async function buildApps(watch: boolean): Promise<RunCommandResult[]> {
   console.log(`\n🚀 ${watch ? "Starting" : "Building"} apps...\n`);
 
   const promises = APPS.map((app) => {
@@ -102,14 +115,25 @@ async function buildApps(watch: boolean): Promise<void> {
     return runCommand(app, "bun", ["run", command], name, watch);
   });
 
-  if (watch) {
-    // In watch mode, keep all processes running
-    await Promise.race(promises);
-  } else {
-    // In build mode, wait for all to complete
-    await Promise.all(promises);
+  const results = await Promise.all(promises);
+
+  if (!watch) {
     console.log("\n✅ All apps built successfully!\n");
   }
+
+  return results;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function waitForPackageReady(results: RunCommandResult[]): Promise<void> {
+  // Wait for ng-packagr to complete initial build (it prints "Compilation complete")
+  // Give packages time to finish their initial compilation
+  const INITIAL_BUILD_DELAY = 3000;
+  console.log(`\n⏳ Waiting ${INITIAL_BUILD_DELAY}ms for packages to complete initial build...\n`);
+  await sleep(INITIAL_BUILD_DELAY);
 }
 
 async function main() {
@@ -118,15 +142,32 @@ async function main() {
   try {
     if (options.appsOnly) {
       await buildApps(options.watch);
+      // Keep process alive in watch mode
+      if (options.watch) {
+        await new Promise(() => {}); // Never resolves
+      }
     } else if (options.packagesOnly) {
       await buildPackages(options.watch);
+      // Keep process alive in watch mode
+      if (options.watch) {
+        await new Promise(() => {}); // Never resolves
+      }
     } else if (!options.watch) {
       // Build packages first (sequential)
       await buildPackages(false);
       await buildApps(false);
     } else {
-      // In watch mode, run both in parallel
-      await Promise.race([buildPackages(true), buildApps(true)]);
+      // In watch mode: start packages first, wait for initial build, then start apps
+      const packageResults = await buildPackages(true);
+
+      // Wait for packages to complete their initial build
+      await waitForPackageReady(packageResults);
+
+      // Now start apps
+      await buildApps(true);
+
+      // Keep process alive
+      await new Promise(() => {}); // Never resolves
     }
   } catch (error) {
     console.error("\n❌ Build failed:", error);
