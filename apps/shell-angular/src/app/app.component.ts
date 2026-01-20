@@ -1,11 +1,21 @@
 import { CommonModule } from "@angular/common";
-import { Component, CUSTOM_ELEMENTS_SCHEMA, inject, OnDestroy, OnInit } from "@angular/core";
+import {
+  Component,
+  CUSTOM_ELEMENTS_SCHEMA,
+  computed,
+  inject,
+  OnDestroy,
+  OnInit,
+  signal,
+} from "@angular/core";
 import { NavigationEnd, Router, RouterModule } from "@angular/router";
 import { filter, Subscription } from "rxjs";
 
 import { AngularFrameActions, ZFrame } from "./models/types";
 import { SettingsService } from "./services/settings.service";
 import { TasksService } from "./services/tasks.service";
+
+type FrameName = "angular" | "react" | "vue";
 
 @Component({
   selector: "app-root",
@@ -22,7 +32,16 @@ export class AppComponent implements OnInit, OnDestroy {
   protected tasks = inject(TasksService);
   protected settings = inject(SettingsService);
 
-  private angularFrame: ZFrame<AngularFrameActions> | null = null;
+  // Active frame based on current route
+  private currentPath = signal(this.router.url);
+  activeFrame = computed<FrameName>(() => {
+    const path = this.currentPath();
+    if (path.startsWith("/react")) return "react";
+    if (path.startsWith("/vue")) return "vue";
+    return "angular";
+  });
+
+  private frames = new Map<FrameName, ZFrame<AngularFrameActions>>();
   private isSyncing = false;
   private routerSubscription: Subscription | null = null;
 
@@ -32,6 +51,7 @@ export class AppComponent implements OnInit, OnDestroy {
       .pipe(filter((event) => event instanceof NavigationEnd))
       .subscribe((event) => {
         const navEvent = event as NavigationEnd;
+        this.currentPath.set(navEvent.urlAfterRedirects);
         this.syncRouteToFrame(navEvent.urlAfterRedirects);
       });
   }
@@ -41,15 +61,15 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   private syncRouteToFrame(url: string) {
-    if (!this.angularFrame || this.isSyncing) return;
+    const frameName = this.activeFrame();
+    const frame = this.frames.get(frameName);
 
-    // Extract frame name and check if URL matches this frame
-    const frameName = "angular"; // TODO: make dynamic if multiple frames
+    if (!frame || this.isSyncing) return;
+
     const basePath = `/${frameName}`;
-
     if (url.startsWith(basePath)) {
       const relativePath = url.slice(basePath.length) || "/";
-      this.angularFrame.emit("route-change", { path: relativePath, replace: true });
+      frame.emit("route-change", { path: relativePath, replace: true });
     }
   }
 
@@ -68,17 +88,18 @@ export class AppComponent implements OnInit, OnDestroy {
     if (!customEvent.detail) return;
 
     const frameElement = event.target as HTMLElement;
-    this.angularFrame = frameElement as ZFrame<AngularFrameActions>;
+    const frameName = frameElement.getAttribute("name") as FrameName;
+    const frame = frameElement as ZFrame<AngularFrameActions>;
+
+    this.frames.set(frameName, frame);
 
     // Send initial route to frame so it navigates to the correct page on refresh
-    const frameName = frameElement.getAttribute("name");
     const currentPath = this.router.url;
-
-    // Extract the path relative to the frame's base (e.g., "/angular/settings" -> "/settings")
     const basePath = `/${frameName}`;
+
     if (currentPath.startsWith(basePath)) {
       const relativePath = currentPath.slice(basePath.length) || "/";
-      this.angularFrame.emit("route-change", { path: relativePath, replace: true });
+      frame.emit("route-change", { path: relativePath, replace: true });
     }
   }
 
@@ -113,40 +134,49 @@ export class AppComponent implements OnInit, OnDestroy {
   onFrameRegister(event: Event) {
     const customEvent = event as CustomEvent;
     const functions = Object.keys(customEvent.detail);
-    console.log("[shell] Frame registered actions:", functions);
+    const frameName = (event.target as HTMLElement).getAttribute("name");
+    console.log(`[shell] Frame ${frameName} registered actions:`, functions);
   }
 
   onFrameUnregister(event: Event) {
     const customEvent = event as CustomEvent;
     const { functions } = customEvent.detail;
-    console.log("[shell] Frame unregistered actions:", functions);
+    const frameName = (event.target as HTMLElement).getAttribute("name");
+    console.log(`[shell] Frame ${frameName} unregistered actions:`, functions);
   }
 
-  // Angular frame action test methods
+  // Frame action test methods
+  private getCurrentFrame(): ZFrame<AngularFrameActions> | null {
+    return this.frames.get(this.activeFrame()) || null;
+  }
+
   async testGetStats() {
-    if (!this.angularFrame) {
-      console.warn("[shell] Angular frame not ready");
+    const frame = this.getCurrentFrame();
+    if (!frame) {
+      console.warn("[shell] Current frame not ready");
       return;
     }
-    const result = await this.angularFrame.getStats();
+    const result = await frame.getStats();
     console.log("[shell] getStats() result:", result);
   }
 
   async testRefreshData() {
-    if (!this.angularFrame) {
-      console.warn("[shell] Angular frame not ready");
+    const frame = this.getCurrentFrame();
+    if (!frame) {
+      console.warn("[shell] Current frame not ready");
       return;
     }
-    const result = await this.angularFrame.refreshData();
+    const result = await frame.refreshData();
     console.log("[shell] refreshData() result:", result);
   }
 
   async testNavigateTo(path: string) {
-    if (!this.angularFrame) {
-      console.warn("[shell] Angular frame not ready");
+    const frame = this.getCurrentFrame();
+    if (!frame) {
+      console.warn("[shell] Current frame not ready");
       return;
     }
-    const result = await this.angularFrame.navigateTo(path);
+    const result = await frame.navigateTo(path);
     console.log("[shell] navigateTo() result:", result);
   }
 }

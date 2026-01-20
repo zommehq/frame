@@ -105,7 +105,7 @@
 .frame-actions button {
   padding: 0.25rem 0.5rem;
   font-size: 0.7rem;
-  background: rgba(221, 0, 49, 0.8);
+  background: rgba(100, 116, 139, 0.8);
   color: white;
   border: none;
   border-radius: 4px;
@@ -115,8 +115,32 @@
 }
 
 .frame-actions button:hover {
-  background: rgba(221, 0, 49, 1);
   transform: translateY(-1px);
+}
+
+/* Framework-specific button colors */
+.frame-actions.angular button {
+  background: rgba(221, 0, 49, 0.8);
+}
+
+.frame-actions.angular button:hover {
+  background: rgba(221, 0, 49, 1);
+}
+
+.frame-actions.react button {
+  background: rgba(20, 158, 202, 0.8);
+}
+
+.frame-actions.react button:hover {
+  background: rgba(20, 158, 202, 1);
+}
+
+.frame-actions.vue button {
+  background: rgba(66, 184, 131, 0.8);
+}
+
+.frame-actions.vue button:hover {
+  background: rgba(66, 184, 131, 1);
 }
 
 .main {

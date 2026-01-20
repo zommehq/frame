@@ -2,11 +2,27 @@
   <header class="header">
     <nav class="nav">
       <!-- Angular Logo -->
-      <a routerLink="/angular" class="nav-link nav-link-angular" title="Angular">
+      <a routerLink="/angular" routerLinkActive="active" class="nav-link nav-link-angular" title="Angular">
         <svg width="16" height="16" viewBox="0 0 256 272" xmlns="http://www.w3.org/2000/svg">
           <path fill="currentColor" d="M.1 45.522L125.908.697l129.196 44.028-20.919 166.45-108.277 59.966-106.583-59.169L.1 45.522z"/>
           <path fill="#FFF" d="M255.104 44.725L125.908.697v270.444l108.277-59.866 20.919-166.55z"/>
           <path fill="currentColor" d="M126.107 32.274L47.714 206.693l29.285-.498 15.739-39.347h70.325l17.233 39.845 27.99.498-82.179-174.917zm.2 55.882l26.496 55.383h-49.806l23.31-55.383z"/>
+        </svg>
+      </a>
+      <!-- React Logo -->
+      <a routerLink="/react" routerLinkActive="active" class="nav-link nav-link-react" title="React">
+        <svg width="16" height="16" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="12" cy="12" r="2.139" fill="currentColor"/>
+          <ellipse cx="12" cy="12" rx="11" ry="4.222" fill="none" stroke="currentColor" stroke-width="1"/>
+          <ellipse cx="12" cy="12" rx="11" ry="4.222" fill="none" stroke="currentColor" stroke-width="1" transform="rotate(60 12 12)"/>
+          <ellipse cx="12" cy="12" rx="11" ry="4.222" fill="none" stroke="currentColor" stroke-width="1" transform="rotate(120 12 12)"/>
+        </svg>
+      </a>
+      <!-- Vue Logo -->
+      <a routerLink="/vue" routerLinkActive="active" class="nav-link nav-link-vue" title="Vue">
+        <svg width="16" height="16" viewBox="0 0 256 221" xmlns="http://www.w3.org/2000/svg">
+          <path fill="currentColor" d="M204.8 0H256L128 220.8 0 0h97.92L128 51.2 157.44 0h47.36z"/>
+          <path fill="currentColor" opacity="0.6" d="M0 0l128 220.8L256 0h-51.2L128 132.48 50.56 0H0z"/>
         </svg>
       </a>
       <button class="theme-toggle" [title]="'Current theme: ' + settings.theme()" (click)="toggleTheme()">
@@ -28,7 +44,7 @@
         </svg>
       </button>
       <!-- Frame Actions -->
-      <div class="frame-actions">
+      <div class="frame-actions" [class.angular]="activeFrame() === 'angular'" [class.react]="activeFrame() === 'react'" [class.vue]="activeFrame() === 'vue'">
         <button (click)="testGetStats()" title="Get stats from child frame">Stats</button>
         <button (click)="testRefreshData()" title="Trigger data refresh in child">Refresh</button>
         <button (click)="testNavigateTo('/settings')" title="Navigate child to Settings">Settings</button>
@@ -37,31 +53,92 @@
     </nav>
   </header>
   <main class="main">
-    <z-frame
-      name="angular"
-      src="http://localhost:4200/angular/"
-      [filteredTasks]="tasks.filteredTasks()"
-      [filter]="tasks.filter()"
-      [searchQuery]="tasks.searchQuery()"
-      [taskStats]="tasks.taskStats()"
-      [theme]="settings.theme()"
-      [user]="settings.user()"
-      [addTask]="tasks.addTask"
-      [addRandomTask]="tasks.addRandomTask"
-      [deleteTask]="tasks.deleteTask"
-      [toggleTask]="tasks.toggleTask"
-      [updateTask]="tasks.updateTask"
-      [getTaskStats]="tasks.getTaskStats"
-      [refreshTasks]="tasks.refreshTasks"
-      [clearCompleted]="tasks.clearCompleted"
-      [setFilter]="tasks.setFilter"
-      [setSearchQuery]="tasks.setSearchQuery"
-      [changeTheme]="handleChangeTheme"
-      (ready)="onFrameReady($event)"
-      (navigate)="onFrameNavigate($event)"
-      (error)="onFrameError($event)"
-      (register)="onFrameRegister($event)"
-      (unregister)="onFrameUnregister($event)"
-    ></z-frame>
+    <!-- Angular Frame -->
+    @if (activeFrame() === 'angular') {
+      <z-frame
+        name="angular"
+        src="http://localhost:4200/angular/"
+        [filteredTasks]="tasks.filteredTasks()"
+        [filter]="tasks.filter()"
+        [searchQuery]="tasks.searchQuery()"
+        [taskStats]="tasks.taskStats()"
+        [theme]="settings.theme()"
+        [user]="settings.user()"
+        [addTask]="tasks.addTask"
+        [addRandomTask]="tasks.addRandomTask"
+        [deleteTask]="tasks.deleteTask"
+        [toggleTask]="tasks.toggleTask"
+        [updateTask]="tasks.updateTask"
+        [getTaskStats]="tasks.getTaskStats"
+        [refreshTasks]="tasks.refreshTasks"
+        [clearCompleted]="tasks.clearCompleted"
+        [setFilter]="tasks.setFilter"
+        [setSearchQuery]="tasks.setSearchQuery"
+        [changeTheme]="handleChangeTheme"
+        (ready)="onFrameReady($event)"
+        (navigate)="onFrameNavigate($event)"
+        (error)="onFrameError($event)"
+        (register)="onFrameRegister($event)"
+        (unregister)="onFrameUnregister($event)"
+      ></z-frame>
+    }
+    <!-- React Frame -->
+    @if (activeFrame() === 'react') {
+      <z-frame
+        name="react"
+        src="http://localhost:4201/react/"
+        [filteredTasks]="tasks.filteredTasks()"
+        [filter]="tasks.filter()"
+        [searchQuery]="tasks.searchQuery()"
+        [taskStats]="tasks.taskStats()"
+        [theme]="settings.theme()"
+        [user]="settings.user()"
+        [addTask]="tasks.addTask"
+        [addRandomTask]="tasks.addRandomTask"
+        [deleteTask]="tasks.deleteTask"
+        [toggleTask]="tasks.toggleTask"
+        [updateTask]="tasks.updateTask"
+        [getTaskStats]="tasks.getTaskStats"
+        [refreshTasks]="tasks.refreshTasks"
+        [clearCompleted]="tasks.clearCompleted"
+        [setFilter]="tasks.setFilter"
+        [setSearchQuery]="tasks.setSearchQuery"
+        [changeTheme]="handleChangeTheme"
+        (ready)="onFrameReady($event)"
+        (navigate)="onFrameNavigate($event)"
+        (error)="onFrameError($event)"
+        (register)="onFrameRegister($event)"
+        (unregister)="onFrameUnregister($event)"
+      ></z-frame>
+    }
+    <!-- Vue Frame -->
+    @if (activeFrame() === 'vue') {
+      <z-frame
+        name="vue"
+        src="http://localhost:4202/vue/"
+        [filteredTasks]="tasks.filteredTasks()"
+        [filter]="tasks.filter()"
+        [searchQuery]="tasks.searchQuery()"
+        [taskStats]="tasks.taskStats()"
+        [theme]="settings.theme()"
+        [user]="settings.user()"
+        [addTask]="tasks.addTask"
+        [addRandomTask]="tasks.addRandomTask"
+        [deleteTask]="tasks.deleteTask"
+        [toggleTask]="tasks.toggleTask"
+        [updateTask]="tasks.updateTask"
+        [getTaskStats]="tasks.getTaskStats"
+        [refreshTasks]="tasks.refreshTasks"
+        [clearCompleted]="tasks.clearCompleted"
+        [setFilter]="tasks.setFilter"
+        [setSearchQuery]="tasks.setSearchQuery"
+        [changeTheme]="handleChangeTheme"
+        (ready)="onFrameReady($event)"
+        (navigate)="onFrameNavigate($event)"
+        (error)="onFrameError($event)"
+        (register)="onFrameRegister($event)"
+        (unregister)="onFrameUnregister($event)"
+      ></z-frame>
+    }
   </main>
 </div>
