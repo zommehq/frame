@@ -1,119 +1,51 @@
 <script setup lang="ts">
 import { useFrameSDK } from "@zomme/frame-vue";
-import { computed, ref } from "vue";
+import { ref } from "vue";
 import PageLayout from "../components/PageLayout.vue";
-import type { Task } from "../types";
+import type { Task, TasksFrameProps } from "../types";
 
-const { emit, isReady, props } = useFrameSDK<{ tasks?: Task[] }>();
+const { isReady, props } = useFrameSDK<TasksFrameProps>();
 
-const tasks = ref<Task[]>(
-  props.tasks || [
-    {
-      completed: false,
-      description: "Review pull requests",
-      id: 1,
-      priority: "high",
-      title: "Code Review",
-    },
-    {
-      completed: true,
-      description: "Fix bug in authentication",
-      id: 2,
-      priority: "high",
-      title: "Bug Fix",
-    },
-    {
-      completed: false,
-      description: "Update documentation",
-      id: 3,
-      priority: "medium",
-      title: "Documentation",
-    },
-    {
-      completed: false,
-      description: "Refactor legacy code",
-      id: 4,
-      priority: "low",
-      title: "Refactoring",
-    },
-  ],
-);
+// Local state for editing
+const editingTaskId = ref<number | null>(null);
 
-const filter = ref<"all" | "active" | "completed">("all");
-const searchQuery = ref("");
-
-const filteredTasks = computed(() => {
-  let result = tasks.value;
-
-  if (filter.value === "active") {
-    result = result.filter((t) => !t.completed);
-  } else if (filter.value === "completed") {
-    result = result.filter((t) => t.completed);
-  }
-
-  if (searchQuery.value) {
-    const query = searchQuery.value.toLowerCase();
-    result = result.filter(
-      (t) => t.title.toLowerCase().includes(query) || t.description.toLowerCase().includes(query),
-    );
-  }
-
-  return result;
-});
-
-const taskStats = computed(() => ({
-  active: tasks.value.filter((t) => !t.completed).length,
-  completed: tasks.value.filter((t) => t.completed).length,
-  total: tasks.value.length,
-}));
-
-function toggleTask(taskId: number) {
-  const task = tasks.value.find((t) => t.id === taskId);
-  if (!task) return;
-
-  task.completed = !task.completed;
-
-  emit("task-toggled", {
-    completed: task.completed,
-    id: taskId,
-    timestamp: Date.now(),
-  });
-
-  emit("task-stats-changed", taskStats.value);
+async function setFilter(newFilter: "active" | "all" | "completed") {
+  await props.setFilter?.(newFilter);
 }
 
-function deleteTask(taskId: number) {
-  const index = tasks.value.findIndex((t) => t.id === taskId);
-  if (index === -1) return;
-
-  const task = tasks.value[index];
-  tasks.value.splice(index, 1);
-
-  emit("task-deleted", {
-    id: taskId,
-    title: task.title,
-  });
-
-  emit("task-stats-changed", taskStats.value);
+async function toggleTask(taskId: number) {
+  await props.toggleTask?.(taskId);
 }
 
-function addTask() {
-  const newTask: Task = {
-    completed: false,
-    description: "New task description",
-    id: Date.now(),
-    priority: "medium",
-    title: "New Task",
-  };
+async function deleteTask(taskId: number) {
+  await props.deleteTask?.(taskId);
+}
 
-  tasks.value.unshift(newTask);
+async function addTask() {
+  const newTask = await props.addRandomTask?.();
+  if (newTask) {
+    editingTaskId.value = (newTask as Task).id;
+  }
+}
 
-  emit("task-added", {
-    id: newTask.id,
-    title: newTask.title,
+function startEdit(taskId: number) {
+  editingTaskId.value = taskId;
+}
+
+function cancelEdit() {
+  editingTaskId.value = null;
+}
+
+async function saveEdit(taskId: number, title: string, description: string, priority: string) {
+  const updatedTask = await props.updateTask?.(taskId, {
+    description,
+    priority: priority as "high" | "medium" | "low",
+    title,
   });
 
-  emit("task-stats-changed", taskStats.value);
+  if (updatedTask) {
+    editingTaskId.value = null;
+  }
 }
 
 function getPriorityColor(priority: string): string {
@@ -129,117 +61,168 @@ function getPriorityColor(priority: string): string {
   }
 }
 
-function handleSearch(event: Event) {
+async function handleSearch(event: Event) {
   const target = event.target as HTMLInputElement;
-  searchQuery.value = target.value;
-
-  emit("search-performed", {
-    query: searchQuery.value,
-    results: filteredTasks.value.length,
-  });
+  await props.setSearchQuery?.(target.value);
 }
 </script>
 
 <template>
-  <PageLayout subtitle="Demonstrating Props + Events + Search" title="Task Management">
+  <PageLayout subtitle="Props + Events + Search functionality" title="Task Management">
     <div v-if="!isReady" class="loading">
       Loading SDK...
     </div>
 
     <template v-else>
-      <div class="stats-bar">
-        <div class="stat">
-          <span class="stat-label">Total</span>
-          <span class="stat-value">{{ taskStats.total }}</span>
-        </div>
-        <div class="stat">
-          <span class="stat-label">Active</span>
-          <span class="stat-value active">{{ taskStats.active }}</span>
-        </div>
-        <div class="stat">
-          <span class="stat-label">Completed</span>
-          <span class="stat-value completed">{{ taskStats.completed }}</span>
-        </div>
-      </div>
-
-      <div class="controls">
-        <div class="search-box">
-          <input
-            class="search-input"
-            placeholder="Search tasks..."
-            type="text"
-            :value="searchQuery"
-            @input="handleSearch"
-          />
+      <div class="content">
+        <div class="stats-bar">
+          <div class="stat">
+            <span class="stat-label">Total</span>
+            <span class="stat-value">{{ props.taskStats?.total || 0 }}</span>
+          </div>
+          <div class="stat">
+            <span class="stat-label">Active</span>
+            <span class="stat-value active">{{ props.taskStats?.active || 0 }}</span>
+          </div>
+          <div class="stat">
+            <span class="stat-label">Completed</span>
+            <span class="stat-value completed">{{ props.taskStats?.completed || 0 }}</span>
+          </div>
         </div>
 
-        <div class="filter-buttons">
-          <button
-            class="filter-btn"
-            :class="{ active: filter === 'all' }"
-            @click="filter = 'all'"
-          >
-            All
-          </button>
-          <button
-            class="filter-btn"
-            :class="{ active: filter === 'active' }"
-            @click="filter = 'active'"
-          >
-            Active
-          </button>
-          <button
-            class="filter-btn"
-            :class="{ active: filter === 'completed' }"
-            @click="filter = 'completed'"
-          >
-            Completed
-          </button>
-        </div>
-
-        <button class="add-btn" @click="addTask">
-          + Add Task
-        </button>
-      </div>
-
-      <div class="tasks">
-        <div
-          v-for="task in filteredTasks"
-          :key="task.id"
-          class="task-card"
-          :class="{ completed: task.completed }"
-        >
-          <div class="task-checkbox">
+        <div class="controls">
+          <div class="search-box">
             <input
-              :checked="task.completed"
-              type="checkbox"
-              @change="toggleTask(task.id)"
+              class="search-input"
+              placeholder="Search tasks..."
+              type="text"
+              :value="props.searchQuery || ''"
+              @input="handleSearch"
             />
           </div>
-
-          <div class="task-content">
-            <div class="task-header">
-              <h3 class="task-title">{{ task.title }}</h3>
-              <span
-                class="task-priority"
-                :style="{ backgroundColor: getPriorityColor(task.priority) }"
-              >
-                {{ task.priority }}
-              </span>
-            </div>
-            <p class="task-description">{{ task.description }}</p>
+          <div class="filter-buttons">
+            <button
+              class="filter-btn"
+              :class="{ active: props.filter === 'all' }"
+              @click="setFilter('all')"
+            >
+              All
+            </button>
+            <button
+              class="filter-btn"
+              :class="{ active: props.filter === 'active' }"
+              @click="setFilter('active')"
+            >
+              Active
+            </button>
+            <button
+              class="filter-btn"
+              :class="{ active: props.filter === 'completed' }"
+              @click="setFilter('completed')"
+            >
+              Completed
+            </button>
           </div>
-
-          <button
-            class="delete-btn"
-            @click="deleteTask(task.id)"
-          >
-            Delete
-          </button>
+          <button class="add-btn" @click="addTask">+ Add Task</button>
         </div>
 
-        <div v-if="filteredTasks.length === 0" class="empty-state">
-          <p>No tasks found</p>
+        <div class="tasks">
+          <template v-if="props.filteredTasks && props.filteredTasks.length > 0">
+            <div
+              v-for="task in props.filteredTasks"
+              :key="task.id"
+              class="task-card"
+              :class="{
+                completed: task.completed,
+                editing: editingTaskId === task.id,
+              }"
+            >
+              <div class="task-checkbox">
+                <input
+                  type="checkbox"
+                  :checked="task.completed"
+                  :disabled="editingTaskId === task.id"
+                  @change="toggleTask(task.id)"
+                />
+              </div>
+
+              <div class="task-content">
+                <template v-if="editingTaskId === task.id">
+                  <div class="edit-mode">
+                    <input
+                      ref="titleInput"
+                      type="text"
+                      class="edit-title"
+                      :value="task.title"
+                      placeholder="Task title"
+                      @keyup.enter="($event) => {
+                        const titleEl = ($event.target as HTMLInputElement);
+                        const form = titleEl.closest('.edit-mode');
+                        const descEl = form?.querySelector('.edit-description') as HTMLTextAreaElement;
+                        const priorityEl = form?.querySelector('.edit-priority') as HTMLSelectElement;
+                        saveEdit(task.id, titleEl.value, descEl?.value || '', priorityEl?.value || 'medium');
+                      }"
+                    />
+                    <select
+                      class="edit-priority"
+                      :value="task.priority"
+                    >
+                      <option value="high">High</option>
+                      <option value="medium">Medium</option>
+                      <option value="low">Low</option>
+                    </select>
+                    <textarea
+                      class="edit-description"
+                      :value="task.description"
+                      placeholder="Task description"
+                      rows="2"
+                    ></textarea>
+                    <div class="edit-actions">
+                      <button
+                        class="save-btn"
+                        @click="($event) => {
+                          const form = ($event.target as HTMLElement).closest('.edit-mode');
+                          const titleEl = form?.querySelector('.edit-title') as HTMLInputElement;
+                          const descEl = form?.querySelector('.edit-description') as HTMLTextAreaElement;
+                          const priorityEl = form?.querySelector('.edit-priority') as HTMLSelectElement;
+                          saveEdit(task.id, titleEl?.value || '', descEl?.value || '', priorityEl?.value || 'medium');
+                        }"
+                      >
+                        Save
+                      </button>
+                      <button class="cancel-btn" @click="cancelEdit">
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                </template>
+
+                <template v-else>
+                  <div class="task-header">
+                    <h3 class="task-title">{{ task.title }}</h3>
+                    <span
+                      class="task-priority"
+                      :style="{ backgroundColor: getPriorityColor(task.priority) }"
+                    >
+                      {{ task.priority }}
+                    </span>
+                  </div>
+                  <p class="task-description">{{ task.description }}</p>
+                </template>
+              </div>
+
+              <div class="task-actions">
+                <template v-if="editingTaskId !== task.id">
+                  <button class="edit-btn" @click="startEdit(task.id)">Edit</button>
+                  <button class="delete-btn" @click="deleteTask(task.id)">Delete</button>
+                </template>
+              </div>
+            </div>
+          </template>
+
+          <div v-else class="empty-state">
+            <p>No tasks found</p>
+          </div>
         </div>
       </div>
     </template>
@@ -247,11 +230,16 @@ function handleSearch(event: Event) {
 </template>
 
 <style scoped>
-
 .loading {
   padding: 2rem;
   text-align: center;
   color: #666;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
 }
 
 .stats-bar {
@@ -428,6 +416,12 @@ function handleSearch(event: Event) {
   text-decoration: line-through;
 }
 
+.task-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 .delete-btn {
   padding: 0.5rem 1rem;
   background: #ef4444;
@@ -449,5 +443,140 @@ function handleSearch(event: Event) {
   text-align: center;
   color: #9ca3af;
   font-size: 1rem;
+}
+
+/* Edit Mode Styles */
+.task-card.editing {
+  background-color: #f9fafb;
+  border: 2px solid #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.edit-mode {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.edit-title {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.375rem;
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.edit-title:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.edit-priority {
+  width: fit-content;
+  padding: 0.5rem 2.5rem 0.5rem 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  background-color: white;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+  background-position: right 0.5rem center;
+  background-repeat: no-repeat;
+  background-size: 1.5em 1.5em;
+  appearance: none;
+  cursor: pointer;
+}
+
+.edit-priority:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.edit-description {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-family: inherit;
+  resize: vertical;
+}
+
+.edit-description:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.edit-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+.save-btn,
+.cancel-btn {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.save-btn {
+  background-color: #3b82f6;
+  color: white;
+}
+
+.save-btn:hover {
+  background-color: #2563eb;
+}
+
+.save-btn:active {
+  transform: translateY(1px);
+}
+
+.cancel-btn {
+  background-color: #e5e7eb;
+  color: #374151;
+}
+
+.cancel-btn:hover {
+  background-color: #d1d5db;
+}
+
+.cancel-btn:active {
+  transform: translateY(1px);
+}
+
+.edit-btn {
+  padding: 0.5rem 0.75rem;
+  background-color: #f3f4f6;
+  color: #374151;
+  border: none;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.edit-btn:hover {
+  background-color: #e5e7eb;
+}
+
+.edit-btn:active {
+  transform: translateY(1px);
+}
+
+/* Disable checkbox interaction during edit */
+.task-card.editing .task-checkbox input {
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 </style>

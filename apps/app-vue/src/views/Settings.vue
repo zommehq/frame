@@ -2,15 +2,9 @@
 import { useFrameSDK } from "@zomme/frame-vue";
 import { onMounted, onUnmounted, ref, watch } from "vue";
 import PageLayout from "../components/PageLayout.vue";
-import type { User } from "../types";
+import type { SettingsFrameProps, User } from "../types";
 
-interface SettingsProps {
-  saveCallback?: (settings: any) => Promise<{ success: boolean; message: string }>;
-  theme?: "dark" | "light";
-  user?: User;
-}
-
-const { emit, isReady, props, watchProps } = useFrameSDK<SettingsProps>();
+const { emit, isReady, props, watchProps } = useFrameSDK<SettingsFrameProps>();
 
 const theme = ref<"dark" | "light">(props.theme || "light");
 const user = ref<User | null>(props.user || null);
@@ -138,7 +132,8 @@ function handleReset() {
     </div>
 
     <template v-else>
-      <div v-if="user" class="user-card">
+      <div class="content">
+        <div v-if="user" class="user-card">
         <div class="user-avatar">
           {{ user.name.charAt(0).toUpperCase() }}
         </div>
@@ -200,8 +195,9 @@ function handleReset() {
         </div>
       </form>
 
-      <div v-if="saveMessage" class="message" :class="{ error: saveMessage.includes('Error') }">
-        {{ saveMessage }}
+        <div v-if="saveMessage" class="message" :class="{ error: saveMessage.includes('Error') }">
+          {{ saveMessage }}
+        </div>
       </div>
     </template>
   </PageLayout>
@@ -212,6 +208,12 @@ function handleReset() {
   padding: 2rem;
   text-align: center;
   color: #666;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
 }
 
 .user-card {

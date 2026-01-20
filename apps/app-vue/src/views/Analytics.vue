@@ -2,10 +2,10 @@
 import { useFrameSDK } from "@zomme/frame-vue";
 import { onMounted, ref } from "vue";
 import PageLayout from "../components/PageLayout.vue";
-import type { Metrics } from "../types";
+import type { AnalyticsFrameProps, Metrics } from "../types";
 import { calculateMetrics, deserializeMetrics, serializeMetrics } from "../utils/metrics";
 
-const { emit, isReady, props } = useFrameSDK<{ metricsData?: ArrayBuffer }>();
+const { emit, isReady, props } = useFrameSDK<AnalyticsFrameProps>();
 
 const metrics = ref<Metrics>({
   averageCompletionTime: 0,
@@ -120,7 +120,8 @@ function formatTime(minutes: number): string {
     </div>
 
     <template v-else>
-      <div class="info-card">
+      <div class="content">
+        <div class="info-card">
         <h3>About Transferable Objects</h3>
         <p>
           This page demonstrates the use of <strong>Transferable Objects</strong> with ArrayBuffer.
@@ -231,17 +232,23 @@ function formatTime(minutes: number): string {
             <strong>Buffer Size:</strong> ~{{ Math.ceil(JSON.stringify(metrics).length) }} bytes
           </li>
         </ul>
+        </div>
       </div>
     </template>
   </PageLayout>
 </template>
 
 <style scoped>
-
 .loading {
   padding: 2rem;
   text-align: center;
   color: #666;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
 }
 
 .info-card {
