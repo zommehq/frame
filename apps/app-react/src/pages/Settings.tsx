@@ -1,13 +1,6 @@
 import { useFrameSDK } from "@zomme/frame-react";
 import { useEffect, useRef, useState } from "react";
-import type { User } from "../types";
-
-interface SettingsProps {
-  actionCallback?: (data: any) => void;
-  saveCallback?: (settings: any) => Promise<{ message: string; success: boolean }>;
-  theme?: "dark" | "light";
-  user?: User;
-}
+import type { SettingsFrameProps, User } from "../types";
 
 interface SettingsFormData {
   appName: string;
@@ -17,7 +10,7 @@ interface SettingsFormData {
 }
 
 export default function Settings() {
-  const { emit, isReady, props, watchProps } = useFrameSDK<SettingsProps>();
+  const { emit, isReady, props, watchProps } = useFrameSDK<SettingsFrameProps>();
 
   const [theme, setTheme] = useState<"dark" | "light">(props.theme || "light");
   const [user, setUser] = useState<User | null>(props.user || null);

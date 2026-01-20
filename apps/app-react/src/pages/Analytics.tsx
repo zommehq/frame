@@ -1,14 +1,10 @@
 import { useFrameSDK } from "@zomme/frame-react";
 import { type CSSProperties, useEffect, useState } from "react";
-import type { Metrics } from "../types";
+import type { AnalyticsFrameProps, Metrics } from "../types";
 import { calculateMetrics, deserializeMetrics, serializeMetrics } from "../utils/metrics";
 
-interface AnalyticsProps {
-  metricsData?: ArrayBuffer;
-}
-
 export default function Analytics() {
-  const { emit, isReady, props } = useFrameSDK<AnalyticsProps>();
+  const { emit, isReady, props } = useFrameSDK<AnalyticsFrameProps>();
 
   const [metrics, setMetrics] = useState<Metrics>({
     averageCompletionTime: 0,
