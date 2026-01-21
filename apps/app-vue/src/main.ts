@@ -20,21 +20,30 @@ async function bootstrap() {
   const router = createAppRouter(base);
 
   if (sdkAvailable) {
+    // Flag to prevent emit loop when navigation comes from parent
+    let isSyncingFromParent = false;
+    let isInitialNavigation = true;
+
     // Listen to route-change events from parent shell
-    frameSDK.on("route-change", (data: { path: string; replace?: boolean }) => {
+    frameSDK.on("route-change", (data) => {
       const payload = data as { path: string; replace?: boolean };
       const path = payload.path.startsWith("/") ? payload.path : `/${payload.path}`;
 
-      if (payload.replace) {
-        router.replace(path);
-      } else {
-        router.push(path);
+      // Skip if already on this path
+      if (router.currentRoute.value.path === path) {
+        return;
       }
+
+      isSyncingFromParent = true;
+      const navPromise = payload.replace ? router.replace(path) : router.push(path);
+      navPromise.finally(() => {
+        setTimeout(() => {
+          isSyncingFromParent = false;
+        }, 50);
+      });
     });
 
     // Emit navigation events to parent when route changes
-    let isInitialNavigation = true;
-
     router.afterEach((to) => {
       // Skip emitting event for initial navigation
       if (isInitialNavigation) {
@@ -42,7 +51,11 @@ async function bootstrap() {
         return;
       }
 
-      // to.path is relative to the base, no need to strip base
+      // Skip if navigation was triggered by parent
+      if (isSyncingFromParent) {
+        return;
+      }
+
       frameSDK.emit("navigate", { path: to.path, replace: false, state: to.meta });
     });
   }

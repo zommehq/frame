@@ -19,9 +19,9 @@ const isLoadingMetrics = ref(false);
 const lastUpdate = ref<Date | null>(null);
 
 onMounted(() => {
-  if (props.metricsData) {
+  if (props.value.metricsData) {
     try {
-      metrics.value = deserializeMetrics(props.metricsData);
+      metrics.value = deserializeMetrics(props.value.metricsData);
       lastUpdate.value = new Date();
     } catch (error) {
       console.error("Failed to deserialize metrics:", error);

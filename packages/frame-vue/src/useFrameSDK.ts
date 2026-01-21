@@ -1,12 +1,39 @@
 import { frameSDK } from "@zomme/frame/sdk";
 import type { PropChanges } from "@zomme/frame/types";
-import { onMounted, onUnmounted, type Ref, reactive, ref } from "vue";
+import { onMounted, type Ref, shallowRef, triggerRef } from "vue";
+
+// Global singleton state - shared across all useFrameSDK calls
+let propsRef: Ref<Record<string, unknown>> | null = null;
+let setupComplete = false;
+
+function getPropsRef(): Ref<Record<string, unknown>> {
+  if (!propsRef) {
+    // Use shallowRef for better performance with objects
+    propsRef = shallowRef({ ...frameSDK.props } as Record<string, unknown>);
+  }
+  return propsRef;
+}
+
+function setupGlobalPropSync() {
+  if (setupComplete) return;
+  setupComplete = true;
+
+  const props = getPropsRef();
+
+  // Watch for all prop changes from SDK and update the ref
+  frameSDK.watch(() => {
+    // Create a new object reference to trigger Vue reactivity
+    props.value = { ...frameSDK.props } as Record<string, unknown>;
+    // Force trigger reactivity (belt and suspenders)
+    triggerRef(props);
+  });
+}
 
 interface UseFrameSDKReturn<T = Record<string, unknown>> {
   emit: (event: string, data?: unknown) => void;
   isReady: Ref<boolean>;
   on: (event: string, handler: (data: unknown) => void) => () => void;
-  props: T;
+  props: Ref<T>;
   sdkAvailable: Ref<boolean>;
   watch: (handler: (changes: PropChanges<T>) => void) => () => void;
   watchProps: <K extends keyof T>(
@@ -43,26 +70,37 @@ interface UseFrameSDKReturn<T = Record<string, unknown>> {
  * ```
  */
 export function useFrameSDK<T = Record<string, unknown>>(): UseFrameSDKReturn<T> {
-  const props = reactive<Record<string, unknown>>({}) as T;
-  const isReady = ref(false);
-  const sdkAvailable = ref(false);
+  // Check if SDK was already initialized (e.g., in main.ts)
+  const alreadyInitialized = frameSDK.isInitialized;
+
+  // Use the global props ref
+  const props = getPropsRef() as Ref<T>;
+
+  const isReady = shallowRef(alreadyInitialized);
+  const sdkAvailable = shallowRef(alreadyInitialized);
+
+  if (alreadyInitialized) {
+    // SDK already initialized, setup global sync if not done
+    setupGlobalPropSync();
+  }
 
   onMounted(async () => {
+    // Skip if already initialized
+    if (alreadyInitialized) {
+      return;
+    }
+
     try {
       await frameSDK.initialize();
-      Object.assign(props as Record<string, unknown>, frameSDK.props);
+      // Update props after initialization
+      props.value = { ...frameSDK.props } as T;
+      setupGlobalPropSync();
       isReady.value = true;
       sdkAvailable.value = true;
     } catch (error) {
       console.warn("FrameSDK not available, running in standalone mode", error);
       isReady.value = true;
       sdkAvailable.value = false;
-    }
-  });
-
-  onUnmounted(() => {
-    if (sdkAvailable.value) {
-      frameSDK.cleanup();
     }
   });
 
@@ -80,81 +118,19 @@ export function useFrameSDK<T = Record<string, unknown>>(): UseFrameSDKReturn<T>
 
   /**
    * Watch for property changes with modern API
-   *
-   * @param handler - Callback receiving all property changes
-   * @returns Cleanup function to unwatch
-   *
-   * @example
-   * ```vue
-   * <script setup>
-   * const { watch } = useFrameSDK();
-   *
-   * onMounted(() => {
-   *   const unwatch = watch((changes) => {
-   *     Object.entries(changes).forEach(([prop, [newVal, oldVal]]) => {
-   *       console.log(`${prop} changed from ${oldVal} to ${newVal}`);
-   *     });
-   *   });
-   *   onUnmounted(unwatch);
-   * });
-   * </script>
-   * ```
    */
   const watch = (handler: (changes: PropChanges<T>) => void): (() => void) => {
-    const wrappedHandler = (changes: PropChanges<T>) => {
-      // Update reactive props with new values
-      Object.entries(changes).forEach(([key, tuple]) => {
-        const value = tuple as any;
-        if (value) {
-          (props as Record<string, unknown>)[key] = value[0];
-        }
-      });
-      handler(changes);
-    };
-
-    return frameSDK.watch(wrappedHandler as any);
+    return frameSDK.watch(handler as any);
   };
 
   /**
    * Watch for specific property changes with modern API
-   *
-   * @param propNames - Array of property names to watch
-   * @param handler - Callback receiving specified property changes
-   * @returns Cleanup function to unwatch
-   *
-   * @example
-   * ```vue
-   * <script setup>
-   * const { watchProps } = useFrameSDK();
-   *
-   * onMounted(() => {
-   *   const unwatch = watchProps(['theme', 'user'], (changes) => {
-   *     if ('theme' in changes) {
-   *       const [newTheme, oldTheme] = changes.theme;
-   *       applyTheme(newTheme);
-   *     }
-   *   });
-   *   onUnmounted(unwatch);
-   * });
-   * </script>
-   * ```
    */
   const watchProps = <K extends keyof T>(
     propNames: K[],
     handler: (changes: PropChanges<T, K>) => void,
   ): (() => void) => {
-    const wrappedHandler = (changes: PropChanges<T, K>) => {
-      // Update reactive props with new values
-      Object.entries(changes).forEach(([key, tuple]) => {
-        const value = tuple as any;
-        if (value) {
-          (props as Record<string, unknown>)[key] = value[0];
-        }
-      });
-      handler(changes);
-    };
-
-    return frameSDK.watch(propNames as string[], wrappedHandler as any);
+    return frameSDK.watch(propNames as string[], handler as any);
   };
 
   return { emit, isReady, on, props, sdkAvailable, watch, watchProps };

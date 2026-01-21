@@ -45,7 +45,7 @@
 	],
 	"scripts": {
 		"build": "bun build src/*.ts --outdir dist --target browser --format esm && tsc --emitDeclarationOnly",
-		"dev": "bun build src/*.ts --outdir dist --target browser --format esm --watch",
+		"dev": "bun --watch build src/*.ts --outdir dist --target browser --format esm",
 		"lint:format": "bun biome check --write",
 		"lint:types": "bun tsc --noEmit",
 		"lint": "bun run lint:format && bun run lint:types",

@@ -1,4 +1,3 @@
-import { resolve } from "node:path";
 import vue from "@vitejs/plugin-vue";
 import { defineConfig } from "vite";
 
@@ -15,12 +14,11 @@ export default defineConfig({
       },
     },
   },
-  plugins: [vue()],
-  resolve: {
-    alias: {
-      "@zomme/frame": resolve(__dirname, "../../packages/frame/src"),
-    },
+  optimizeDeps: {
+    // Exclude workspace packages from pre-bundling so changes are picked up immediately
+    exclude: ["@zomme/frame", "@zomme/frame-vue"],
   },
+  plugins: [vue()],
   server: {
     port: 4202,
   },

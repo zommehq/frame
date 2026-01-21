@@ -11,12 +11,12 @@ interface AppProps {
 }
 
 const { emit, props, watchProps } = useFrameSDK<AppProps>();
-const theme = ref<"dark" | "light">(props.theme || "light");
-const user = ref<User | null>(props.user || null);
+const theme = ref<"dark" | "light">(props.value.theme || "light");
+const user = ref<User | null>(props.value.user || null);
 
 onMounted(() => {
-  if (typeof props.successCallback === "function") {
-    props.successCallback({ message: "Vue app initialized successfully" });
+  if (typeof props.value.successCallback === "function") {
+    props.value.successCallback({ message: "Vue app initialized successfully" });
   }
 
   document.body.className = theme.value;
@@ -46,24 +46,25 @@ onMounted(() => {
         <li class="nav-item">
           <router-link
             class="nav-link"
-            exact-active-class="active"
+            active-class="active"
+            exact
             to="/"
           >
             Home
           </router-link>
         </li>
         <li class="nav-item">
-          <router-link class="nav-link" to="/tasks">
+          <router-link class="nav-link" active-class="active" to="/tasks">
             Tasks
           </router-link>
         </li>
         <li class="nav-item">
-          <router-link class="nav-link" to="/analytics">
+          <router-link class="nav-link" active-class="active" to="/analytics">
             Analytics
           </router-link>
         </li>
         <li class="nav-item">
-          <router-link class="nav-link" to="/settings">
+          <router-link class="nav-link" active-class="active" to="/settings">
             Settings
           </router-link>
         </li>

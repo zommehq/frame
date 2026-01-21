@@ -18,9 +18,10 @@ interface FrameProps {
   sdkAvailable?: boolean;
 }
 
-// Module-level flag to track if we've emitted the initial path
-// This persists through React StrictMode remounts
+// Module-level flags to track navigation state
+// These persist through React StrictMode remounts
 let hasEmittedInitialPathGlobal = false;
+let isNavigatingFromShell = false;
 
 function App({ sdkAvailable }: FrameProps = {}) {
   const location = useLocation();
@@ -43,7 +44,13 @@ function App({ sdkAvailable }: FrameProps = {}) {
 
     const handleRouteChange = (data: any) => {
       const { path } = data as { path: string; replace?: boolean };
-      navigate(path, { replace: false });
+      // Set flag to prevent emitting navigate back to shell
+      isNavigatingFromShell = true;
+      navigate(path, { replace: true });
+      // Reset flag after navigation completes
+      setTimeout(() => {
+        isNavigatingFromShell = false;
+      }, 0);
     };
 
     const cleanup = on("route-change", handleRouteChange);
@@ -52,7 +59,7 @@ function App({ sdkAvailable }: FrameProps = {}) {
     return cleanup;
   }, [sdkAvailable, on, navigate]);
 
-  // Emit navigation events to parent when route changes (skip initial path)
+  // Emit navigation events to parent when route changes (skip initial path and shell-initiated navigation)
   useEffect(() => {
     if (!sdkAvailable) return;
 
@@ -60,6 +67,11 @@ function App({ sdkAvailable }: FrameProps = {}) {
     // Use module-level flag to persist through StrictMode remounts
     if (!hasEmittedInitialPathGlobal) {
       hasEmittedInitialPathGlobal = true;
+      return;
+    }
+
+    // Skip if this navigation came from the shell
+    if (isNavigatingFromShell) {
       return;
     }
 

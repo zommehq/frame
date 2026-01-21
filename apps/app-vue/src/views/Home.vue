@@ -11,14 +11,14 @@ interface HomeProps {
 
 const { props, watchProps } = useFrameSDK<HomeProps>();
 
-const theme = ref<"dark" | "light">(props.theme || "light");
+const theme = ref<"dark" | "light">(props.value.theme || "light");
 
 const propsString = computed(() =>
   JSON.stringify(
     {
-      apiUrl: props.apiUrl,
-      base: props.base,
-      theme: props.theme,
+      apiUrl: props.value.apiUrl,
+      base: props.value.base,
+      theme: props.value.theme,
     },
     null,
     2,
@@ -26,8 +26,8 @@ const propsString = computed(() =>
 );
 
 onMounted(() => {
-  if (props.theme) {
-    theme.value = props.theme;
+  if (props.value.theme) {
+    theme.value = props.value.theme;
   }
 
   document.body.classList.remove("light", "dark");

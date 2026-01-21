@@ -27,18 +27,13 @@ export class FrameActionsService {
    */
   register(): void {
     // Don't register if running in standalone mode
-    if (isStandaloneMode()) {
-      console.log("[app-angular] Standalone mode - skipping action registration");
-      return;
-    }
+    if (isStandaloneMode()) return;
 
     this.unregister = frameSDK.register({
       getStats: () => this.getStats(),
       navigateTo: (path: string) => this.navigateTo(path),
       refreshData: () => this.refreshData(),
     });
-
-    console.log("[app-angular] Registered actions: getStats, navigateTo, refreshData");
   }
 
   /**
@@ -75,7 +70,6 @@ export class FrameActionsService {
    * Refresh data in the app
    */
   private async refreshData() {
-    console.log("[app-angular] Parent requested data refresh");
     // Simulate async refresh operation
     await new Promise((resolve) => setTimeout(resolve, 300));
     return {

@@ -6,8 +6,8 @@ import type { SettingsFrameProps, User } from "../types";
 
 const { emit, isReady, props, watchProps } = useFrameSDK<SettingsFrameProps>();
 
-const theme = ref<"dark" | "light">(props.theme || "light");
-const user = ref<User | null>(props.user || null);
+const theme = ref<"dark" | "light">(props.value.theme || "light");
+const user = ref<User | null>(props.value.user || null);
 const saveMessage = ref("");
 const isSaving = ref(false);
 
@@ -19,9 +19,9 @@ const settings = ref({
 });
 
 onMounted(() => {
-  if (props.theme) {
-    settings.value.theme = props.theme;
-    theme.value = props.theme;
+  if (props.value.theme) {
+    settings.value.theme = props.value.theme;
+    theme.value = props.value.theme;
   }
 
   // Watch for theme and user changes with modern API
@@ -62,8 +62,8 @@ async function handleSubmit(event: Event) {
   saveMessage.value = "";
 
   try {
-    if (typeof props.saveCallback === "function") {
-      const result = await props.saveCallback(settings.value);
+    if (typeof props.value.saveCallback === "function") {
+      const result = await props.value.saveCallback(settings.value);
 
       if (result.success) {
         saveMessage.value = result.message || "Settings saved successfully!";

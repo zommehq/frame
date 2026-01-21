@@ -87,6 +87,13 @@ export class FrameSDK {
   // Flag to prevent processing multiple INIT messages
   private _initialized = false;
 
+  /**
+   * Check if the SDK has been initialized
+   */
+  get isInitialized(): boolean {
+    return this._initialized;
+  }
+
   // Instance ID for debugging
   private _instanceId: number;
 

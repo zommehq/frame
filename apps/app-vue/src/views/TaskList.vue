@@ -10,19 +10,19 @@ const { isReady, props } = useFrameSDK<TasksFrameProps>();
 const editingTaskId = ref<number | null>(null);
 
 async function setFilter(newFilter: "active" | "all" | "completed") {
-  await props.setFilter?.(newFilter);
+  await props.value.setFilter?.(newFilter);
 }
 
 async function toggleTask(taskId: number) {
-  await props.toggleTask?.(taskId);
+  await props.value.toggleTask?.(taskId);
 }
 
 async function deleteTask(taskId: number) {
-  await props.deleteTask?.(taskId);
+  await props.value.deleteTask?.(taskId);
 }
 
 async function addTask() {
-  const newTask = await props.addRandomTask?.();
+  const newTask = await props.value.addRandomTask?.();
   if (newTask) {
     editingTaskId.value = (newTask as Task).id;
   }
@@ -37,7 +37,7 @@ function cancelEdit() {
 }
 
 async function saveEdit(taskId: number, title: string, description: string, priority: string) {
-  const updatedTask = await props.updateTask?.(taskId, {
+  const updatedTask = await props.value.updateTask?.(taskId, {
     description,
     priority: priority as "high" | "medium" | "low",
     title,
@@ -63,7 +63,7 @@ function getPriorityColor(priority: string): string {
 
 async function handleSearch(event: Event) {
   const target = event.target as HTMLInputElement;
-  await props.setSearchQuery?.(target.value);
+  await props.value.setSearchQuery?.(target.value);
 }
 </script>
 

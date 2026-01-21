@@ -2,7 +2,6 @@ import { CommonModule } from "@angular/common";
 import {
   Component,
   CUSTOM_ELEMENTS_SCHEMA,
-  computed,
   inject,
   OnDestroy,
   OnInit,
@@ -16,6 +15,12 @@ import { SettingsService } from "./services/settings.service";
 import { TasksService } from "./services/tasks.service";
 
 type FrameName = "angular" | "react" | "vue";
+
+function getFrameFromPath(path: string): FrameName {
+  if (path.startsWith("/react")) return "react";
+  if (path.startsWith("/vue")) return "vue";
+  return "angular";
+}
 
 @Component({
   selector: "app-root",
@@ -32,14 +37,8 @@ export class AppComponent implements OnInit, OnDestroy {
   protected tasks = inject(TasksService);
   protected settings = inject(SettingsService);
 
-  // Active frame based on current route
-  private currentPath = signal(this.router.url);
-  activeFrame = computed<FrameName>(() => {
-    const path = this.currentPath();
-    if (path.startsWith("/react")) return "react";
-    if (path.startsWith("/vue")) return "vue";
-    return "angular";
-  });
+  // Active frame based on current route - use location.pathname for immediate value
+  activeFrame = signal<FrameName>(getFrameFromPath(location.pathname));
 
   private frames = new Map<FrameName, ZFrame<AngularFrameActions>>();
   private isSyncing = false;
@@ -51,7 +50,7 @@ export class AppComponent implements OnInit, OnDestroy {
       .pipe(filter((event) => event instanceof NavigationEnd))
       .subscribe((event) => {
         const navEvent = event as NavigationEnd;
-        this.currentPath.set(navEvent.urlAfterRedirects);
+        this.activeFrame.set(getFrameFromPath(navEvent.urlAfterRedirects));
         this.syncRouteToFrame(navEvent.urlAfterRedirects);
       });
   }
@@ -63,7 +62,6 @@ export class AppComponent implements OnInit, OnDestroy {
   private syncRouteToFrame(url: string) {
     const frameName = this.activeFrame();
     const frame = this.frames.get(frameName);
-
     if (!frame || this.isSyncing) return;
 
     const basePath = `/${frameName}`;
@@ -106,7 +104,12 @@ export class AppComponent implements OnInit, OnDestroy {
   onFrameNavigate(event: Event) {
     const customEvent = event as CustomEvent;
     const { path } = customEvent.detail;
-    const frameName = (event.target as HTMLElement).getAttribute("name");
+    const frameName = (event.target as HTMLElement).getAttribute("name") as FrameName;
+
+    // Ignore navigation events from inactive frames
+    if (frameName !== this.activeFrame()) {
+      return;
+    }
 
     // Update browser URL when frame navigates
     const fullPath = `/${frameName}${path}`;
@@ -131,18 +134,12 @@ export class AppComponent implements OnInit, OnDestroy {
     console.error("[shell] Frame error:", customEvent.detail);
   }
 
-  onFrameRegister(event: Event) {
-    const customEvent = event as CustomEvent;
-    const functions = Object.keys(customEvent.detail);
-    const frameName = (event.target as HTMLElement).getAttribute("name");
-    console.log(`[shell] Frame ${frameName} registered actions:`, functions);
+  onFrameRegister(_event: Event) {
+    // Frame registered actions - can be used for tracking
   }
 
-  onFrameUnregister(event: Event) {
-    const customEvent = event as CustomEvent;
-    const { functions } = customEvent.detail;
-    const frameName = (event.target as HTMLElement).getAttribute("name");
-    console.log(`[shell] Frame ${frameName} unregistered actions:`, functions);
+  onFrameUnregister(_event: Event) {
+    // Frame unregistered actions - can be used for cleanup
   }
 
   // Frame action test methods
@@ -152,31 +149,19 @@ export class AppComponent implements OnInit, OnDestroy {
 
   async testGetStats() {
     const frame = this.getCurrentFrame();
-    if (!frame) {
-      console.warn("[shell] Current frame not ready");
-      return;
-    }
-    const result = await frame.getStats();
-    console.log("[shell] getStats() result:", result);
+    if (!frame) return;
+    await frame.getStats();
   }
 
   async testRefreshData() {
     const frame = this.getCurrentFrame();
-    if (!frame) {
-      console.warn("[shell] Current frame not ready");
-      return;
-    }
-    const result = await frame.refreshData();
-    console.log("[shell] refreshData() result:", result);
+    if (!frame) return;
+    await frame.refreshData();
   }
 
   async testNavigateTo(path: string) {
     const frame = this.getCurrentFrame();
-    if (!frame) {
-      console.warn("[shell] Current frame not ready");
-      return;
-    }
-    const result = await frame.navigateTo(path);
-    console.log("[shell] navigateTo() result:", result);
+    if (!frame) return;
+    await frame.navigateTo(path);
   }
 }

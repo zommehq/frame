@@ -26,7 +26,10 @@ async function bootstrap() {
   const root = createRoot(rootElement);
   root.render(
     <React.StrictMode>
-      <BrowserRouter basename={base}>
+      <BrowserRouter
+        basename={base}
+        future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+      >
         <App sdkAvailable={sdkAvailable} base={base} />
       </BrowserRouter>
     </React.StrictMode>,

@@ -1,4 +1,3 @@
-import { resolve } from "node:path";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
@@ -15,12 +14,11 @@ export default defineConfig({
       },
     },
   },
-  plugins: [react()],
-  resolve: {
-    alias: {
-      "@zomme/frame": resolve(__dirname, "../../packages/frame/src"),
-    },
+  optimizeDeps: {
+    // Exclude workspace packages from pre-bundling so changes are picked up immediately
+    exclude: ["@zomme/frame", "@zomme/frame-react"],
   },
+  plugins: [react()],
   server: {
     port: 4201,
   },

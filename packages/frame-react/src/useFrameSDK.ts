@@ -1,6 +1,38 @@
 import { frameSDK } from "@zomme/frame/sdk";
 import type { PropChanges } from "@zomme/frame/types";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useSyncExternalStore } from "react";
+
+// Global state for prop synchronization
+const listeners: Set<() => void> = new Set();
+let currentProps: Record<string, unknown> = {};
+let globalWatcherSetup = false;
+
+function setupGlobalWatcher() {
+  if (globalWatcherSetup) return;
+  globalWatcherSetup = true;
+
+  // Initialize with current SDK props
+  currentProps = { ...frameSDK.props };
+
+  // Watch for all prop changes from SDK
+  frameSDK.watch(() => {
+    // Update currentProps with new values
+    currentProps = { ...frameSDK.props };
+    // Notify all subscribers
+    for (const listener of listeners) {
+      listener();
+    }
+  });
+}
+
+function subscribe(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+
+function getSnapshot<T>(): T {
+  return currentProps as T;
+}
 
 /**
  * React hook for using the Frame SDK
@@ -25,30 +57,51 @@ import { useCallback, useEffect, useState } from "react";
  * ```
  */
 export function useFrameSDK<T = Record<string, unknown>>() {
-  const [props, setProps] = useState<T>({} as T);
-  const [isReady, setIsReady] = useState(false);
-  const [sdkAvailable, setSdkAvailable] = useState(true);
+  // Check if SDK was already initialized (e.g., in main.tsx)
+  const alreadyInitialized = frameSDK.isInitialized;
+
+  // Setup global watcher if SDK is initialized
+  if (alreadyInitialized && !globalWatcherSetup) {
+    setupGlobalWatcher();
+  }
+
+  // Use useSyncExternalStore for proper React 18 concurrent mode support
+  const props = useSyncExternalStore(
+    subscribe,
+    () => getSnapshot<T>(),
+    () => getSnapshot<T>(), // Server snapshot (same as client for this use case)
+  );
+
+  // Track ready state
+  const isReady = alreadyInitialized;
+  const sdkAvailable = alreadyInitialized;
 
   useEffect(() => {
+    // Skip if already initialized
+    if (frameSDK.isInitialized) {
+      if (!globalWatcherSetup) {
+        setupGlobalWatcher();
+        // Trigger re-render after setup
+        for (const listener of listeners) {
+          listener();
+        }
+      }
+      return;
+    }
+
     frameSDK
       .initialize()
       .then(() => {
-        setProps(frameSDK.props as T);
-        setIsReady(true);
-        setSdkAvailable(true);
+        setupGlobalWatcher();
+        // Trigger re-render after initialization
+        for (const listener of listeners) {
+          listener();
+        }
       })
       .catch((error) => {
         console.warn("FrameSDK not available, running in standalone mode", error);
-        setIsReady(true);
-        setSdkAvailable(false);
       });
-
-    return () => {
-      if (sdkAvailable) {
-        frameSDK.cleanup();
-      }
-    };
-  }, [sdkAvailable]);
+  }, []);
 
   const emit = useCallback(
     (event: string, data?: unknown) => {
@@ -65,80 +118,20 @@ export function useFrameSDK<T = Record<string, unknown>>() {
 
   /**
    * Watch for property changes with modern API
-   *
-   * @param handler - Callback receiving all property changes
-   * @returns Cleanup function to unwatch
-   *
-   * @example
-   * ```tsx
-   * // Watch all properties
-   * useEffect(() => {
-   *   return watch((changes) => {
-   *     Object.entries(changes).forEach(([prop, [newVal, oldVal]]) => {
-   *       console.log(`${prop} changed from ${oldVal} to ${newVal}`);
-   *     });
-   *   });
-   * }, [watch]);
-   * ```
    */
   const watch = useCallback((handler: (changes: PropChanges<T>) => void): (() => void) => {
-    const wrappedHandler = (changes: PropChanges<T>) => {
-      // Update local state with new values
-      setProps((prev) => {
-        const updates = Object.fromEntries(
-          Object.entries(changes).map(([key, tuple]) => {
-            const value = tuple as any;
-            return [key, value?.[0]];
-          }),
-        );
-        return { ...prev, ...updates };
-      });
-      handler(changes);
-    };
-
-    return frameSDK.watch(wrappedHandler as any);
+    return frameSDK.watch(handler as any);
   }, []);
 
   /**
    * Watch for specific property changes with modern API
-   *
-   * @param propNames - Array of property names to watch
-   * @param handler - Callback receiving specified property changes
-   * @returns Cleanup function to unwatch
-   *
-   * @example
-   * ```tsx
-   * // Watch specific properties
-   * useEffect(() => {
-   *   return watchProps(['theme', 'user'], (changes) => {
-   *     if ('theme' in changes) {
-   *       const [newTheme, oldTheme] = changes.theme;
-   *       applyTheme(newTheme);
-   *     }
-   *   });
-   * }, [watchProps]);
-   * ```
    */
   const watchProps = useCallback(
     <K extends keyof T>(
       propNames: K[],
       handler: (changes: PropChanges<T, K>) => void,
     ): (() => void) => {
-      const wrappedHandler = (changes: PropChanges<T, K>) => {
-        // Update local state with new values
-        setProps((prev) => {
-          const updates = Object.fromEntries(
-            Object.entries(changes).map(([key, tuple]) => {
-              const value = tuple as any;
-              return [key, value?.[0]];
-            }),
-          );
-          return { ...prev, ...updates };
-        });
-        handler(changes);
-      };
-
-      return frameSDK.watch(propNames as string[], wrappedHandler as any);
+      return frameSDK.watch(propNames as string[], handler as any);
     },
     [],
   );

@@ -51,7 +51,6 @@ const getMetricsArrayBuffer = () => {
 const frameElements = new Map<string, HTMLElement>();
 
 const handleSuccess = (data: any) => {
-  console.log("[Shell] Success callback received:", data);
   store.addNotification({
     type: "success",
     message: data.message || "Action completed",
@@ -59,7 +58,6 @@ const handleSuccess = (data: any) => {
 };
 
 const handleTaskAction = (data: any) => {
-  console.log("[Shell] Task action callback received:", data);
   if (data.action === "addTask") {
     store.addTask(data.task);
   }
@@ -67,8 +65,6 @@ const handleTaskAction = (data: any) => {
 
 // Callback for search (Async search function)
 const handleSearchCallback = async (params: any) => {
-  console.log("[Shell] Search callback invoked with params:", params);
-
   // Simulate API call
   await new Promise((resolve) => setTimeout(resolve, 800));
 
@@ -96,8 +92,6 @@ const handleSearchCallback = async (params: any) => {
 
 // Callback for saving settings (Async)
 const handleSaveSettings = async (settings: any) => {
-  console.log("[Shell] Save settings callback invoked:", settings);
-
   // Simulate API call
   await new Promise((resolve) => setTimeout(resolve, 1000));
 
@@ -108,9 +102,6 @@ const handleSaveSettings = async (settings: any) => {
       message: "App name is required",
     };
   }
-
-  // Save to store (in real app, would save to backend)
-  console.log("[Shell] Settings saved successfully:", settings);
 
   store.addNotification({
     type: "success",
@@ -146,26 +137,15 @@ const getFrameUrl = (appName: string): string => {
 // Toggle theme
 const toggleTheme = () => {
   store.toggleTheme();
-  console.log("[Shell] Theme toggled to:", store.theme);
 };
 
 // Event handlers
 const onFrameReady = (event: CustomEvent) => {
   // Guard against null detail
-  if (!event.detail) {
-    console.warn("[Shell] Received ready event with null detail, ignoring");
-    return;
-  }
+  if (!event.detail) return;
 
   const { name } = event.detail;
-  if (!name) {
-    console.warn("[Shell] Received ready event without name, ignoring");
-    return;
-  }
-
-  console.log(
-    `[Shell] Frame '${name}' is ready. Active app: ${activeApp.value}, Will sync: ${name === activeApp.value}`,
-  );
+  if (!name) return;
 
   // Store reference to z-frame element
   const frameElement = event.target as HTMLElement;
@@ -173,15 +153,10 @@ const onFrameReady = (event: CustomEvent) => {
 
   // Only sync route if this is the currently active app
   if (name === activeApp.value) {
-    console.log(
-      `[Shell] Syncing route for active frame '${name}' (with small delay for handler registration)`,
-    );
     // Small delay to allow React/Vue/Angular to register their event handlers after initialization
     setTimeout(() => {
       syncRouteToFrame(name);
     }, 50);
-  } else {
-    console.log(`[Shell] Skipping sync for inactive frame '${name}'`);
   }
 };
 
@@ -189,16 +164,10 @@ const onFrameNavigate = (event: CustomEvent) => {
   const { path } = event.detail;
   const frameName = (event.target as any).getAttribute("name");
 
-  console.log(`[Shell] Frame '${frameName}' navigated to:`, path);
-
   // Update browser URL when z-frame navigates
   const fullPath = `/${frameName}${path}`;
-  console.log(
-    `[Shell] Current route.path: ${route.path}, fullPath: ${fullPath}, will push: ${route.path !== fullPath}`,
-  );
 
   if (route.path !== fullPath) {
-    console.log(`[Shell] Pushing to:`, fullPath);
     router.push(fullPath);
   }
 };
@@ -213,22 +182,20 @@ const onFrameError = (event: CustomEvent) => {
   });
 };
 
-const onActionClicked = (event: CustomEvent) => {
-  console.log("[Shell] Action clicked event:", event.detail);
+const onActionClicked = (_event: CustomEvent) => {
+  // Action clicked - can be used for analytics
 };
 
 const onThemeChanged = (event: CustomEvent) => {
   const { theme } = event.detail;
-  console.log("[Shell] Theme changed by React app:", theme);
   store.theme = theme;
 };
 
-const onCounterChanged = (event: CustomEvent) => {
-  console.log("[Shell] Counter changed:", event.detail);
+const onCounterChanged = (_event: CustomEvent) => {
+  // Counter changed - can be used for tracking
 };
 
-const onSettingsSaved = (event: CustomEvent) => {
-  console.log("[Shell] Settings saved:", event.detail);
+const onSettingsSaved = (_event: CustomEvent) => {
   store.addNotification({
     type: "success",
     message: "Settings saved successfully!",
@@ -236,8 +203,7 @@ const onSettingsSaved = (event: CustomEvent) => {
 };
 
 const onMetricsTransferred = (event: CustomEvent) => {
-  const { size, metrics } = event.detail;
-  console.log("[Shell] Metrics transferred:", { size, metrics });
+  const { size } = event.detail;
   store.addNotification({
     type: "info",
     message: `Metrics transferred: ${size} bytes`,
@@ -246,7 +212,6 @@ const onMetricsTransferred = (event: CustomEvent) => {
 
 const onRequestThemeChange = (event: CustomEvent) => {
   const { theme } = event.detail;
-  console.log("[Shell] Theme change requested:", theme);
   store.theme = theme;
   store.addNotification({
     type: "info",
@@ -254,36 +219,27 @@ const onRequestThemeChange = (event: CustomEvent) => {
   });
 };
 
-const onContactFormSubmitted = (event: CustomEvent) => {
-  console.log("[Shell] Contact form submitted:", event.detail);
+const onContactFormSubmitted = (_event: CustomEvent) => {
   store.addNotification({
     type: "success",
     message: "Contact form submitted!",
   });
 };
 
-const onCustomEvent = (event: CustomEvent) => {
-  console.log("CustomEvent handled in parent", { event });
+const onCustomEvent = (_event: CustomEvent) => {
+  // Custom event - can be used for analytics
 };
 
 // Sync route to the newly activated z-frame
 const syncRouteToFrame = (frameName: string) => {
   const frameElement = frameElements.get(frameName);
-  if (!frameElement) {
-    console.warn(`[Shell] Cannot sync route - no frame element found for '${frameName}'`);
-    return;
-  }
+  if (!frameElement) return;
 
   // Extract the path within the z-frame
   const fullPath = route.path;
   const framePath = fullPath.replace(`/${frameName}`, "") || "/";
 
-  console.log(
-    `[Shell] Syncing route to ${frameName}: fullPath="${fullPath}", framePath="${framePath}"`,
-  );
-
   // Send navigation message to the z-frame using the correct emit method
-  // This will be handled by the frame's SDK
   (frameElement as any).emit("route-change", {
     path: framePath,
     replace: false,
@@ -293,13 +249,9 @@ const syncRouteToFrame = (frameName: string) => {
 // Watch for route changes
 watch(
   () => route.path,
-  (newPath, oldPath) => {
-    console.log(
-      `[Shell] Route changed from ${oldPath} to ${newPath}, active app: ${activeApp.value}`,
-    );
+  () => {
     // Sync route to the frame after it changes
     setTimeout(() => {
-      console.log(`[Shell] Watch timeout: syncing route to ${activeApp.value}`);
       syncRouteToFrame(activeApp.value);
     }, 100);
   },
