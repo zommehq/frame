@@ -9,18 +9,20 @@
 		".": "./dist/index.js"
 	},
 	"scripts": {
-		"build": "bun build src/index.ts --outdir dist --target browser --format esm --external '@zomme/frame' --external '@zomme/frame/*' --external 'vue' && tsc --emitDeclarationOnly",
-		"dev": "bun build src/index.ts --outdir dist --target browser --format esm --external '@zomme/frame' --external '@zomme/frame/*' --external 'vue' --watch",
+		"build": "bun build src/index.ts --outdir dist --target browser --format esm --external '@zomme/frame' --external '@zomme/frame/*' --external 'vue' --external 'vue-router' && tsc --emitDeclarationOnly",
+		"dev": "bun build src/index.ts --outdir dist --target browser --format esm --external '@zomme/frame' --external '@zomme/frame/*' --external 'vue' --external 'vue-router' --watch",
 		"lint:format": "bun biome check --write",
 		"lint:types": "bun tsc --noEmit",
 		"lint": "bun run lint:format && bun run lint:types"
 	},
 	"peerDependencies": {
 		"@zomme/frame": "workspace:*",
-		"vue": "^3.0.0"
+		"vue": "^3.0.0",
+		"vue-router": "^4.0.0"
 	},
 	"devDependencies": {
 		"typescript": "^5.3.3",
-		"vue": "^3.5.13"
+		"vue": "^3.5.13",
+		"vue-router": "^4.3.0"
 	}
 }

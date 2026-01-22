@@ -11,6 +11,7 @@ import type {
   FunctionResponseMessage,
   InitMessage,
   PropChanges,
+  PropsUpdateMessage,
   WatchHandler,
 } from "./types";
 
@@ -247,6 +248,21 @@ export class FrameSDK {
     const { type } = message;
 
     switch (type) {
+      case MessageEvent.PROPS_UPDATE: {
+        const updateMsg = message as PropsUpdateMessage;
+        if (!updateMsg.payload || typeof updateMsg.payload !== "object") {
+          logger.warn("Invalid PROPS_UPDATE message:", message);
+          return;
+        }
+
+        // Deserialize updates (may contain functions)
+        const updates = this._functionManager.deserialize(updateMsg.payload);
+
+        // Merge updates into existing props (reactive)
+        Object.assign(this.props, updates);
+        break;
+      }
+
       case MessageEvent.EVENT: {
         const eventMsg = message as EventMessage;
         if (!eventMsg.name || typeof eventMsg.name !== "string") {

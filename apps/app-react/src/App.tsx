@@ -1,12 +1,11 @@
-import { useFrameSDK } from "@zomme/frame-react";
-import { type CSSProperties, useEffect, useRef, useState } from "react";
+import { useFrameSDK, useRouteSync } from "@zomme/frame-react";
+import { type CSSProperties, useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { AppRoutes } from "./router";
 import type { User } from "./types";
 
 interface AppProps {
   actionCallback?: (data: any) => void;
-  base?: string;
   sdkAvailable?: boolean;
   successCallback?: (data: any) => void;
   theme?: "dark" | "light";
@@ -14,24 +13,21 @@ interface AppProps {
 }
 
 interface FrameProps {
-  base?: string;
   sdkAvailable?: boolean;
 }
-
-// Module-level flag to track shell navigation state
-// This persists through React StrictMode remounts
-let isNavigatingFromShell = false;
 
 function App({ sdkAvailable }: FrameProps = {}) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { emit, on, props, watchProps } = useFrameSDK<AppProps>();
+  const { props, watchProps } = useFrameSDK<AppProps>();
   const [theme, setTheme] = useState<"dark" | "light">(props.theme || "light");
   const [_user, setUser] = useState<User | null>(props.user || null);
 
-  // Use useRef to track the last emitted path to avoid duplicate emissions
-  // Similar to Angular's setupRouterSync approach
-  const lastEmittedPath = useRef<string | null>(null);
+  // Setup bidirectional route synchronization with parent shell
+  useRouteSync(
+    () => location.pathname,
+    (path) => navigate(path, { replace: true }),
+  );
 
   useEffect(() => {
     if (typeof props.successCallback === "function") {
@@ -40,60 +36,6 @@ function App({ sdkAvailable }: FrameProps = {}) {
 
     document.body.className = theme;
   }, [props.successCallback, theme]);
-
-  // Initialize lastEmittedPath with current location on first mount
-  useEffect(() => {
-    if (!sdkAvailable) return;
-
-    // Capture the initial path to avoid emitting it
-    if (lastEmittedPath.current === null) {
-      lastEmittedPath.current = location.pathname;
-    }
-  }, [sdkAvailable, location.pathname]);
-
-  // Listen to route-change events from parent shell
-  useEffect(() => {
-    if (!sdkAvailable) return;
-
-    const handleRouteChange = (data: any) => {
-      const { path } = data as { path: string; replace?: boolean };
-      // Set flag to prevent emitting navigate back to shell
-      isNavigatingFromShell = true;
-      navigate(path, { replace: true });
-      // Update lastEmittedPath to the new path to prevent emitting it back
-      lastEmittedPath.current = path;
-      // Reset flag after navigation completes with longer delay to ensure useEffect processes it
-      setTimeout(() => {
-        isNavigatingFromShell = false;
-      }, 100);
-    };
-
-    const cleanup = on("route-change", handleRouteChange);
-
-    // Return the cleanup function provided by on()
-    return cleanup;
-  }, [sdkAvailable, on, navigate]);
-
-  // Emit navigation events to parent when route changes (skip initial path and shell-initiated navigation)
-  useEffect(() => {
-    if (!sdkAvailable) return;
-
-    const currentPath = location.pathname;
-
-    // Skip if path hasn't changed (avoid duplicate emissions)
-    if (currentPath === lastEmittedPath.current) {
-      return;
-    }
-
-    // Skip if this navigation came from the shell
-    if (isNavigatingFromShell) {
-      return;
-    }
-
-    // Update lastEmittedPath and emit to parent
-    lastEmittedPath.current = currentPath;
-    emit("navigate", { path: currentPath, replace: false, state: {} });
-  }, [location.pathname, sdkAvailable, emit]);
 
   // Watch for theme and user changes with modern API
   useEffect(() => {

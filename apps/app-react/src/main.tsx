@@ -6,16 +6,23 @@ import App from "./App";
 import "./App.css";
 
 async function bootstrap() {
-  let base = "/react";
   let sdkAvailable = false;
+  let initialPath = window.location.pathname; // Default for standalone
 
   try {
     await frameSDK.initialize();
-    base = frameSDK.props.base || "/react";
     sdkAvailable = true;
+    // Use pathname from props (source of truth when in shell)
+    initialPath = frameSDK.props.pathname || window.location.pathname;
   } catch (error) {
     console.error("FrameSDK not available, running in standalone mode:", error);
     sdkAvailable = false;
+    // Keep window.location.pathname for standalone
+  }
+
+  // Navigate BEFORE mounting React to avoid flash
+  if (initialPath !== window.location.pathname) {
+    window.history.replaceState(null, "", initialPath);
   }
 
   const rootElement = document.getElementById("root");
@@ -26,11 +33,8 @@ async function bootstrap() {
   const root = createRoot(rootElement);
   root.render(
     <React.StrictMode>
-      <BrowserRouter
-        basename={base}
-        future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
-      >
-        <App sdkAvailable={sdkAvailable} base={base} />
+      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+        <App sdkAvailable={sdkAvailable} />
       </BrowserRouter>
     </React.StrictMode>,
   );

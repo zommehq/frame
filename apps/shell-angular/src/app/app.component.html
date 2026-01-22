@@ -56,7 +56,8 @@
     <!-- Angular Frame -->
     <z-frame
       name="angular"
-      src="http://localhost:4200/angular/"
+      src="http://localhost:4200/"
+      [pathname]="getFramePathname('angular')"
       [class.hidden]="activeFrame() !== 'angular'"
       [filteredTasks]="tasks.filteredTasks()"
       [filter]="tasks.filter()"
@@ -84,7 +85,8 @@
     <!-- React Frame -->
     <z-frame
       name="react"
-      src="http://localhost:4201/react/"
+      src="http://localhost:4201/"
+      [pathname]="getFramePathname('react')"
       [class.hidden]="activeFrame() !== 'react'"
       [filteredTasks]="tasks.filteredTasks()"
       [filter]="tasks.filter()"
@@ -112,7 +114,8 @@
     <!-- Vue Frame -->
     <z-frame
       name="vue"
-      src="http://localhost:4202/vue/"
+      src="http://localhost:4202/"
+      [pathname]="getFramePathname('vue')"
       [class.hidden]="activeFrame() !== 'vue'"
       [filteredTasks]="tasks.filteredTasks()"
       [filter]="tasks.filter()"
