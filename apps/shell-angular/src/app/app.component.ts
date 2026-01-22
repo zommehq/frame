@@ -40,6 +40,21 @@ export class AppComponent implements OnInit, OnDestroy {
   // Active frame based on current route - use location.pathname for immediate value
   activeFrame = signal<FrameName>(getFrameFromPath(location.pathname));
 
+  /**
+   * Extract pathname relative to frame base
+   * Ex: URL="/react/tasks" + frameName="react" → "/tasks"
+   */
+  getFramePathname(frameName: FrameName): string {
+    const currentUrl = this.router.url;
+    const basePath = `/${frameName}`;
+
+    if (currentUrl.startsWith(basePath)) {
+      return currentUrl.slice(basePath.length) || "/";
+    }
+
+    return "/";
+  }
+
   private frames = new Map<FrameName, ZFrame<AngularFrameActions>>();
   private isSyncing = false;
   private routerSubscription: Subscription | null = null;
@@ -51,24 +66,13 @@ export class AppComponent implements OnInit, OnDestroy {
       .subscribe((event) => {
         const navEvent = event as NavigationEnd;
         this.activeFrame.set(getFrameFromPath(navEvent.urlAfterRedirects));
-        this.syncRouteToFrame(navEvent.urlAfterRedirects);
+        // pathname attribute automatically syncs via Angular change detection
+        // No need to emit route-change event manually
       });
   }
 
   ngOnDestroy() {
     this.routerSubscription?.unsubscribe();
-  }
-
-  private syncRouteToFrame(url: string) {
-    const frameName = this.activeFrame();
-    const frame = this.frames.get(frameName);
-    if (!frame || this.isSyncing) return;
-
-    const basePath = `/${frameName}`;
-    if (url.startsWith(basePath)) {
-      const relativePath = url.slice(basePath.length) || "/";
-      frame.emit("route-change", { path: relativePath, replace: true });
-    }
   }
 
   // Theme management
@@ -91,14 +95,7 @@ export class AppComponent implements OnInit, OnDestroy {
 
     this.frames.set(frameName, frame);
 
-    // Send initial route to frame so it navigates to the correct page on refresh
-    const currentPath = this.router.url;
-    const basePath = `/${frameName}`;
-
-    if (currentPath.startsWith(basePath)) {
-      const relativePath = currentPath.slice(basePath.length) || "/";
-      frame.emit("route-change", { path: relativePath, replace: true });
-    }
+    // pathname attribute already handles initial route - no need to emit route-change here
   }
 
   onFrameNavigate(event: Event) {

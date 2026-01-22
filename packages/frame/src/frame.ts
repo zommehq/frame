@@ -59,13 +59,17 @@ const logger = createLogger("z-frame");
  * ```
  */
 export class Frame extends HTMLElement {
-  static readonly ATTRS_REGEX = /^(base|name|sandbox|src)$/;
+  /**
+   * Attributes that should not be sent as props or observed dynamically
+   * (iframe-specific or already handled specially)
+   */
+  static readonly EXCLUDED_ATTRS = ["src", "sandbox", "base", "name", "pathname"];
 
   /**
    * Observed attributes for Web Component lifecycle
    */
   static get observedAttributes() {
-    return ["base", "name", "sandbox", "src"];
+    return ["base", "name", "pathname", "sandbox", "src"];
   }
 
   _iframe!: HTMLIFrameElement;
@@ -159,10 +163,23 @@ export class Frame extends HTMLElement {
 
   /**
    * Get base path for routing
-   * Falls back to /name or /frame if base attribute not set
+   * Falls back to /name if base attribute not set
+   * Normalizes to start with / and removes trailing slash
    */
   get base(): string {
-    return this.getAttribute("base") || `/${this.name || "frame"}`;
+    let base = this.getAttribute("base") || `/${this.name}`;
+
+    // Ensure starts with /
+    if (!base.startsWith("/")) {
+      base = `/${base}`;
+    }
+
+    // Remove trailing slash (but keep single "/" as is)
+    if (base.length > 1 && base.endsWith("/")) {
+      base = base.slice(0, -1);
+    }
+
+    return base;
   }
 
   /**
@@ -173,6 +190,22 @@ export class Frame extends HTMLElement {
       this.getAttribute("sandbox") ||
       "allow-scripts allow-same-origin allow-forms allow-popups allow-modals"
     );
+  }
+
+  /**
+   * Get pathname for initial route
+   * Normalizes to always start with / and defaults to /
+   */
+  get pathname(): string {
+    const value = this.getAttribute("pathname");
+
+    // Default to "/" if empty/null
+    if (!value || value.trim() === "") {
+      return "/";
+    }
+
+    // Ensure starts with /
+    return value.startsWith("/") ? value : `/${value}`;
   }
 
   /**
@@ -198,6 +231,27 @@ export class Frame extends HTMLElement {
     // If src changes after initialization, warn
     if (name === "src" && this._iframe && oldValue) {
       logger.warn("Changing src attribute after initialization is not supported");
+    }
+
+    // Handle dynamic attribute changes after frame is ready
+    // Send PROPS_UPDATE for attributes that should be synced to frameSDK.props
+    if (this._ready) {
+      // pathname: use getter (already normalized)
+      if (name === "pathname") {
+        this._sendPropUpdate({ pathname: this.pathname });
+      }
+      // base: use getter (already normalized)
+      else if (name === "base") {
+        this._sendPropUpdate({ base: this.base });
+      }
+      // name: send as-is
+      else if (name === "name") {
+        this._sendPropUpdate({ name: newValue });
+      }
+      // Other custom attributes: send (but not src/sandbox which are iframe-only)
+      else if (name !== "src" && name !== "sandbox") {
+        this._sendPropUpdate({ [name]: newValue });
+      }
     }
   }
 
@@ -252,7 +306,15 @@ export class Frame extends HTMLElement {
   private _setupIframeAndChannel(): MessageChannel {
     // Create and configure iframe
     this._iframe = document.createElement("iframe");
-    this._iframe.src = this.src!;
+
+    // Normalize URL construction to handle trailing slashes
+    const src = this.src!;
+    const pathname = this.pathname;
+
+    // Remove trailing slash from src, pathname already starts with /
+    const normalizedSrc = src.endsWith("/") ? src.slice(0, -1) : src;
+    this._iframe.src = normalizedSrc + pathname;
+
     this._iframe.style.cssText = "border:none;display:block;height:100%;width:100%;";
     this._iframe.setAttribute("sandbox", this.sandbox);
 
@@ -322,13 +384,17 @@ export class Frame extends HTMLElement {
    * @returns Props object with all attributes and properties
    */
   private _collectAllProps(): Record<string, unknown> {
-    // Start with base and name
-    const props: Record<string, unknown> = { base: this.base, name: this.name };
+    // Start with base, name, and pathname
+    const props: Record<string, unknown> = {
+      base: this.base,
+      name: this.name,
+      pathname: this.pathname,
+    };
 
-    // Collect HTML attributes (string values only)
+    // Collect ALL HTML attributes except those in EXCLUDED_ATTRS
     for (let i = 0; i < this.attributes.length; i++) {
       const attr = this.attributes[i];
-      if (!Frame.ATTRS_REGEX.test(attr.name)) {
+      if (!Frame.EXCLUDED_ATTRS.includes(attr.name)) {
         props[attr.name] = attr.value;
       }
     }
@@ -371,6 +437,27 @@ export class Frame extends HTMLElement {
   }
 
   /**
+   * Send prop updates to child iframe
+   *
+   * Used when attributes change dynamically to keep frameSDK.props in sync
+   *
+   * @param updates - Object with prop keys and new values
+   */
+  private _sendPropUpdate(updates: Record<string, unknown>): void {
+    if (!this._ready) return;
+
+    const { serialized, transferables } = this._manager.serialize(updates);
+
+    this._sendToIframe(
+      {
+        type: MessageEvent.PROPS_UPDATE,
+        payload: serialized,
+      },
+      transferables,
+    );
+  }
+
+  /**
    * Setup MutationObserver to watch for attribute changes
    *
    * Observes attribute changes and syncs them to the child iframe.
@@ -380,7 +467,7 @@ export class Frame extends HTMLElement {
     this._observer = new MutationObserver((mutations) => {
       mutations.forEach((mutation) => {
         const attrName = mutation.attributeName;
-        if (attrName && !Frame.ATTRS_REGEX.test(attrName)) {
+        if (attrName && !Frame.EXCLUDED_ATTRS.includes(attrName)) {
           const value = this.getAttribute(attrName);
           const { serialized, transferables } = this._manager.serialize(value);
 
@@ -721,9 +808,9 @@ const setupPrototypeProxy = () => {
 
       const instance = receiver as Frame;
 
-      // Allow native HTMLElement properties and Frame methods
+      // Allow native HTMLElement properties, Frame methods, and excluded attributes
       if (
-        Frame.ATTRS_REGEX.test(prop) ||
+        Frame.EXCLUDED_ATTRS.includes(prop) ||
         prop in HTMLElement.prototype ||
         prop in Frame.prototype
       ) {

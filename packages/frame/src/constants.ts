@@ -4,6 +4,7 @@ export const MessageEvent = {
   READY: "__READY__",
 
   // Properties
+  PROPS_UPDATE: "__PROPS_UPDATE__",
   ATTRIBUTE_CHANGE: "__ATTRIBUTE_CHANGE__",
 
   // Events

@@ -23,9 +23,9 @@ const routes = [
   },
 ];
 
-export function createAppRouter(base: string) {
+export function createAppRouter() {
   return createRouter({
-    history: createWebHistory(base),
+    history: createWebHistory(),
     routes,
   });
 }

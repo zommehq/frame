@@ -1,63 +1,34 @@
-import { frameSDK } from "@zomme/frame-vue";
+import { frameSDK, setupRouterSync } from "@zomme/frame-vue";
 import { createApp } from "vue";
 
 import App from "./App.vue";
 import { createAppRouter } from "./router";
 
 async function bootstrap() {
-  let base = "/vue";
   let sdkAvailable = false;
+  let initialPath = window.location.pathname; // Default for standalone
 
   try {
     await frameSDK.initialize();
-    base = frameSDK.props.base || "/vue";
     sdkAvailable = true;
+    // Use pathname from props (source of truth when in shell)
+    initialPath = frameSDK.props.pathname || window.location.pathname;
   } catch (error) {
     console.warn("FrameSDK not available, running in standalone mode:", error);
     sdkAvailable = false;
+    // Keep window.location.pathname for standalone
   }
 
-  const router = createAppRouter(base);
+  // Navigate BEFORE mounting Vue to avoid flash
+  if (initialPath !== window.location.pathname) {
+    window.history.replaceState(null, "", initialPath);
+  }
 
+  const router = createAppRouter();
+
+  // Setup bidirectional route synchronization with parent shell
   if (sdkAvailable) {
-    // Flag to prevent emit loop when navigation comes from parent
-    let isSyncingFromParent = false;
-    let isInitialNavigation = true;
-
-    // Listen to route-change events from parent shell
-    frameSDK.on("route-change", (data) => {
-      const payload = data as { path: string; replace?: boolean };
-      const path = payload.path.startsWith("/") ? payload.path : `/${payload.path}`;
-
-      // Skip if already on this path
-      if (router.currentRoute.value.path === path) {
-        return;
-      }
-
-      isSyncingFromParent = true;
-      const navPromise = payload.replace ? router.replace(path) : router.push(path);
-      navPromise.finally(() => {
-        setTimeout(() => {
-          isSyncingFromParent = false;
-        }, 50);
-      });
-    });
-
-    // Emit navigation events to parent when route changes
-    router.afterEach((to) => {
-      // Skip emitting event for initial navigation
-      if (isInitialNavigation) {
-        isInitialNavigation = false;
-        return;
-      }
-
-      // Skip if navigation was triggered by parent
-      if (isSyncingFromParent) {
-        return;
-      }
-
-      frameSDK.emit("navigate", { path: to.path, replace: false, state: to.meta });
-    });
+    setupRouterSync(router);
   }
 
   const app = createApp(App);
