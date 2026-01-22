@@ -10,7 +10,7 @@ interface AppProps {
   user?: User;
 }
 
-const { emit, props, watchProps } = useFrameSDK<AppProps>();
+const { props, watchProps } = useFrameSDK<AppProps>();
 const theme = ref<"dark" | "light">(props.value.theme || "light");
 const user = ref<User | null>(props.value.user || null);
 

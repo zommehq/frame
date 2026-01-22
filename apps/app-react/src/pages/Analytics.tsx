@@ -32,7 +32,7 @@ export default function Analytics() {
         });
       }
     }
-  }, [props.metricsData]);
+  }, [props.metricsData, emit]);
 
   const generateRandomMetrics = () => {
     setIsLoadingMetrics(true);
@@ -380,6 +380,7 @@ export default function Analytics() {
 
         <div style={styles.actions}>
           <button
+            type="button"
             style={{
               ...styles.actionBtn,
               ...styles.actionBtnPrimary,
@@ -391,6 +392,7 @@ export default function Analytics() {
             {isLoadingMetrics ? "Generating..." : "Generate Random Metrics"}
           </button>
           <button
+            type="button"
             style={{
               ...styles.actionBtn,
               ...styles.actionBtnSecondary,
@@ -402,6 +404,7 @@ export default function Analytics() {
             Send to Parent (ArrayBuffer)
           </button>
           <button
+            type="button"
             style={{
               ...styles.actionBtn,
               ...styles.actionBtnDanger,

@@ -54,6 +54,7 @@ export function DataVisualization() {
         </p>
       </div>
       <button
+        type="button"
         onClick={sendLargeData}
         style={{
           background: "#3498db",

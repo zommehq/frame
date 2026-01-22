@@ -28,7 +28,7 @@ const emit = defineEmits<{
 }>();
 
 const elementRef = ref<HTMLElement>();
-const eventListeners: Array<[string, EventListener]> = [];
+const eventListeners: [string, EventListener][] = [];
 
 onMounted(() => {
   const element = elementRef.value;

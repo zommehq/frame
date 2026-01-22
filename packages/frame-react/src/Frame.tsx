@@ -54,13 +54,17 @@ export const Frame = React.forwardRef<HTMLElement, FrameProps>(
     ref,
   ) => {
     const elementRef = useRef<HTMLElement>(null);
+    const propsRef = useRef(props);
+
+    // Update props ref on every render
+    propsRef.current = props;
 
     useEffect(() => {
       const element = elementRef.current;
       if (!element) return;
 
       // Set up event listeners
-      const listeners: Array<[string, EventListener]> = [];
+      const listeners: [string, EventListener][] = [];
 
       if (onReady) {
         const handler = onReady as EventListener;
@@ -81,7 +85,7 @@ export const Frame = React.forwardRef<HTMLElement, FrameProps>(
       }
 
       // Handle custom event handlers (on*)
-      Object.entries(props).forEach(([key, value]) => {
+      Object.entries(propsRef.current).forEach(([key, value]) => {
         if (
           key.startsWith("on") &&
           typeof value === "function" &&
@@ -101,21 +105,21 @@ export const Frame = React.forwardRef<HTMLElement, FrameProps>(
           element.removeEventListener(event, handler);
         });
       };
-    }, [onReady, onNavigate, onError, props]);
+    }, [onReady, onNavigate, onError]);
 
     useEffect(() => {
       const element = elementRef.current;
       if (!element) return;
 
       // Set props as properties (for complex objects, functions, etc.)
-      Object.entries(props).forEach(([key, value]) => {
+      Object.entries(propsRef.current).forEach(([key, value]) => {
         // Skip event handlers and standard HTML attributes
         if (key.startsWith("on") || ["className", "style", "id"].includes(key)) return;
 
         // Set as property for complex types
         (element as any)[key] = value;
       });
-    }, [props]);
+    });
 
     return React.createElement("z-frame", {
       ref: (el: HTMLElement | null) => {

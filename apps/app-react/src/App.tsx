@@ -18,9 +18,8 @@ interface FrameProps {
   sdkAvailable?: boolean;
 }
 
-// Module-level flags to track navigation state
-// These persist through React StrictMode remounts
-let hasEmittedInitialPathGlobal = false;
+// Module-level flag to track shell navigation state
+// This persists through React StrictMode remounts
 let isNavigatingFromShell = false;
 
 function App({ sdkAvailable }: FrameProps = {}) {
@@ -28,7 +27,11 @@ function App({ sdkAvailable }: FrameProps = {}) {
   const navigate = useNavigate();
   const { emit, on, props, watchProps } = useFrameSDK<AppProps>();
   const [theme, setTheme] = useState<"dark" | "light">(props.theme || "light");
-  const [user, setUser] = useState<User | null>(props.user || null);
+  const [_user, setUser] = useState<User | null>(props.user || null);
+
+  // Use useRef to track the last emitted path to avoid duplicate emissions
+  // Similar to Angular's setupRouterSync approach
+  const lastEmittedPath = useRef<string | null>(null);
 
   useEffect(() => {
     if (typeof props.successCallback === "function") {
@@ -36,7 +39,17 @@ function App({ sdkAvailable }: FrameProps = {}) {
     }
 
     document.body.className = theme;
-  }, []);
+  }, [props.successCallback, theme]);
+
+  // Initialize lastEmittedPath with current location on first mount
+  useEffect(() => {
+    if (!sdkAvailable) return;
+
+    // Capture the initial path to avoid emitting it
+    if (lastEmittedPath.current === null) {
+      lastEmittedPath.current = location.pathname;
+    }
+  }, [sdkAvailable, location.pathname]);
 
   // Listen to route-change events from parent shell
   useEffect(() => {
@@ -47,10 +60,12 @@ function App({ sdkAvailable }: FrameProps = {}) {
       // Set flag to prevent emitting navigate back to shell
       isNavigatingFromShell = true;
       navigate(path, { replace: true });
-      // Reset flag after navigation completes
+      // Update lastEmittedPath to the new path to prevent emitting it back
+      lastEmittedPath.current = path;
+      // Reset flag after navigation completes with longer delay to ensure useEffect processes it
       setTimeout(() => {
         isNavigatingFromShell = false;
-      }, 0);
+      }, 100);
     };
 
     const cleanup = on("route-change", handleRouteChange);
@@ -63,10 +78,10 @@ function App({ sdkAvailable }: FrameProps = {}) {
   useEffect(() => {
     if (!sdkAvailable) return;
 
-    // Skip emitting for the very first path we see (initial load)
-    // Use module-level flag to persist through StrictMode remounts
-    if (!hasEmittedInitialPathGlobal) {
-      hasEmittedInitialPathGlobal = true;
+    const currentPath = location.pathname;
+
+    // Skip if path hasn't changed (avoid duplicate emissions)
+    if (currentPath === lastEmittedPath.current) {
       return;
     }
 
@@ -75,9 +90,9 @@ function App({ sdkAvailable }: FrameProps = {}) {
       return;
     }
 
-    // location.pathname is already relative to basename, no need to replace
-    const path = location.pathname;
-    emit("navigate", { path, replace: false, state: {} });
+    // Update lastEmittedPath and emit to parent
+    lastEmittedPath.current = currentPath;
+    emit("navigate", { path: currentPath, replace: false, state: {} });
   }, [location.pathname, sdkAvailable, emit]);
 
   // Watch for theme and user changes with modern API
