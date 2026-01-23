@@ -21,13 +21,13 @@ interface PendingFunctionCall {
  * Used by both Frame (parent) and FrameSDK (child).
  */
 export class FunctionManager {
-  private _functionRegistry = new Map<string, Function>();
-  private _pendingFunctionCalls = new Map<string, PendingFunctionCall>();
-  private _trackedFunctions = new Set<string>();
-  private _postMessage: PostMessageFn;
+  #functionRegistry = new Map<string, Function>();
+  #pendingFunctionCalls = new Map<string, PendingFunctionCall>();
+  #trackedFunctions = new Set<string>();
+  #postMessage: PostMessageFn;
 
   constructor(postMessage: PostMessageFn) {
-    this._postMessage = postMessage;
+    this.#postMessage = postMessage;
   }
 
   /**
@@ -36,7 +36,7 @@ export class FunctionManager {
    */
   get __functionRegistry(): Map<string, Function> {
     assertTestEnv();
-    return this._functionRegistry;
+    return this.#functionRegistry;
   }
 
   /**
@@ -45,7 +45,7 @@ export class FunctionManager {
    */
   get __pendingFunctionCalls(): Map<string, any> {
     assertTestEnv();
-    return this._pendingFunctionCalls;
+    return this.#pendingFunctionCalls;
   }
 
   /**
@@ -54,7 +54,7 @@ export class FunctionManager {
    */
   get __trackedFunctions(): Set<string> {
     assertTestEnv();
-    return this._trackedFunctions;
+    return this.#trackedFunctions;
   }
 
   /**
@@ -64,7 +64,7 @@ export class FunctionManager {
     serialized: unknown;
     transferables: Transferable[];
   } {
-    return serializeValue(value, this._functionRegistry, this._trackedFunctions);
+    return serializeValue(value, this.#functionRegistry, this.#trackedFunctions);
   }
 
   /**
@@ -103,15 +103,15 @@ export class FunctionManager {
 
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
-        this._pendingFunctionCalls.delete(callId);
+        this.#pendingFunctionCalls.delete(callId);
         reject(new Error(`Function call timeout: ${fnId}`));
       }, FUNCTION_CALL_TIMEOUT);
 
-      this._pendingFunctionCalls.set(callId, { reject, resolve, timeout });
+      this.#pendingFunctionCalls.set(callId, { reject, resolve, timeout });
 
       const { serialized, transferables } = this.serialize(params);
 
-      this._postMessage(
+      this.#postMessage(
         {
           callId,
           fnId,
@@ -128,7 +128,7 @@ export class FunctionManager {
    */
   async handleFunctionCall(callId: string, fnId: string, params: unknown): Promise<void> {
     try {
-      const fn = this._functionRegistry.get(fnId);
+      const fn = this.#functionRegistry.get(fnId);
       if (!fn) {
         throw new Error(`Function not found: ${fnId}`);
       }
@@ -143,7 +143,7 @@ export class FunctionManager {
       // Serialize result (may contain functions)
       const { serialized, transferables } = this.serialize(result);
 
-      this._postMessage(
+      this.#postMessage(
         {
           callId,
           result: serialized,
@@ -153,7 +153,7 @@ export class FunctionManager {
         transferables,
       );
     } catch (err) {
-      this._postMessage({
+      this.#postMessage({
         callId,
         error: err instanceof Error ? err.message : "Unknown error",
         success: false,
@@ -166,11 +166,11 @@ export class FunctionManager {
    * Handle function call response from remote side
    */
   handleFunctionResponse(callId: string, success: boolean, result?: unknown, error?: string): void {
-    const pending = this._pendingFunctionCalls.get(callId);
+    const pending = this.#pendingFunctionCalls.get(callId);
     if (!pending) return;
 
     clearTimeout(pending.timeout);
-    this._pendingFunctionCalls.delete(callId);
+    this.#pendingFunctionCalls.delete(callId);
 
     if (success) {
       // Deserialize result (may contain functions from remote)
@@ -185,15 +185,15 @@ export class FunctionManager {
    * Release a function from registry
    */
   releaseFunction(fnId: string): void {
-    this._functionRegistry.delete(fnId);
-    this._trackedFunctions.delete(fnId);
+    this.#functionRegistry.delete(fnId);
+    this.#trackedFunctions.delete(fnId);
   }
 
   /**
    * Get all tracked function IDs (for cleanup)
    */
   getTrackedFunctions(): string[] {
-    return Array.from(this._trackedFunctions);
+    return Array.from(this.#trackedFunctions);
   }
 
   /**
@@ -204,14 +204,14 @@ export class FunctionManager {
    */
   cleanup(): void {
     // Clear ALL pending timeouts and reject pending calls
-    for (const [_callId, pending] of this._pendingFunctionCalls) {
+    for (const [_callId, pending] of this.#pendingFunctionCalls) {
       clearTimeout(pending.timeout);
       pending.reject(new Error("FunctionManager destroyed"));
     }
-    this._pendingFunctionCalls.clear();
+    this.#pendingFunctionCalls.clear();
 
     // Clear registries
-    this._functionRegistry.clear();
-    this._trackedFunctions.clear();
+    this.#functionRegistry.clear();
+    this.#trackedFunctions.clear();
   }
 }
