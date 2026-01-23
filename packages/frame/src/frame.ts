@@ -87,20 +87,20 @@ export class Frame extends HTMLElement {
    */
   private static readonly RECREATE_ATTRS = new Set(["src", "sandbox"]);
 
-  _iframe!: HTMLIFrameElement;
-  _observer?: MutationObserver;
-  _ready = false;
-  _origin!: string;
-  _port!: MessagePort;
+  #iframe!: HTMLIFrameElement;
+  #observer?: MutationObserver;
+  #ready = false;
+  #origin!: string;
+  #port!: MessagePort;
 
   // Function call support
-  _manager!: FunctionManager;
+  #manager!: FunctionManager;
 
   // Cache for dynamically created methods
   _dynamicMethods = new Map<string, Function>();
 
   // Handler reference for cleanup
-  _portMessageHandler?: (event: MessageEvent) => void;
+  #portMessageHandler?: (event: MessageEvent) => void;
 
   // Storage for dynamic properties
   _propValues = new Map<string, unknown>();
@@ -120,7 +120,7 @@ export class Frame extends HTMLElement {
     super();
 
     // Initialize function manager
-    this._manager = new FunctionManager((message, transferables = []) => {
+    this.#manager = new FunctionManager((message, transferables = []) => {
       this._sendToIframe(message, transferables);
     });
   }
@@ -219,7 +219,7 @@ export class Frame extends HTMLElement {
    * @public
    */
   get isReady(): boolean {
-    return this._ready;
+    return this.#ready;
   }
 
   /**
@@ -228,7 +228,7 @@ export class Frame extends HTMLElement {
    */
   get __origin(): string {
     assertTestEnv();
-    return this._origin;
+    return this.#origin;
   }
 
   /**
@@ -237,7 +237,7 @@ export class Frame extends HTMLElement {
    */
   get __iframe(): HTMLIFrameElement {
     assertTestEnv();
-    return this._iframe;
+    return this.#iframe;
   }
 
   /**
@@ -246,7 +246,7 @@ export class Frame extends HTMLElement {
    */
   get __ready(): boolean {
     assertTestEnv();
-    return this._ready;
+    return this.#ready;
   }
 
   /**
@@ -255,7 +255,7 @@ export class Frame extends HTMLElement {
    */
   get __manager(): FunctionManager {
     assertTestEnv();
-    return this._manager;
+    return this.#manager;
   }
 
   /**
@@ -265,9 +265,9 @@ export class Frame extends HTMLElement {
     if (oldValue === newValue) return;
 
     // If element is connected and we now have both name and src, initialize
-    if (this.isConnected && this.name && this.src && !this._iframe) {
+    if (this.isConnected && this.name && this.src && !this.#iframe) {
       try {
-        this._origin = new URL(this.src).origin;
+        this.#origin = new URL(this.src).origin;
         this._initialize();
       } catch (error) {
         console.error(`[z-frame] Initialization failed:`, error);
@@ -279,7 +279,7 @@ export class Frame extends HTMLElement {
     }
 
     // If src or sandbox changes after initialization, recreate iframe
-    if (this._iframe && Frame.RECREATE_ATTRS.has(name)) {
+    if (this.#iframe && Frame.RECREATE_ATTRS.has(name)) {
       // src: always has oldValue when iframe exists
       // sandbox: may be first-time set (oldValue === null) or normal change
       const shouldRecreate =
@@ -291,7 +291,7 @@ export class Frame extends HTMLElement {
       if (shouldRecreate) {
         logger.log(`${name} changed - recreating iframe`);
         this._cleanup();
-        this._origin = new URL(this.src!).origin;
+        this.#origin = new URL(this.src!).origin;
         this._initialize();
         return; // Don't send PROPS_UPDATE, new iframe gets INIT with all props
       }
@@ -299,7 +299,7 @@ export class Frame extends HTMLElement {
 
     // Handle dynamic attribute changes after frame is ready
     // Send PROPS_UPDATE for attributes that should be synced to frameSDK.props
-    if (this._ready) {
+    if (this.#ready) {
       const getter = Frame.ATTR_GETTERS[name];
       const value = getter ? getter(this, newValue) : newValue;
       this._sendPropUpdate({ [name]: value });
@@ -322,9 +322,9 @@ export class Frame extends HTMLElement {
     // This runs after property bindings but before the next frame
     queueMicrotask(() => {
       // If both name and src are set and not yet initialized, do it now
-      if (this.name && this.src && !this._iframe) {
+      if (this.name && this.src && !this.#iframe) {
         try {
-          this._origin = new URL(this.src).origin;
+          this.#origin = new URL(this.src).origin;
           this._initialize();
         } catch (error) {
           console.error(`[z-frame] Initialization failed:`, error);
@@ -362,7 +362,7 @@ export class Frame extends HTMLElement {
    */
   private _setupIframeAndChannel(): MessageChannel {
     // Create and configure iframe
-    this._iframe = document.createElement("iframe");
+    this.#iframe = document.createElement("iframe");
 
     // Normalize URL construction to handle trailing slashes
     const src = this.src!;
@@ -370,17 +370,17 @@ export class Frame extends HTMLElement {
 
     // Remove trailing slash from src, pathname already starts with /
     const normalizedSrc = src.endsWith("/") ? src.slice(0, -1) : src;
-    this._iframe.src = normalizedSrc + pathname;
+    this.#iframe.src = normalizedSrc + pathname;
 
-    this._iframe.style.cssText = "border:none;display:block;height:100%;width:100%;";
-    this._iframe.setAttribute("sandbox", this.sandbox);
+    this.#iframe.style.cssText = "border:none;display:block;height:100%;width:100%;";
+    this.#iframe.setAttribute("sandbox", this.sandbox);
 
     // Create MessageChannel for dedicated communication
     const channel = new MessageChannel();
-    this._port = channel.port1;
+    this.#port = channel.port1;
 
     // Setup message handler on our port
-    this._portMessageHandler = (event) => {
+    this.#portMessageHandler = (event) => {
       try {
         this._handleMessageFromIframe(event.data);
       } catch (error) {
@@ -388,10 +388,10 @@ export class Frame extends HTMLElement {
         this._emit("error", { message: "Message handler error", error });
       }
     };
-    this._port.onmessage = this._portMessageHandler;
+    this.#port.onmessage = this.#portMessageHandler;
 
     // Add iframe to DOM
-    this.appendChild(this._iframe);
+    this.appendChild(this.#iframe);
 
     return channel;
   }
@@ -419,12 +419,12 @@ export class Frame extends HTMLElement {
 
       const cleanup = () => {
         clearTimeout(timeoutId);
-        this._iframe.removeEventListener("load", handler);
-        this._iframe.removeEventListener("error", handler);
+        this.#iframe.removeEventListener("load", handler);
+        this.#iframe.removeEventListener("error", handler);
       };
 
-      this._iframe.addEventListener("load", handler, { once: true });
-      this._iframe.addEventListener("error", handler, { once: true });
+      this.#iframe.addEventListener("load", handler, { once: true });
+      this.#iframe.addEventListener("error", handler, { once: true });
     }).catch((error) => {
       logger.error("Iframe initialization failed:", error);
       this._emit("error", { message: "Iframe load failed", error });
@@ -478,10 +478,10 @@ export class Frame extends HTMLElement {
    */
   private _sendInitMessage(channel: MessageChannel, props: Record<string, unknown>): void {
     // Serialize props (including functions and transferables)
-    const { serialized, transferables } = this._manager.serialize(props);
+    const { serialized, transferables } = this.#manager.serialize(props);
 
     // Send INIT message with port2 transfer
-    const contentWindow = this._iframe.contentWindow;
+    const contentWindow = this.#iframe.contentWindow;
     if (!contentWindow) {
       throw new Error("[z-frame] Iframe contentWindow is not accessible");
     }
@@ -491,7 +491,7 @@ export class Frame extends HTMLElement {
         payload: serialized as FrameProps,
         type: MessageEvent.INIT,
       },
-      this._origin,
+      this.#origin,
       [channel.port2, ...transferables],
     );
   }
@@ -504,9 +504,9 @@ export class Frame extends HTMLElement {
    * @param updates - Object with prop keys and new values
    */
   _sendPropUpdate(updates: Record<string, unknown>): void {
-    if (!this._ready) return;
+    if (!this.#ready) return;
 
-    const { serialized, transferables } = this._manager.serialize(updates);
+    const { serialized, transferables } = this.#manager.serialize(updates);
 
     this._sendToIframe(
       {
@@ -527,13 +527,13 @@ export class Frame extends HTMLElement {
     // Convert to Set for O(1) lookup performance
     const observedAttrsSet = new Set(Frame.observedAttributes);
 
-    this._observer = new MutationObserver((mutations) => {
+    this.#observer = new MutationObserver((mutations) => {
       mutations.forEach((mutation) => {
         const attrName = mutation.attributeName;
         // Skip observed attributes (handled by attributeChangedCallback)
         if (attrName && !observedAttrsSet.has(attrName)) {
           const value = this.getAttribute(attrName);
-          const { serialized, transferables } = this._manager.serialize(value);
+          const { serialized, transferables } = this.#manager.serialize(value);
 
           this._sendToIframe(
             {
@@ -546,7 +546,7 @@ export class Frame extends HTMLElement {
       });
     });
 
-    this._observer.observe(this, { attributes: true });
+    this.#observer.observe(this, { attributes: true });
   }
 
   private _handleMessageFromIframe(data: unknown) {
@@ -560,7 +560,7 @@ export class Frame extends HTMLElement {
 
     switch (type) {
       case MessageEvent.READY:
-        this._ready = true;
+        this.#ready = true;
         this._dispatchLocalEvent("ready", { name: this.name });
         break;
 
@@ -573,7 +573,7 @@ export class Frame extends HTMLElement {
         }
 
         // Deserialize payload data to convert function tokens into callable proxies
-        const deserializedData = this._manager.deserialize(payload.data);
+        const deserializedData = this.#manager.deserialize(payload.data);
 
         this._dispatchLocalEvent(payload.name, deserializedData);
         break;
@@ -585,7 +585,7 @@ export class Frame extends HTMLElement {
           logger.warn("Invalid FUNCTION_CALL message:", message);
           return;
         }
-        this._manager.handleFunctionCall(callMsg.callId, callMsg.fnId, callMsg.params);
+        this.#manager.handleFunctionCall(callMsg.callId, callMsg.fnId, callMsg.params);
         break;
       }
 
@@ -596,7 +596,7 @@ export class Frame extends HTMLElement {
           logger.warn("Invalid FUNCTION_RESPONSE message:", message);
           return;
         }
-        this._manager.handleFunctionResponse(callId, success, result, errorResult);
+        this.#manager.handleFunctionResponse(callId, success, result, errorResult);
         break;
       }
 
@@ -606,7 +606,7 @@ export class Frame extends HTMLElement {
           logger.warn("Invalid FUNCTION_RELEASE message:", message);
           return;
         }
-        this._manager.releaseFunction(releaseMsg.fnId);
+        this.#manager.releaseFunction(releaseMsg.fnId);
         break;
       }
 
@@ -617,7 +617,7 @@ export class Frame extends HTMLElement {
           return;
         }
         for (const fnId of batchMsg.fnIds) {
-          this._manager.releaseFunction(fnId);
+          this.#manager.releaseFunction(fnId);
         }
         break;
       }
@@ -653,12 +653,12 @@ export class Frame extends HTMLElement {
    * Internal method to send event to child iframe
    */
   _emitToChild(eventName: string, data?: unknown) {
-    if (!this._port) {
+    if (!this.#port) {
       logger.warn("MessagePort not ready, cannot emit event");
       return;
     }
 
-    const { serialized, transferables } = this._manager.serialize(data);
+    const { serialized, transferables } = this.#manager.serialize(data);
 
     this._sendToIframe(
       {
@@ -740,13 +740,13 @@ export class Frame extends HTMLElement {
    * Handles errors gracefully (e.g., DataCloneError, port closed, transferable already transferred)
    */
   private _sendToIframe(message: unknown, transferables: Transferable[] = []): boolean {
-    if (!this._port) {
+    if (!this.#port) {
       logger.error("MessagePort not ready");
       return false;
     }
 
     try {
-      this._port.postMessage(message, transferables);
+      this.#port.postMessage(message, transferables);
       return true;
     } catch (error) {
       logger.error("Failed to send message:", error);
@@ -765,11 +765,11 @@ export class Frame extends HTMLElement {
    * Internal cleanup method called on disconnect or error
    */
   private _cleanup(): void {
-    this._observer?.disconnect();
-    this._observer = undefined;
+    this.#observer?.disconnect();
+    this.#observer = undefined;
 
     // Release tracked functions
-    const functionIds = Array.from(this._manager?.getTrackedFunctions() || []);
+    const functionIds = Array.from(this.#manager?.getTrackedFunctions() || []);
     if (functionIds.length > 0) {
       this._sendToIframe({
         fnIds: functionIds,
@@ -778,22 +778,22 @@ export class Frame extends HTMLElement {
     }
 
     // Clean up port and handlers
-    if (this._port) {
-      this._port.onmessage = null;
-      this._port.close();
+    if (this.#port) {
+      this.#port.onmessage = null;
+      this.#port.close();
     }
-    this._portMessageHandler = undefined;
+    this.#portMessageHandler = undefined;
 
     // Clean up remaining resources
-    this._manager?.cleanup();
+    this.#manager?.cleanup();
     this._dynamicMethods?.clear();
     this._propValues?.clear();
     this._definedProps?.clear();
     this._registeredFunctions?.clear();
-    this._iframe?.remove();
+    this.#iframe?.remove();
 
     // Reset ready state
-    this._ready = false;
+    this.#ready = false;
   }
 
   /**
