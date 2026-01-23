@@ -45,8 +45,8 @@ describe("Frame", () => {
     });
 
     it("should extract target origin from src", () => {
-      (frame as any)._origin = new URL("http://localhost:3000").origin;
-      expect((frame as any)._origin).toBe("http://localhost:3000");
+      frame.__origin = new URL("http://localhost:3000").origin;
+      expect(frame.__origin).toBe("http://localhost:3000");
     });
 
     it("should use default base path when not provided", () => {
@@ -100,9 +100,9 @@ describe("Frame", () => {
 
   describe("message handling", () => {
     beforeEach(() => {
-      (frame as any)._ready = true;
-      (frame as any)._iframe = mockIframe;
-      (frame as any)._origin = "http://localhost:3000";
+      frame.__ready = true;
+      frame.__iframe = mockIframe;
+      frame.__origin = "http://localhost:3000";
     });
 
     it("should handle READY message", () => {
@@ -111,7 +111,7 @@ describe("Frame", () => {
 
       (frame as any).handleMessageFromIframe({ type: MessageEvent.READY });
 
-      expect((frame as any)._ready).toBe(true);
+      expect(frame.__ready).toBe(true);
       expect(readyHandler).toHaveBeenCalledTimes(1);
     });
 
@@ -132,30 +132,30 @@ describe("Frame", () => {
 
     it("should handle FUNCTION_RELEASE message", () => {
       const fnId = "test-fn-id";
-      (frame as any)._functionRegistry.set(fnId, () => {});
-      (frame as any)._trackedFunctions.add(fnId);
+      (frame.__manager as any).__functionRegistry.set(fnId, () => {});
+      (frame.__manager as any).__trackedFunctions.add(fnId);
 
       (frame as any).handleMessageFromIframe({
         type: MessageEvent.FUNCTION_RELEASE,
         fnId,
       });
 
-      expect((frame as any)._functionRegistry.has(fnId)).toBe(false);
-      expect((frame as any)._trackedFunctions.has(fnId)).toBe(false);
+      expect((frame.__manager as any).__functionRegistry.has(fnId)).toBe(false);
+      expect((frame.__manager as any).__trackedFunctions.has(fnId)).toBe(false);
     });
   });
 
   describe("function calls", () => {
     beforeEach(() => {
-      (frame as any)._ready = true;
-      (frame as any)._iframe = mockIframe;
-      (frame as any)._origin = "http://localhost:3000";
+      frame.__ready = true;
+      frame.__iframe = mockIframe;
+      frame.__origin = "http://localhost:3000";
     });
 
     it("should handle function call from child", async () => {
       const testFn = mock(() => "result");
       const fnId = "test-fn-id";
-      (frame as any)._functionRegistry.set(fnId, testFn);
+      (frame.__manager as any).__functionRegistry.set(fnId, testFn);
 
       await (frame as any).handleFunctionCall("call-1", fnId, [1, 2, 3]);
 
@@ -168,7 +168,7 @@ describe("Frame", () => {
         throw new Error("Test error");
       });
       const fnId = "test-fn-id";
-      (frame as any)._functionRegistry.set(fnId, testFn);
+      (frame.__manager as any).__functionRegistry.set(fnId, testFn);
 
       await (frame as any).handleFunctionCall("call-1", fnId, []);
 
@@ -194,13 +194,13 @@ describe("Frame", () => {
         reject: mock(() => {}),
         timeout: setTimeout(() => {}, 1000),
       };
-      (frame as any)._pendingFunctionCalls.set(callId, resolver);
+      (frame.__manager as any).__pendingFunctionCalls.set(callId, resolver);
 
       (frame as any).handleFunctionResponse(callId, true, { data: "result" }, undefined);
 
       expect(resolver.resolve).toHaveBeenCalledWith({ data: "result" });
       expect(resolver.reject).not.toHaveBeenCalled();
-      expect((frame as any)._pendingFunctionCalls.has(callId)).toBe(false);
+      expect((frame.__manager as any).__pendingFunctionCalls.has(callId)).toBe(false);
     });
 
     it("should handle function response error", () => {
@@ -210,7 +210,7 @@ describe("Frame", () => {
         reject: mock(() => {}),
         timeout: setTimeout(() => {}, 1000),
       };
-      (frame as any)._pendingFunctionCalls.set(callId, resolver);
+      (frame.__manager as any).__pendingFunctionCalls.set(callId, resolver);
 
       (frame as any).handleFunctionResponse(callId, false, undefined, "Test error");
 
@@ -219,7 +219,7 @@ describe("Frame", () => {
     });
 
     it("should timeout function call", async () => {
-      (frame as any)._ready = true;
+      frame.__ready = true;
 
       const promise = (frame as any).callChildFunction("fn-id", []);
 
@@ -237,9 +237,9 @@ describe("Frame", () => {
 
   describe("property proxy", () => {
     beforeEach(() => {
-      (frame as any)._ready = true;
-      (frame as any)._iframe = mockIframe;
-      (frame as any)._origin = "http://localhost:3000";
+      frame.__ready = true;
+      frame.__iframe = mockIframe;
+      frame.__origin = "http://localhost:3000";
     });
 
     it("should serialize function properties", () => {
@@ -261,7 +261,7 @@ describe("Frame", () => {
     });
 
     it("should not intercept when not ready", () => {
-      (frame as any)._ready = false;
+      frame.__ready = false;
       (frame as any).someProperty = "test";
       expect(mockIframe.contentWindow.postMessage).not.toHaveBeenCalled();
     });
@@ -269,7 +269,7 @@ describe("Frame", () => {
 
   describe("cleanup", () => {
     beforeEach(() => {
-      (frame as any)._iframe = mockIframe;
+      frame.__iframe = mockIframe;
       (frame as any)._mutationObserver = {
         disconnect: mock(() => {}),
       };
@@ -277,13 +277,13 @@ describe("Frame", () => {
 
     it("should clean up on disconnect", () => {
       const fnId = "test-fn-id";
-      (frame as any)._functionRegistry.set(fnId, () => {});
-      (frame as any)._trackedFunctions.add(fnId);
+      (frame.__manager as any).__functionRegistry.set(fnId, () => {});
+      (frame.__manager as any).__trackedFunctions.add(fnId);
 
       frame.disconnectedCallback();
 
-      expect((frame as any)._functionRegistry.size).toBe(0);
-      expect((frame as any)._trackedFunctions.size).toBe(0);
+      expect((frame.__manager as any).__functionRegistry.size).toBe(0);
+      expect((frame.__manager as any).__trackedFunctions.size).toBe(0);
       expect(mockIframe.remove).toHaveBeenCalled();
     });
 
@@ -293,19 +293,19 @@ describe("Frame", () => {
         reject: mock(() => {}),
         timeout: setTimeout(() => {}, 1000),
       };
-      (frame as any)._pendingFunctionCalls.set("call-1", resolver);
+      (frame.__manager as any).__pendingFunctionCalls.set("call-1", resolver);
 
       frame.disconnectedCallback();
 
       expect(resolver.reject).toHaveBeenCalled();
-      expect((frame as any)._pendingFunctionCalls.size).toBe(0);
+      expect((frame.__manager as any).__pendingFunctionCalls.size).toBe(0);
     });
   });
 
   describe("sendToIframe", () => {
     beforeEach(() => {
-      (frame as any)._iframe = mockIframe;
-      (frame as any)._origin = "http://localhost:3000";
+      frame.__iframe = mockIframe;
+      frame.__origin = "http://localhost:3000";
     });
 
     it("should send message without transferables", () => {
@@ -331,7 +331,7 @@ describe("Frame", () => {
     });
 
     it("should handle missing iframe", () => {
-      (frame as any)._iframe = null;
+      frame.__iframe = null;
       const consoleSpy = mock(() => {});
       const originalError = console.error;
       console.error = consoleSpy;
