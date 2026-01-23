@@ -1,6 +1,7 @@
 import { FUNCTION_CALL_TIMEOUT, MessageEvent } from "../constants";
 import type { PostMessageFn } from "../types";
 import { deserializeValue, serializeValue } from "./serialization";
+import { assertTestEnv } from "./test-guards";
 
 interface PendingFunctionCall {
   reject: (reason?: unknown) => void;
@@ -27,6 +28,33 @@ export class FunctionManager {
 
   constructor(postMessage: PostMessageFn) {
     this._postMessage = postMessage;
+  }
+
+  /**
+   * Get function registry
+   * @internal - For testing purposes only
+   */
+  get __functionRegistry(): Map<string, Function> {
+    assertTestEnv();
+    return this._functionRegistry;
+  }
+
+  /**
+   * Get pending function calls
+   * @internal - For testing purposes only
+   */
+  get __pendingFunctionCalls(): Map<string, any> {
+    assertTestEnv();
+    return this._pendingFunctionCalls;
+  }
+
+  /**
+   * Get tracked functions
+   * @internal - For testing purposes only
+   */
+  get __trackedFunctions(): Set<string> {
+    assertTestEnv();
+    return this._trackedFunctions;
   }
 
   /**

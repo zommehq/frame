@@ -2,6 +2,7 @@ import { MessageEvent } from "./constants";
 import { FunctionManager } from "./helpers/function-manager";
 import { createLogger } from "./helpers/logger";
 import { validateMessage } from "./helpers/message-validators";
+import { assertTestEnv } from "./helpers/test-guards";
 import type {
   CustomEventMessage,
   FrameProps,
@@ -211,6 +212,50 @@ export class Frame extends HTMLElement {
     } else {
       this.setAttribute("pathname", value);
     }
+  }
+
+  /**
+   * Check if frame is ready
+   * @public
+   */
+  get isReady(): boolean {
+    return this._ready;
+  }
+
+  /**
+   * Get frame origin
+   * @internal - For testing purposes only
+   */
+  get __origin(): string {
+    assertTestEnv();
+    return this._origin;
+  }
+
+  /**
+   * Get iframe element
+   * @internal - For testing purposes only
+   */
+  get __iframe(): HTMLIFrameElement {
+    assertTestEnv();
+    return this._iframe;
+  }
+
+  /**
+   * Get ready state
+   * @internal - For testing purposes only
+   */
+  get __ready(): boolean {
+    assertTestEnv();
+    return this._ready;
+  }
+
+  /**
+   * Get function manager (for testing function registry)
+   * @internal - For testing purposes only
+   */
+  get __manager(): FunctionManager {
+    assertTestEnv();
+    return this._manager;
   }
 
   /**
