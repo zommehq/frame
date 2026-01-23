@@ -259,6 +259,33 @@ export class Frame extends HTMLElement {
   }
 
   /**
+   * Set ready state (for testing)
+   * @internal - For testing purposes only
+   */
+  set __ready(value: boolean) {
+    assertTestEnv();
+    this.#ready = value;
+  }
+
+  /**
+   * Set iframe element (for testing)
+   * @internal - For testing purposes only
+   */
+  set __iframe(value: HTMLIFrameElement | null) {
+    assertTestEnv();
+    this.#iframe = value as HTMLIFrameElement;
+  }
+
+  /**
+   * Set origin (for testing)
+   * @internal - For testing purposes only
+   */
+  set __origin(value: string) {
+    assertTestEnv();
+    this.#origin = value;
+  }
+
+  /**
    * Web Component lifecycle: called when an observed attribute changes
    */
   attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null) {
