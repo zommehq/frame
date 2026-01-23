@@ -392,7 +392,7 @@ describe("FrameSDK", () => {
       sdk.on("custom-event", handler);
 
       (sdk as any)._handleMessage({
-        origin: (sdk as any)._parentOrigin,
+        origin: sdk.__parentOrigin,
         data: {
           type: MessageEvent.EVENT,
           name: "custom-event",
@@ -648,7 +648,7 @@ describe("FrameSDK", () => {
       sdk.watch(handler);
 
       (sdk as any)._handleMessage({
-        origin: (sdk as any)._parentOrigin,
+        origin: sdk.__parentOrigin,
         data: {
           type: MessageEvent.ATTRIBUTE_CHANGE,
           attribute: "theme",
@@ -669,7 +669,7 @@ describe("FrameSDK", () => {
 
       // Change watched property
       (sdk as any)._handleMessage({
-        origin: (sdk as any)._parentOrigin,
+        origin: sdk.__parentOrigin,
         data: {
           type: MessageEvent.ATTRIBUTE_CHANGE,
           attribute: "theme",
@@ -681,7 +681,7 @@ describe("FrameSDK", () => {
 
       // Change unwatched property
       (sdk as any)._handleMessage({
-        origin: (sdk as any)._parentOrigin,
+        origin: sdk.__parentOrigin,
         data: {
           type: MessageEvent.ATTRIBUTE_CHANGE,
           attribute: "apiUrl",
@@ -702,7 +702,7 @@ describe("FrameSDK", () => {
 
       // Trigger change
       (sdk as any)._handleMessage({
-        origin: (sdk as any)._parentOrigin,
+        origin: sdk.__parentOrigin,
         data: {
           type: MessageEvent.ATTRIBUTE_CHANGE,
           attribute: "theme",
@@ -720,7 +720,7 @@ describe("FrameSDK", () => {
 
       // First change
       (sdk as any)._handleMessage({
-        origin: (sdk as any)._parentOrigin,
+        origin: sdk.__parentOrigin,
         data: {
           type: MessageEvent.ATTRIBUTE_CHANGE,
           attribute: "theme",
@@ -735,7 +735,7 @@ describe("FrameSDK", () => {
 
       // Second change
       (sdk as any)._handleMessage({
-        origin: (sdk as any)._parentOrigin,
+        origin: sdk.__parentOrigin,
         data: {
           type: MessageEvent.ATTRIBUTE_CHANGE,
           attribute: "theme",
@@ -757,7 +757,7 @@ describe("FrameSDK", () => {
       sdk.watch(["theme"], handler2);
 
       (sdk as any)._handleMessage({
-        origin: (sdk as any)._parentOrigin,
+        origin: sdk.__parentOrigin,
         data: {
           type: MessageEvent.ATTRIBUTE_CHANGE,
           attribute: "theme",
@@ -781,7 +781,7 @@ describe("FrameSDK", () => {
       // Should not throw
       expect(() => {
         (sdk as any)._handleMessage({
-          origin: (sdk as any)._parentOrigin,
+          origin: sdk.__parentOrigin,
           data: {
             type: MessageEvent.ATTRIBUTE_CHANGE,
             attribute: "theme",
@@ -800,7 +800,7 @@ describe("FrameSDK", () => {
       sdk.watch(["theme"], handler);
 
       (sdk as any)._handleMessage({
-        origin: (sdk as any)._parentOrigin,
+        origin: sdk.__parentOrigin,
         data: {
           type: MessageEvent.ATTRIBUTE_CHANGE,
           attribute: "theme",
@@ -835,7 +835,7 @@ describe("FrameSDK", () => {
 
       // Trigger event
       (sdk as any)._handleMessage({
-        origin: (sdk as any)._parentOrigin,
+        origin: sdk.__parentOrigin,
         data: {
           type: MessageEvent.EVENT,
           name: "test-event",

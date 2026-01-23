@@ -15,11 +15,11 @@ describe("integration: Frame <-> FrameSDK", () => {
 
     // Setup Frame
     frame = new Frame() as any;
-    (frame as any)._ready = true;
-    (frame as any)._origin = "http://localhost:3000";
+    frame.__ready = true;
+    frame.__origin = "http://localhost:3000";
 
     // Mock iframe that captures messages to child
-    (frame as any)._iframe = {
+    frame.__iframe = {
       contentWindow: {
         postMessage: (message: any, origin: string, transferables?: Transferable[]) => {
           childMessages.push({ message, origin, transferables });
@@ -85,7 +85,7 @@ describe("integration: Frame <-> FrameSDK", () => {
     it("should deserialize functions in initial props", async () => {
       const testFn = () => "parent function";
       const fnId = "test-fn-id";
-      (frame as any)._functionRegistry.set(fnId, testFn);
+      (frame.__manager as any).__functionRegistry.set(fnId, testFn);
 
       const initPromise = sdk.initialize();
 
@@ -197,7 +197,7 @@ describe("integration: Frame <-> FrameSDK", () => {
     it("should call parent function from child", async () => {
       const parentFn = mock((data: any) => `Result: ${data.value}`);
       const fnId = "parent-fn-id";
-      (frame as any)._functionRegistry.set(fnId, parentFn);
+      (frame.__manager as any).__functionRegistry.set(fnId, parentFn);
 
       // Deserialize function in child
       const childProxy = (sdk as any).deserializeValue({
@@ -380,7 +380,7 @@ describe("integration: Frame <-> FrameSDK", () => {
     it("should deserialize functions in attribute updates", () => {
       const parentFn = () => "updated function";
       const fnId = "new-fn-id";
-      (frame as any)._functionRegistry.set(fnId, parentFn);
+      (frame.__manager as any).__functionRegistry.set(fnId, parentFn);
 
       (sdk as any).handleMessage({
         origin: "http://localhost:4200",
@@ -417,8 +417,8 @@ describe("integration: Frame <-> FrameSDK", () => {
 
     it("should release child functions when parent disconnects", () => {
       const fnId = "test-fn-id";
-      (frame as any)._functionRegistry.set(fnId, () => {});
-      (frame as any)._trackedFunctions.add(fnId);
+      (frame.__manager as any).__functionRegistry.set(fnId, () => {});
+      (frame.__manager as any).__trackedFunctions.add(fnId);
 
       (sdk as any).functionRegistry.set(fnId, () => {});
       (sdk as any).trackedFunctions.add(fnId);
@@ -432,8 +432,8 @@ describe("integration: Frame <-> FrameSDK", () => {
       expect(releaseMessage).toBeDefined();
 
       // Check parent cleaned up
-      expect((frame as any)._functionRegistry.has(fnId)).toBe(false);
-      expect((frame as any)._trackedFunctions.has(fnId)).toBe(false);
+      expect((frame.__manager as any).__functionRegistry.has(fnId)).toBe(false);
+      expect((frame.__manager as any).__trackedFunctions.has(fnId)).toBe(false);
     });
 
     it("should handle function release from parent", () => {
@@ -478,7 +478,7 @@ describe("integration: Frame <-> FrameSDK", () => {
         throw new Error("Parent error");
       });
       const fnId = "parent-fn-id";
-      (frame as any)._functionRegistry.set(fnId, parentFn);
+      (frame.__manager as any).__functionRegistry.set(fnId, parentFn);
 
       const childProxy = (sdk as any).deserializeValue({ __fn: fnId });
 
