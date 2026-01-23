@@ -116,3 +116,74 @@ Shell (Parent)                          Frame (Child/Iframe)
 - **Workspace deps**: Declare all deps with `workspace:*`
 - **Build command**: Only use `bun run build` for production builds, not during development
 - **Git commits**: **NEVER** create commits without explicit user permission - always ask first
+
+## Development Workflow
+
+### Implementation Process (Bugfixes & Features)
+
+When implementing bugfixes or new features, **ALWAYS** follow this structured workflow:
+
+1. **Create Execution Plan**
+   - Break down the work into phases if the task is non-trivial (3+ steps)
+   - Document the plan in a markdown file (e.g., `FEATURE-NAME-PLAN.md`)
+   - Each phase should have clear objectives and success criteria
+
+2. **Create Feature Branch**
+   - Always create a new branch: `feature/feature-name` or `fix/bug-name`
+   - Never work directly on `main` branch
+   - Branch naming: `feature/`, `fix/`, `refactor/`, `docs/`
+
+3. **Execute Phase by Phase**
+   - Complete one phase at a time
+   - **Each phase MUST pass all tests** before proceeding
+   - Run `bun test` (or relevant tests) after each phase
+   - Only mark phase as complete when tests pass
+
+4. **Commit After Each Phase**
+   - Create a meaningful commit after each successful phase
+   - Commit message format: `type(scope): description`
+   - Examples:
+     - `feat(frame): add private fields support`
+     - `fix(sdk): resolve initialization race condition`
+     - `refactor(tests): update to use __ getters`
+     - `docs: add private fields migration plan`
+
+5. **NEVER Merge or Push Without Permission**
+   - **CRITICAL**: Do not run `git merge` or `git push` without explicit user authorization
+   - Always ask the user before merging to main
+   - Always ask the user before pushing to remote
+   - Exception: Pushing feature branch for backup is allowed if user requests
+
+### Example Workflow
+
+```bash
+# 1. Create plan document
+# Create FEATURE-NAME-PLAN.md with phases
+
+# 2. Create branch
+git checkout -b feature/private-fields
+
+# 3. Execute Phase 1
+# ... make changes ...
+bun test  # Must pass
+git add -A
+git commit -m "feat: add test-only getters"
+
+# 4. Execute Phase 2
+# ... make changes ...
+bun test  # Must pass
+git add -A
+git commit -m "test: update tests to use __ getters"
+
+# 5. After all phases complete - ASK USER
+# "All phases complete. Ready to merge/push?"
+```
+
+### Testing Requirements
+
+- All tests must pass before phase completion
+- If tests fail, fix issues before moving to next phase
+- Test commands:
+  - `bun test` - Run all tests
+  - `bun run build` - Verify build works
+  - Manual testing in browser when applicable
