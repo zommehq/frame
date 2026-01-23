@@ -1,6 +1,7 @@
 import { useFrameSDK, useRouteSync } from "@zomme/frame-react";
 import { type CSSProperties, useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useFrameActions } from "./hooks/useFrameActions";
 import { AppRoutes } from "./router";
 import type { User } from "./types";
 
@@ -22,6 +23,9 @@ function App({ sdkAvailable }: FrameProps = {}) {
   const { props, watchProps } = useFrameSDK<AppProps>();
   const [theme, setTheme] = useState<"dark" | "light">(props.theme || "light");
   const [_user, setUser] = useState<User | null>(props.user || null);
+
+  // Register frame actions for parent shell to call
+  useFrameActions();
 
   // Setup bidirectional route synchronization with parent shell
   useRouteSync(

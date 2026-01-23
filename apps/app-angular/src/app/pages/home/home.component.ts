@@ -1,7 +1,7 @@
 import { CommonModule } from "@angular/common";
-import { Component, effect } from "@angular/core";
+import { Component, effect, inject } from "@angular/core";
 import { RouterLink } from "@angular/router";
-import { injectFrameProps } from "@zomme/frame-angular";
+import { FramePropsService, injectFrameProps } from "@zomme/frame-angular";
 import { PageLayoutComponent } from "../../components/page-layout/page-layout.component";
 import type { HomeFrameProps } from "../../models/frame-props";
 
@@ -14,6 +14,7 @@ import type { HomeFrameProps } from "../../models/frame-props";
 })
 export class HomeComponent {
   private props = injectFrameProps<HomeFrameProps>();
+  private propsService = inject(FramePropsService);
 
   // Reactive data from parent
   protected theme = this.props.theme;
@@ -30,14 +31,8 @@ export class HomeComponent {
   }
 
   get propsString(): string {
-    return JSON.stringify(
-      {
-        apiUrl: this.apiUrl(),
-        base: this.base(),
-        theme: this.theme(),
-      },
-      null,
-      2,
-    );
+    // Get all props directly from the service signal
+    const allProps = this.propsService.asSignal()();
+    return JSON.stringify(allProps, null, 2);
   }
 }

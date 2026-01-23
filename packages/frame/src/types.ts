@@ -39,6 +39,8 @@ export interface FrameProps {
   base: string;
   name: string;
   pathname?: string;
+  src: string;
+  sandbox?: string;
   [key: string]: unknown;
 }
 
@@ -76,12 +78,6 @@ export interface ReadyMessage extends BaseMessage {
 export interface PropsUpdateMessage extends BaseMessage {
   payload: Record<string, unknown>;
   type: typeof MessageEvent.PROPS_UPDATE;
-}
-
-export interface AttributeChangeMessage extends BaseMessage {
-  attribute: string;
-  type: typeof MessageEvent.ATTRIBUTE_CHANGE;
-  value: unknown;
 }
 
 // Event messages
@@ -126,7 +122,6 @@ export type Message =
   | InitMessage
   | ReadyMessage
   | PropsUpdateMessage
-  | AttributeChangeMessage
   | EventMessage
   | CustomEventMessage
   | FunctionCallMessage

@@ -207,9 +207,13 @@ export default function Settings() {
                 name="theme"
                 style={styles.formInput}
                 value={settings.theme}
-                onChange={(e) =>
-                  setSettings({ ...settings, theme: e.target.value as "dark" | "light" })
-                }
+                onChange={(e) => {
+                  const newTheme = e.target.value as "dark" | "light";
+                  setSettings({ ...settings, theme: newTheme });
+                  if (typeof props.changeTheme === "function") {
+                    props.changeTheme(newTheme);
+                  }
+                }}
               >
                 <option value="light">Light</option>
                 <option value="dark">Dark</option>

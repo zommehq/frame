@@ -73,11 +73,12 @@ Vue 3 wrapper with component and composable.
 ## Scripts
 
 ```bash
-bun run dev              # Start all dev servers
-bun run build            # Build packages + apps
-bun run build:packages   # Build packages only
+bun run dev              # Start all dev servers (with watch mode)
+bun run build            # Build packages + apps (for production)
 bun run reinstall        # Clean and reinstall everything
 ```
+
+**Note:** When `bun run dev` is running, all packages and apps are in **watch mode**. Changes are automatically rebuilt - **no need to run build commands manually** during development.
 
 ## Communication Architecture
 
@@ -109,7 +110,9 @@ Shell (Parent)                          Frame (Child/Iframe)
 
 ## Important Notes
 
+- **Dev mode**: `bun run dev` runs with watch mode - changes auto-rebuild, **no manual build needed**
 - **Arrow functions**: Use arrow functions in services to preserve `this`
-- **Rebuild packages**: Always rebuild after modifying `packages/`
-- **Hard refresh**: Ctrl+Shift+R to clear browser cache
+- **Hard refresh**: Ctrl+Shift+R to clear browser cache if changes don't appear
 - **Workspace deps**: Declare all deps with `workspace:*`
+- **Build command**: Only use `bun run build` for production builds, not during development
+- **Git commits**: **NEVER** create commits without explicit user permission - always ask first

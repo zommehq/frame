@@ -5,7 +5,6 @@ export const MessageEvent = {
 
   // Properties
   PROPS_UPDATE: "__PROPS_UPDATE__",
-  ATTRIBUTE_CHANGE: "__ATTRIBUTE_CHANGE__",
 
   // Events
   EVENT: "__EVENT__",
@@ -69,7 +68,6 @@ export const ErrorMessages = {
   IFRAME_LOAD_FAILED: "Failed to load iframe",
   IFRAME_LOAD_TIMEOUT: "Iframe load timeout after 10s",
   INIT_TIMEOUT: "Initialization timeout: INIT message not received within timeout",
-  INVALID_ATTRIBUTE_MESSAGE: "Invalid ATTRIBUTE_CHANGE message",
   INVALID_CUSTOM_EVENT_MESSAGE: "Invalid CUSTOM_EVENT message",
   INVALID_EVENT_MESSAGE: "Invalid EVENT message",
   INVALID_EVENT_NAME: "Invalid event name",

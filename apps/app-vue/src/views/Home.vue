@@ -13,17 +13,7 @@ const { props, watchProps } = useFrameSDK<HomeProps>();
 
 const theme = ref<"dark" | "light">(props.value.theme || "light");
 
-const propsString = computed(() =>
-  JSON.stringify(
-    {
-      apiUrl: props.value.apiUrl,
-      base: props.value.base,
-      theme: props.value.theme,
-    },
-    null,
-    2,
-  ),
-);
+const propsString = computed(() => JSON.stringify(props.value, null, 2));
 
 onMounted(() => {
   if (props.value.theme) {

@@ -56,6 +56,13 @@ watch(theme, (newTheme) => {
   document.body.classList.add(newTheme);
 });
 
+function handleThemeChange(event: Event) {
+  const newTheme = (event.target as HTMLSelectElement).value as "dark" | "light";
+  if (typeof props.value.changeTheme === "function") {
+    props.value.changeTheme(newTheme);
+  }
+}
+
 async function handleSubmit(event: Event) {
   event.preventDefault();
   isSaving.value = true;
@@ -168,7 +175,7 @@ function handleReset() {
 
         <div class="form-group">
           <label for="theme">Theme</label>
-          <select id="theme" v-model="settings.theme" name="theme">
+          <select id="theme" v-model="settings.theme" name="theme" @change="handleThemeChange">
             <option value="light">Light</option>
             <option value="dark">Dark</option>
           </select>

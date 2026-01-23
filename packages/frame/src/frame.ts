@@ -60,17 +60,31 @@ const logger = createLogger("z-frame");
  */
 export class Frame extends HTMLElement {
   /**
-   * Attributes that should not be sent as props or observed dynamically
-   * (iframe-specific or already handled specially)
-   */
-  static readonly EXCLUDED_ATTRS = ["src", "sandbox", "base", "name", "pathname"];
-
-  /**
    * Observed attributes for Web Component lifecycle
    */
   static get observedAttributes() {
     return ["base", "name", "pathname", "sandbox", "src"];
   }
+
+  /**
+   * Attribute getters for prop updates
+   * Maps attribute names to functions that retrieve their values
+   */
+  private static readonly ATTR_GETTERS: Record<
+    string,
+    (instance: Frame, val?: string | null) => unknown
+  > = {
+    pathname: (instance) => instance.pathname,
+    base: (instance) => instance.base,
+    sandbox: (instance) => instance.sandbox,
+    name: (_, val) => val,
+    src: (_, val) => val,
+  };
+
+  /**
+   * Attributes that require iframe recreate when changed
+   */
+  private static readonly RECREATE_ATTRS = new Set(["src", "sandbox"]);
 
   _iframe!: HTMLIFrameElement;
   _observer?: MutationObserver;
@@ -111,43 +125,6 @@ export class Frame extends HTMLElement {
   }
 
   /**
-   * Sync a property value to the iframe
-   *
-   * Only syncs if frame is ready. Serializes the value (including functions)
-   * and sends via MessagePort.
-   */
-  _syncPropertyToIframe(prop: string, value: unknown): void {
-    if (!this._ready) return;
-
-    try {
-      const { serialized, transferables } = this._manager.serialize(value);
-
-      const success = this._sendToIframe(
-        {
-          attribute: prop,
-          type: MessageEvent.ATTRIBUTE_CHANGE,
-          value: serialized,
-        },
-        transferables,
-      );
-
-      if (!success) {
-        console.warn(`[z-frame] Failed to sync property '${prop}' to iframe`);
-        this._emit("error", {
-          message: `Failed to sync property '${prop}' to iframe`,
-          property: prop,
-        });
-      }
-    } catch (error) {
-      console.error(`[z-frame] Failed to serialize property '${prop}':`, error);
-      this._emit("error", {
-        message: `Property serialization failed: ${prop}`,
-        error,
-      });
-    }
-  }
-
-  /**
    * Get frame name
    */
   get name(): string | null {
@@ -156,6 +133,8 @@ export class Frame extends HTMLElement {
 
   /**
    * Get frame source URL
+   *
+   * Note: Changing src after initialization will recreate the iframe (reload the frame app)
    */
   get src(): string | null {
     return this.getAttribute("src");
@@ -183,7 +162,21 @@ export class Frame extends HTMLElement {
   }
 
   /**
+   * Set base path (syncs to HTML attribute)
+   * Allows property binding to work
+   */
+  set base(value: string | null) {
+    if (value === null) {
+      this.removeAttribute("base");
+    } else {
+      this.setAttribute("base", value);
+    }
+  }
+
+  /**
    * Get sandbox permissions
+   *
+   * Note: Changing sandbox after initialization will recreate the iframe (reload the frame app)
    */
   get sandbox(): string {
     return (
@@ -209,6 +202,18 @@ export class Frame extends HTMLElement {
   }
 
   /**
+   * Set pathname (syncs to HTML attribute)
+   * Allows Angular/React/Vue property binding to work
+   */
+  set pathname(value: string | null) {
+    if (value === null) {
+      this.removeAttribute("pathname");
+    } else {
+      this.setAttribute("pathname", value);
+    }
+  }
+
+  /**
    * Web Component lifecycle: called when an observed attribute changes
    */
   attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null) {
@@ -228,30 +233,31 @@ export class Frame extends HTMLElement {
       }
     }
 
-    // If src changes after initialization, warn
-    if (name === "src" && this._iframe && oldValue) {
-      logger.warn("Changing src attribute after initialization is not supported");
+    // If src or sandbox changes after initialization, recreate iframe
+    if (this._iframe && Frame.RECREATE_ATTRS.has(name)) {
+      // src: always has oldValue when iframe exists
+      // sandbox: may be first-time set (oldValue === null) or normal change
+      const shouldRecreate =
+        (name === "src" && oldValue !== null && oldValue !== newValue) ||
+        (name === "sandbox" &&
+          ((oldValue !== null && oldValue !== newValue) ||
+            (oldValue === null && newValue !== null)));
+
+      if (shouldRecreate) {
+        logger.log(`${name} changed - recreating iframe`);
+        this._cleanup();
+        this._origin = new URL(this.src!).origin;
+        this._initialize();
+        return; // Don't send PROPS_UPDATE, new iframe gets INIT with all props
+      }
     }
 
     // Handle dynamic attribute changes after frame is ready
     // Send PROPS_UPDATE for attributes that should be synced to frameSDK.props
     if (this._ready) {
-      // pathname: use getter (already normalized)
-      if (name === "pathname") {
-        this._sendPropUpdate({ pathname: this.pathname });
-      }
-      // base: use getter (already normalized)
-      else if (name === "base") {
-        this._sendPropUpdate({ base: this.base });
-      }
-      // name: send as-is
-      else if (name === "name") {
-        this._sendPropUpdate({ name: newValue });
-      }
-      // Other custom attributes: send (but not src/sandbox which are iframe-only)
-      else if (name !== "src" && name !== "sandbox") {
-        this._sendPropUpdate({ [name]: newValue });
-      }
+      const getter = Frame.ATTR_GETTERS[name];
+      const value = getter ? getter(this, newValue) : newValue;
+      this._sendPropUpdate({ [name]: value });
     }
   }
 
@@ -261,23 +267,29 @@ export class Frame extends HTMLElement {
    * Creates the iframe, sets up message listeners, and initializes
    * communication with the child frame.
    *
-   * Note: Initialization may be deferred until attributes are set via attributeChangedCallback
+   * Note: Initialization is deferred to allow framework property bindings
+   * (Angular/React/Vue) to set properties before iframe loads. We use
+   * queueMicrotask to defer until after synchronous property assignments
+   * and framework change detection, but before the next paint.
    */
   connectedCallback() {
-    // If both name and src are already set, initialize immediately
-    if (this.name && this.src && !this._iframe) {
-      try {
-        this._origin = new URL(this.src).origin;
-        this._initialize();
-      } catch (error) {
-        console.error(`[z-frame] Initialization failed:`, error);
-        this._emit("error", {
-          message: error instanceof Error ? error.message : "Initialization failed",
-          error,
-        });
+    // Defer initialization using microtask queue
+    // This runs after property bindings but before the next frame
+    queueMicrotask(() => {
+      // If both name and src are set and not yet initialized, do it now
+      if (this.name && this.src && !this._iframe) {
+        try {
+          this._origin = new URL(this.src).origin;
+          this._initialize();
+        } catch (error) {
+          console.error(`[z-frame] Initialization failed:`, error);
+          this._emit("error", {
+            message: error instanceof Error ? error.message : "Initialization failed",
+            error,
+          });
+        }
       }
-    }
-    // Otherwise, wait for attributeChangedCallback to trigger initialization
+    });
   }
 
   /**
@@ -384,22 +396,25 @@ export class Frame extends HTMLElement {
    * @returns Props object with all attributes and properties
    */
   private _collectAllProps(): Record<string, unknown> {
-    // Start with base, name, and pathname
+    // Start with all special props (use getters for normalization where needed)
     const props: Record<string, unknown> = {
-      base: this.base,
-      name: this.name,
-      pathname: this.pathname,
+      base: this.base, // Getter - normalized
+      name: this.name, // Direct
+      pathname: this.pathname, // Getter - normalized
+      src: this.src, // Direct - always included for child context
+      sandbox: this.sandbox, // Getter - has default value
     };
 
-    // Collect ALL HTML attributes except those in EXCLUDED_ATTRS
+    // Collect custom HTML attributes (skip observed attributes already added above)
+    const observedAttrs = Frame.observedAttributes;
     for (let i = 0; i < this.attributes.length; i++) {
       const attr = this.attributes[i];
-      if (!Frame.EXCLUDED_ATTRS.includes(attr.name)) {
+      if (!observedAttrs.includes(attr.name)) {
         props[attr.name] = attr.value;
       }
     }
 
-    // Collect dynamic properties from _propValues
+    // Collect dynamic properties from _propValues (override HTML attributes if same name)
     for (const [key, value] of this._propValues.entries()) {
       if (value !== undefined) {
         props[key] = value;
@@ -443,7 +458,7 @@ export class Frame extends HTMLElement {
    *
    * @param updates - Object with prop keys and new values
    */
-  private _sendPropUpdate(updates: Record<string, unknown>): void {
+  _sendPropUpdate(updates: Record<string, unknown>): void {
     if (!this._ready) return;
 
     const { serialized, transferables } = this._manager.serialize(updates);
@@ -460,22 +475,25 @@ export class Frame extends HTMLElement {
   /**
    * Setup MutationObserver to watch for attribute changes
    *
-   * Observes attribute changes and syncs them to the child iframe.
-   * Only observes attributes that are not fixed (not base, name, sandbox, src).
+   * Observes attribute changes and syncs them to the child iframe via PROPS_UPDATE.
+   * Skips observedAttributes as they're handled by attributeChangedCallback.
    */
   private _setupAttributeObserver(): void {
+    // Convert to Set for O(1) lookup performance
+    const observedAttrsSet = new Set(Frame.observedAttributes);
+
     this._observer = new MutationObserver((mutations) => {
       mutations.forEach((mutation) => {
         const attrName = mutation.attributeName;
-        if (attrName && !Frame.EXCLUDED_ATTRS.includes(attrName)) {
+        // Skip observed attributes (handled by attributeChangedCallback)
+        if (attrName && !observedAttrsSet.has(attrName)) {
           const value = this.getAttribute(attrName);
           const { serialized, transferables } = this._manager.serialize(value);
 
           this._sendToIframe(
             {
-              attribute: attrName,
-              type: MessageEvent.ATTRIBUTE_CHANGE,
-              value: serialized,
+              type: MessageEvent.PROPS_UPDATE,
+              payload: { [attrName]: serialized },
             },
             transferables,
           );
@@ -483,10 +501,7 @@ export class Frame extends HTMLElement {
       });
     });
 
-    this._observer.observe(this, {
-      attributes: true,
-      attributeOldValue: false,
-    });
+    this._observer.observe(this, { attributes: true });
   }
 
   private _handleMessageFromIframe(data: unknown) {
@@ -808,9 +823,9 @@ const setupPrototypeProxy = () => {
 
       const instance = receiver as Frame;
 
-      // Allow native HTMLElement properties, Frame methods, and excluded attributes
+      // Allow observed attributes (handled by attributeChangedCallback)
       if (
-        Frame.EXCLUDED_ATTRS.includes(prop) ||
+        Frame.observedAttributes.includes(prop) ||
         prop in HTMLElement.prototype ||
         prop in Frame.prototype
       ) {
@@ -826,14 +841,14 @@ const setupPrototypeProxy = () => {
           get: () => instance._propValues.get(prop),
           set: (v) => {
             instance._propValues.set(prop, v);
-            instance._syncPropertyToIframe(prop, v);
+            instance._sendPropUpdate({ [prop]: v });
           },
         });
       }
 
       // Set value and sync to iframe
       instance._propValues.set(prop, value);
-      instance._syncPropertyToIframe(prop, value);
+      instance._sendPropUpdate({ [prop]: value });
 
       return true;
     },

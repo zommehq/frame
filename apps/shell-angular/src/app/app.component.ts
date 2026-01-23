@@ -43,9 +43,12 @@ export class AppComponent implements OnInit, OnDestroy {
   /**
    * Extract pathname relative to frame base
    * Ex: URL="/react/tasks" + frameName="react" → "/tasks"
+   *
+   * Uses location.pathname to get immediate value (router.url is async and may be '/' on first render)
    */
   getFramePathname(frameName: FrameName): string {
-    const currentUrl = this.router.url;
+    // Use location.pathname for immediate sync value (router.url is async)
+    const currentUrl = location.pathname;
     const basePath = `/${frameName}`;
 
     if (currentUrl.startsWith(basePath)) {

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useFrameSDK } from "@zomme/frame-vue";
 import { onMounted, onUnmounted, ref } from "vue";
+import { useFrameActions } from "./composables/useFrameActions";
 import type { User } from "./types";
 
 interface AppProps {
@@ -13,6 +14,9 @@ interface AppProps {
 const { props, watchProps } = useFrameSDK<AppProps>();
 const theme = ref<"dark" | "light">(props.value.theme || "light");
 const user = ref<User | null>(props.value.user || null);
+
+// Register frame actions for parent shell to call
+useFrameActions();
 
 onMounted(() => {
   if (typeof props.value.successCallback === "function") {

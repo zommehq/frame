@@ -3,7 +3,6 @@ import { FunctionManager } from "./helpers/function-manager";
 import { createLogger } from "./helpers/logger";
 import { validateMessage } from "./helpers/message-validators";
 import type {
-  AttributeChangeMessage,
   EventMessage,
   FrameProps,
   FunctionCallMessage,
@@ -258,8 +257,51 @@ export class FrameSDK {
         // Deserialize updates (may contain functions)
         const updates = this._functionManager.deserialize(updateMsg.payload);
 
-        // Merge updates into existing props (reactive)
-        Object.assign(this.props, updates);
+        // Ensure updates is an object
+        if (typeof updates !== "object" || updates === null) {
+          logger.warn("PROPS_UPDATE payload is not an object:", updates);
+          return;
+        }
+
+        // Track changes for watch handlers
+        const changes: PropChanges<FrameProps> = {};
+
+        // Update each property and track old/new values
+        for (const [key, newValue] of Object.entries(updates as Record<string, unknown>)) {
+          // Validate property name to prevent prototype pollution
+          if (key === "__proto__" || key === "constructor" || key === "prototype") {
+            logger.warn(`Forbidden property name: ${key}`);
+            continue;
+          }
+
+          // Get old value
+          const oldValue = this._propOldValues.get(key) ?? Reflect.get(this.props, key);
+
+          // Update prop safely using Reflect
+          Reflect.set(this.props, key, newValue);
+
+          // Store new value as old value for next change
+          this._propOldValues.set(key, newValue);
+
+          // Track change for watch handlers
+          changes[key] = [newValue, oldValue];
+        }
+
+        // Trigger watch handlers if there are changes
+        if (Object.keys(changes).length > 0 && this._watchHandlers.size > 0) {
+          this._watchHandlers.forEach(({ props, handler }) => {
+            // If watching all props, or if any changed prop is in the watch list
+            const changedKeys = Object.keys(changes);
+            if (!props || changedKeys.some((key) => props.includes(key))) {
+              try {
+                handler(changes as any);
+              } catch (error) {
+                logger.error(`Error in watch handler:`, error);
+              }
+            }
+          });
+        }
+
         break;
       }
 
@@ -270,16 +312,6 @@ export class FrameSDK {
           return;
         }
         this._emitLocalEvent(eventMsg.name, eventMsg.data);
-        break;
-      }
-
-      case MessageEvent.ATTRIBUTE_CHANGE: {
-        const attrMsg = message as AttributeChangeMessage;
-        if (!attrMsg.attribute || typeof attrMsg.attribute !== "string") {
-          logger.warn("Invalid ATTRIBUTE_CHANGE message:", message);
-          return;
-        }
-        this._handleAttributeChange(attrMsg.attribute, attrMsg.value);
         break;
       }
 
@@ -329,53 +361,6 @@ export class FrameSDK {
 
       default:
         logger.warn("Unknown message type:", type);
-    }
-  }
-
-  /**
-   * Handle attribute change from parent
-   *
-   * Updates the props object and triggers watch handlers.
-   * Includes security checks to prevent prototype pollution.
-   *
-   * @param attribute - Attribute name to update
-   * @param value - New value (may be serialized, will be deserialized)
-   */
-  private _handleAttributeChange(attribute: string, value: unknown) {
-    // Validate attribute name to prevent prototype pollution
-    if (attribute === "__proto__" || attribute === "constructor" || attribute === "prototype") {
-      console.warn(`[frameSDK] Forbidden attribute name: ${attribute}`);
-      return;
-    }
-
-    // Store old value for watch handlers
-    const oldValue = this._propOldValues.get(attribute) ?? Reflect.get(this.props, attribute);
-
-    // Deserialize value (may contain functions)
-    const deserializedValue = this._functionManager.deserialize(value);
-
-    // Update props safely using Reflect
-    Reflect.set(this.props, attribute, deserializedValue);
-
-    // Store new value as old value for next change
-    this._propOldValues.set(attribute, deserializedValue);
-
-    // Trigger watch handlers
-    if (this._watchHandlers.size > 0) {
-      const changes: PropChanges<FrameProps> = {
-        [attribute]: [deserializedValue, oldValue],
-      };
-
-      this._watchHandlers.forEach(({ props, handler }) => {
-        // If watching all props, or if this prop is in the watch list
-        if (!props || props.includes(attribute)) {
-          try {
-            handler(changes as any);
-          } catch (error) {
-            logger.error(`Error in watch handler for '${attribute}':`, error);
-          }
-        }
-      });
     }
   }
 
