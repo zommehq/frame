@@ -1,6 +1,5 @@
 import { MessageEvent, VALID_MESSAGE_TYPES } from "../constants";
 import type {
-  AttributeChangeMessage,
   CustomEventMessage,
   EventMessage,
   FunctionCallMessage,
@@ -74,21 +73,6 @@ export function isInitMessage(message: Message): message is InitMessage {
  */
 export function isReadyMessage(message: Message): message is ReadyMessage {
   return message.type === MessageEvent.READY;
-}
-
-/**
- * Check if message is an AttributeChangeMessage
- *
- * @param message - Message to check
- * @returns true if message is AttributeChangeMessage
- */
-export function isAttributeChangeMessage(message: Message): message is AttributeChangeMessage {
-  return (
-    message.type === MessageEvent.ATTRIBUTE_CHANGE &&
-    "attribute" in message &&
-    typeof message.attribute === "string" &&
-    "value" in message
-  );
 }
 
 /**

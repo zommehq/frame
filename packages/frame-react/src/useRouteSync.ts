@@ -5,13 +5,7 @@ import { useFrameSDK } from "./useFrameSDK";
 /**
  * Options for route synchronization
  */
-export interface RouteSyncOptions {
-  /**
-   * Timeout in milliseconds to wait before resetting navigation flag
-   * @default 100
-   */
-  timeout?: number;
-}
+export type RouteSyncOptions = {};
 
 /**
  * Hook for automatic route synchronization between router and parent shell
@@ -59,22 +53,12 @@ export interface RouteSyncOptions {
  * }
  * ```
  *
- * @example
- * ```tsx
- * // With custom timeout
- * useRouteSync(
- *   () => location.pathname,
- *   navigate,
- *   { timeout: 150 }
- * );
- * ```
  */
 export function useRouteSync(
   getCurrentPath: () => string,
   navigate: (path: string) => void,
   options: RouteSyncOptions = {},
 ): void {
-  const { timeout = 100 } = options;
   const { props } = useFrameSDK();
 
   // Flag to track shell navigation state
@@ -87,11 +71,23 @@ export function useRouteSync(
   // This prevents emitting the initial path to the shell
   const lastEmittedPath = useRef<string>(currentPath);
 
+  // Track last known pathname from props to detect actual changes
+  const lastPropsPathname = useRef<string | undefined>(props.pathname as string | undefined);
+
   // Watch pathname prop from parent shell (reactive via useEffect)
+  // IMPORTANT: This runs AFTER the emit effect below due to useEffect order
   useEffect(() => {
     const pathname = props.pathname as string | undefined;
 
-    // Skip if pathname hasn't changed or is undefined
+    // Skip if pathname hasn't actually changed
+    if (pathname === lastPropsPathname.current) {
+      return;
+    }
+
+    // Update last known pathname
+    lastPropsPathname.current = pathname;
+
+    // Skip if pathname is undefined or already on this path
     if (!pathname || pathname === currentPath) return;
 
     // Set flag to prevent emitting navigate back to shell
@@ -100,14 +96,14 @@ export function useRouteSync(
 
     // Update lastEmittedPath
     lastEmittedPath.current = pathname;
+  }, [props.pathname, currentPath, navigate]);
 
-    // Reset flag after navigation completes
-    const timeoutId = setTimeout(() => {
+  // Reset flag when navigation completes (currentPath changes)
+  useEffect(() => {
+    if (isNavigatingFromShell.current) {
       isNavigatingFromShell.current = false;
-    }, timeout);
-
-    return () => clearTimeout(timeoutId);
-  }, [props.pathname, currentPath, navigate, timeout]);
+    }
+  }, [currentPath]);
 
   // Emit navigation events to parent when route changes
   useEffect(() => {

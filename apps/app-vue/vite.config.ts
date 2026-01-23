@@ -20,5 +20,6 @@ export default defineConfig({
   plugins: [vue()],
   server: {
     port: 4202,
+    cors: true,
   },
 });
