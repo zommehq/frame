@@ -2,6 +2,7 @@ import { MessageEvent } from "./constants";
 import { FunctionManager } from "./helpers/function-manager";
 import { createLogger } from "./helpers/logger";
 import { validateMessage } from "./helpers/message-validators";
+import { assertTestEnv } from "./helpers/test-guards";
 import type {
   EventMessage,
   FrameProps,
@@ -92,6 +93,24 @@ export class FrameSDK {
    */
   get isInitialized(): boolean {
     return this._initialized;
+  }
+
+  /**
+   * Get parent origin
+   * @internal - For testing purposes only
+   */
+  get __parentOrigin(): string | undefined {
+    assertTestEnv();
+    return this._parentOrigin;
+  }
+
+  /**
+   * Get function manager
+   * @internal - For testing purposes only
+   */
+  get __functionManager(): FunctionManager {
+    assertTestEnv();
+    return this._functionManager;
   }
 
   // Instance ID for debugging
