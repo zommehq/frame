@@ -75,24 +75,24 @@ export class FrameSDK {
    */
   public props!: FrameProps;
   private _eventListeners = new Map<string, Set<EventHandler>>();
-  private _port!: MessagePort;
-  private _parentOrigin?: string;
+  #port!: MessagePort;
+  #parentOrigin?: string;
 
   // Function call support
-  private _functionManager!: FunctionManager;
+  #functionManager!: FunctionManager;
 
   // Handler references for cleanup
-  private _portMessageHandler?: (event: MessageEvent) => void;
-  private _beforeUnloadHandler?: () => void;
+  #portMessageHandler?: (event: MessageEvent) => void;
+  #beforeUnloadHandler?: () => void;
 
   // Flag to prevent processing multiple INIT messages
-  private _initialized = false;
+  #initialized = false;
 
   /**
    * Check if the SDK has been initialized
    */
   get isInitialized(): boolean {
-    return this._initialized;
+    return this.#initialized;
   }
 
   /**
@@ -101,7 +101,7 @@ export class FrameSDK {
    */
   get __parentOrigin(): string | undefined {
     assertTestEnv();
-    return this._parentOrigin;
+    return this.#parentOrigin;
   }
 
   /**
@@ -110,11 +110,11 @@ export class FrameSDK {
    */
   get __functionManager(): FunctionManager {
     assertTestEnv();
-    return this._functionManager;
+    return this.#functionManager;
   }
 
   // Instance ID for debugging
-  private _instanceId: number;
+  #instanceId: number;
 
   // Buffer for events received before handlers are registered
   private _eventBuffer = new Map<string, Array<unknown>>();
@@ -127,7 +127,7 @@ export class FrameSDK {
   private _propOldValues = new Map<string, unknown>();
 
   constructor() {
-    this._instanceId = ++FrameSDK._instanceCounter;
+    this.#instanceId = ++FrameSDK._instanceCounter;
   }
 
   /**
@@ -155,7 +155,7 @@ export class FrameSDK {
    */
   initialize(expectedOrigin?: string, timeout = 10000): Promise<void> {
     // Prevent reinitialization
-    if (this._initialized) {
+    if (this.#initialized) {
       return Promise.resolve();
     }
 
@@ -183,7 +183,7 @@ export class FrameSDK {
           }
 
           // Prevent race condition: only process first INIT message
-          if (this._initialized) {
+          if (this.#initialized) {
             logger.warn("Ignoring duplicate INIT message");
             return;
           }
@@ -202,10 +202,10 @@ export class FrameSDK {
           }
 
           // Mark as initialized immediately to prevent race condition
-          this._initialized = true;
+          this.#initialized = true;
 
           const message = event.data as InitMessage;
-          this._parentOrigin = event.origin;
+          this.#parentOrigin = event.origin;
 
           // Get MessagePort from the INIT message
           // Validate array bounds before access to prevent runtime crash
@@ -218,25 +218,25 @@ export class FrameSDK {
             reject(new Error("No MessagePort received in INIT message"));
             return;
           }
-          this._port = event.ports[0];
+          this.#port = event.ports[0];
 
           // Initialize function manager
-          this._functionManager = new FunctionManager((msg, transferables = []) => {
+          this.#functionManager = new FunctionManager((msg, transferables = []) => {
             this._sendToParent(msg, transferables);
           });
 
           // Deserialize props (may contain functions from parent)
-          this.props = this._functionManager.deserialize(message.payload) as FrameProps;
+          this.props = this.#functionManager.deserialize(message.payload) as FrameProps;
 
           // Setup message handler on the port (store reference for cleanup)
-          this._portMessageHandler = this._handleMessage.bind(this);
-          this._port.onmessage = this._portMessageHandler;
+          this.#portMessageHandler = this._handleMessage.bind(this);
+          this.#port.onmessage = this.#portMessageHandler;
 
           // Setup cleanup on unload (store reference for cleanup)
-          this._beforeUnloadHandler = () => {
+          this.#beforeUnloadHandler = () => {
             this.cleanup();
           };
-          window.addEventListener("beforeunload", this._beforeUnloadHandler);
+          window.addEventListener("beforeunload", this.#beforeUnloadHandler);
 
           this._sendToParent({ type: MessageEvent.READY });
 
@@ -274,7 +274,7 @@ export class FrameSDK {
         }
 
         // Deserialize updates (may contain functions)
-        const updates = this._functionManager.deserialize(updateMsg.payload);
+        const updates = this.#functionManager.deserialize(updateMsg.payload);
 
         // Ensure updates is an object
         if (typeof updates !== "object" || updates === null) {
@@ -340,7 +340,7 @@ export class FrameSDK {
           logger.warn("Invalid FUNCTION_CALL message:", message);
           return;
         }
-        this._functionManager.handleFunctionCall(callMsg.callId, callMsg.fnId, callMsg.params);
+        this.#functionManager.handleFunctionCall(callMsg.callId, callMsg.fnId, callMsg.params);
         break;
       }
 
@@ -351,7 +351,7 @@ export class FrameSDK {
           logger.warn("Invalid FUNCTION_RESPONSE message:", message);
           return;
         }
-        this._functionManager.handleFunctionResponse(callId, success, result, error);
+        this.#functionManager.handleFunctionResponse(callId, success, result, error);
         break;
       }
 
@@ -361,7 +361,7 @@ export class FrameSDK {
           logger.warn("Invalid FUNCTION_RELEASE message:", message);
           return;
         }
-        this._functionManager.releaseFunction(releaseMsg.fnId);
+        this.#functionManager.releaseFunction(releaseMsg.fnId);
         break;
       }
 
@@ -373,7 +373,7 @@ export class FrameSDK {
         }
         // Release all functions in the batch
         for (const fnId of batchMsg.fnIds) {
-          this._functionManager.releaseFunction(fnId);
+          this.#functionManager.releaseFunction(fnId);
         }
         break;
       }
@@ -403,7 +403,7 @@ export class FrameSDK {
       return;
     }
 
-    const { serialized, transferables } = this._functionManager.serialize(data);
+    const { serialized, transferables } = this.#functionManager.serialize(data);
 
     this._sendToParent(
       {
@@ -654,13 +654,13 @@ export class FrameSDK {
     this._propOldValues.clear();
 
     // Remove beforeunload handler
-    if (this._beforeUnloadHandler) {
-      window.removeEventListener("beforeunload", this._beforeUnloadHandler);
-      this._beforeUnloadHandler = undefined;
+    if (this.#beforeUnloadHandler) {
+      window.removeEventListener("beforeunload", this.#beforeUnloadHandler);
+      this.#beforeUnloadHandler = undefined;
     }
 
     // Release tracked functions
-    const functionIds = Array.from(this._functionManager?.getTrackedFunctions() || []);
+    const functionIds = Array.from(this.#functionManager?.getTrackedFunctions() || []);
     if (functionIds.length > 0) {
       this._sendToParent({
         fnIds: functionIds,
@@ -669,14 +669,14 @@ export class FrameSDK {
     }
 
     // Clean up port and handlers
-    if (this._port) {
-      this._port.onmessage = null;
-      this._port.close();
+    if (this.#port) {
+      this.#port.onmessage = null;
+      this.#port.close();
     }
-    this._portMessageHandler = undefined;
+    this.#portMessageHandler = undefined;
 
     // Clean up function manager
-    this._functionManager?.cleanup();
+    this.#functionManager?.cleanup();
   }
 
   /**
@@ -716,13 +716,13 @@ export class FrameSDK {
    * Handles errors gracefully (e.g., DataCloneError, port closed, transferable already transferred)
    */
   private _sendToParent(message: unknown, transferables: Transferable[] = []): boolean {
-    if (!this._port) {
+    if (!this.#port) {
       logger.error("MessagePort not ready");
       return false;
     }
 
     try {
-      this._port.postMessage(message, transferables);
+      this.#port.postMessage(message, transferables);
       return true;
     } catch (error) {
       logger.error("Failed to send message:", error);
