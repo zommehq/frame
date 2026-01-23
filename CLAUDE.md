@@ -116,6 +116,7 @@ Shell (Parent)                          Frame (Child/Iframe)
 - **Workspace deps**: Declare all deps with `workspace:*`
 - **Build command**: Only use `bun run build` for production builds, not during development
 - **Git commits**: **NEVER** create commits without explicit user permission - always ask first
+- **AGENTS.md sync**: When updating this file (CLAUDE.md), **ALWAYS** update AGENTS.md to reflect key changes
 
 ## Development Workflow
 
