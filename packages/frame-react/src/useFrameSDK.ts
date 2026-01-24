@@ -55,6 +55,38 @@ function getSnapshot<T>(): T {
  *   return <div>User: {props.user?.name}</div>;
  * }
  * ```
+ *
+ * @remarks
+ * ## Understanding sdkAvailable vs isInitialized
+ *
+ * **sdkAvailable** (USE THIS):
+ * - `true` when SDK successfully connected to parent frame
+ * - `false` when running in standalone mode OR not initialized
+ * - Use this to guard SDK operations (emit, register, etc.)
+ * - Reactive - triggers re-renders when it changes
+ *
+ * **isInitialized** (INTERNAL):
+ * - `true` when SDK initialization completed (success OR failure)
+ * - `true` even in standalone mode (initialization was attempted)
+ * - Internal SDK flag - prefer `sdkAvailable` in your components
+ *
+ * ### Standalone Mode
+ * When running outside a parent frame:
+ * ```
+ * sdkAvailable = false  ✅ Use this
+ * isInitialized = true  ⚠️ Don't use - misleading
+ * ```
+ *
+ * ### Connected Mode
+ * When running inside a parent frame:
+ * ```
+ * sdkAvailable = true   ✅ Use this
+ * isInitialized = true  ⚠️ Don't use - redundant
+ * ```
+ *
+ * ### React StrictMode Compatibility
+ * This hook is compatible with React.StrictMode in development.
+ * The SDK's `initialize()` is idempotent and safe to call multiple times.
  */
 export function useFrameSDK<T = Record<string, unknown>>() {
   // Check if SDK was already initialized (e.g., in main.tsx)

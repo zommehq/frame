@@ -138,6 +138,7 @@ When implementing bugfixes or new features, **ALWAYS** follow this structured wo
    - Complete one phase at a time
    - **Each phase MUST pass all tests** before proceeding
    - Run `bun test` (or relevant tests) after each phase
+   - If manual tests, use chrome and do not go to next step while it's not working
    - Only mark phase as complete when tests pass
 
 4. **Commit After Each Phase**

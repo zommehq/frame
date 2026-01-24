@@ -107,7 +107,11 @@ export function provideFrameSDK(config: FrameSDKConfig = {}): EnvironmentProvide
 
         return async () => {
           try {
-            await frameSDK.initialize(config.expectedOrigin, config.timeout);
+            // Initialize via FrameSDKService instead of direct frameSDK
+            // This ensures FrameSDKService.sdkAvailable is properly updated
+            const { FrameSDKService } = await import("./frame-sdk.service");
+            const frameSDKService = injector.get(FrameSDKService);
+            await frameSDKService.initialize(config.expectedOrigin, config.timeout);
 
             // Setup router sync if enabled and router is available
             if (config.routerSync !== false && router) {
@@ -116,7 +120,7 @@ export function provideFrameSDK(config: FrameSDKConfig = {}): EnvironmentProvide
             }
 
             // Setup cleanup on destroy
-            destroyRef.onDestroy(() => frameSDK.cleanup());
+            destroyRef.onDestroy(() => frameSDKService.cleanup());
 
             // Call onReady callback with injector
             config.onReady?.(injector);
@@ -134,20 +138,44 @@ export function provideFrameSDK(config: FrameSDKConfig = {}): EnvironmentProvide
 /**
  * Check if the SDK is running in standalone mode (no parent shell).
  *
- * This can be used to conditionally render UI or enable features
- * that are only available when running inside a shell.
+ * @deprecated Since version 2.0.0. Use `FrameSDKService.sdkAvailable` instead for consistency.
  *
- * @returns true if running in standalone mode (no parent shell)
- *
- * @example
+ * **Migration Guide:**
  * ```typescript
+ * // Before (deprecated):
+ * import { isStandaloneMode } from '@zomme/frame-angular';
+ *
  * @Component({...})
  * export class MyComponent {
  *   isStandalone = isStandaloneMode();
+ * }
  *
- *   // In template: @if (!isStandalone) { <shell-only-feature /> }
+ * // After (recommended):
+ * import { FrameSDKService } from '@zomme/frame-angular';
+ *
+ * @Component({...})
+ * export class MyComponent {
+ *   private frameSDK = inject(FrameSDKService);
+ *
+ *   // For templates (reactive):
+ *   isStandalone$ = this.frameSDK.sdkAvailable$.pipe(map(available => !available));
+ *
+ *   // For logic (synchronous):
+ *   get isStandalone() {
+ *     return !this.frameSDK.sdkAvailable;
+ *   }
  * }
  * ```
+ *
+ * **Why deprecate?**
+ * - Inconsistent with React and Vue patterns
+ * - Checks `frameSDK.props` emptiness (different from `sdkAvailable`)
+ * - Not reactive (computed value vs observable state)
+ * - `FrameSDKService.sdkAvailable` is the standard API
+ *
+ * **Breaking Change:** This function will be removed in version 3.0.0.
+ *
+ * @returns true if running in standalone mode (no parent shell)
  */
 export function isStandaloneMode(): boolean {
   return !frameSDK.props || Object.keys(frameSDK.props).length === 0;
