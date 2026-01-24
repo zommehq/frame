@@ -1,1 +1,16 @@
-# Execution Plans\n\nThis directory contains temporary execution plans for features and bugfixes.\nPlans should be removed after implementation is complete.\n\n## Naming Convention\n\n- `FEATURE-NAME-PLAN.md` - For new features\n- `FIX-NAME-PLAN.md` - For bugfixes\n- `REFACTOR-NAME-PLAN.md` - For refactoring tasks\n\n## Lifecycle\n\n1. Create plan when starting work\n2. Update status as phases complete\n3. Remove plan after merging to main
+# Execution Plans
+
+This directory contains temporary execution plans for features and bugfixes.
+Plans should be removed after implementation is complete.
+
+## Naming Convention
+
+- `feature-name-plan.md` - For new features
+- `fix-name-plan.md` - For bugfixes
+- `refactor-name-plan.md` - For refactoring tasks
+
+## Lifecycle
+
+1. Create plan when starting work
+2. Update status as phases complete
+3. Remove plan after merging to main
