@@ -1,5 +1,5 @@
-import { frameSDK } from "@zomme/frame-vue";
-import { onMounted, onUnmounted } from "vue";
+import { frameSDK, useFrameSDK } from "@zomme/frame-vue";
+import { onUnmounted, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
 /**
@@ -22,46 +22,62 @@ import { useRoute, useRouter } from "vue-router";
 export function useFrameActions() {
   const router = useRouter();
   const route = useRoute();
+  const { sdkAvailable } = useFrameSDK();
 
-  onMounted(() => {
-    // Don't register if SDK not initialized (standalone mode)
-    if (!frameSDK.props.value) return;
+  let unregister: (() => void) | undefined;
 
-    const unregister = frameSDK.register({
-      /**
-       * Get current app statistics
-       */
-      getStats: () => ({
-        currentRoute: route.path,
-        theme: document.body.className || "light",
-        timestamp: Date.now(),
-      }),
+  // Watch for SDK availability and register when ready
+  const stopWatch = watch(
+    sdkAvailable,
+    (available) => {
+      // Don't register if SDK not available (standalone mode)
+      if (!available) return;
 
-      /**
-       * Navigate to a specific route
-       */
-      navigateTo: async (path: string) => {
-        await router.push(path);
-        return {
-          navigatedTo: path,
+      // Unregister previous if exists
+      if (unregister) {
+        unregister();
+      }
+
+      unregister = frameSDK.register({
+        /**
+         * Get current app statistics
+         */
+        getStats: () => ({
+          currentRoute: route.path,
+          theme: document.body.className || "light",
           timestamp: Date.now(),
-        };
-      },
+        }),
 
-      /**
-       * Refresh app data
-       */
-      refreshData: async () => {
-        // Simulate async refresh operation
-        await new Promise((resolve) => setTimeout(resolve, 300));
-        return {
-          refreshedAt: Date.now(),
-          success: true,
-        };
-      },
-    });
+        /**
+         * Navigate to a specific route
+         */
+        navigateTo: async (path: string) => {
+          await router.push(path);
+          return {
+            navigatedTo: path,
+            timestamp: Date.now(),
+          };
+        },
 
-    // Cleanup on unmount
-    onUnmounted(unregister);
+        /**
+         * Refresh app data
+         */
+        refreshData: async () => {
+          // Simulate async refresh operation
+          await new Promise((resolve) => setTimeout(resolve, 300));
+          return {
+            refreshedAt: Date.now(),
+            success: true,
+          };
+        },
+      });
+    },
+    { immediate: true },
+  );
+
+  // Cleanup on unmount
+  onUnmounted(() => {
+    stopWatch();
+    unregister?.();
   });
 }

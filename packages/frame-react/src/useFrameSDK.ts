@@ -1,6 +1,6 @@
 import { frameSDK } from "@zomme/frame/sdk";
 import type { PropChanges } from "@zomme/frame/types";
-import { useCallback, useEffect, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 
 // Global state for prop synchronization
 const listeners: Set<() => void> = new Set();
@@ -72,9 +72,9 @@ export function useFrameSDK<T = Record<string, unknown>>() {
     () => getSnapshot<T>(), // Server snapshot (same as client for this use case)
   );
 
-  // Track ready state
-  const isReady = alreadyInitialized;
-  const sdkAvailable = alreadyInitialized;
+  // Track ready state with useState for reactivity
+  const [isReady, setIsReady] = useState(alreadyInitialized);
+  const [sdkAvailable, setSdkAvailable] = useState(alreadyInitialized);
 
   useEffect(() => {
     // Skip if already initialized
@@ -86,6 +86,8 @@ export function useFrameSDK<T = Record<string, unknown>>() {
           listener();
         }
       }
+      setIsReady(true);
+      setSdkAvailable(true);
       return;
     }
 
@@ -93,6 +95,8 @@ export function useFrameSDK<T = Record<string, unknown>>() {
       .initialize()
       .then(() => {
         setupGlobalWatcher();
+        setIsReady(true);
+        setSdkAvailable(true);
         // Trigger re-render after initialization
         for (const listener of listeners) {
           listener();
@@ -100,6 +104,8 @@ export function useFrameSDK<T = Record<string, unknown>>() {
       })
       .catch((error) => {
         console.warn("FrameSDK not available, running in standalone mode", error);
+        setIsReady(true);
+        setSdkAvailable(false);
       });
   }, []);
 

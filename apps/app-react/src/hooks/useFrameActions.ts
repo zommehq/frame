@@ -24,7 +24,9 @@ export function useFrameActions() {
 
   useEffect(() => {
     // Don't register if SDK not initialized (standalone mode)
-    if (!frameSDK.props) return;
+    if (!frameSDK.isInitialized) {
+      return;
+    }
 
     const unregister = frameSDK.register({
       /**
