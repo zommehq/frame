@@ -32,6 +32,45 @@ import { BehaviorSubject, Observable } from "rxjs";
  *   }
  * }
  * ```
+ *
+ * @remarks
+ * ## Understanding sdkAvailable vs isInitialized
+ *
+ * **sdkAvailable** (USE THIS):
+ * - `true` when SDK successfully connected to parent frame
+ * - `false` when running in standalone mode OR not initialized
+ * - Available as Observable (`sdkAvailable$`) and sync getter (`sdkAvailable`)
+ * - Use this to guard SDK operations (emit, register, etc.)
+ *
+ * **isInitialized** (INTERNAL):
+ * - Internal SDK flag indicating initialization completed
+ * - Not exposed by this service - use `sdkAvailable` instead
+ * - Checking this directly is discouraged
+ *
+ * ### Standalone Mode
+ * When running outside a parent frame:
+ * ```
+ * sdkAvailable = false        ✅ Use this
+ * sdkAvailable$ emits false   ✅ Use this
+ * ```
+ *
+ * ### Connected Mode
+ * When running inside a parent frame:
+ * ```
+ * sdkAvailable = true         ✅ Use this
+ * sdkAvailable$ emits true    ✅ Use this
+ * ```
+ *
+ * ### Migration from isStandaloneMode()
+ * If you're using the deprecated `isStandaloneMode()` function:
+ * ```typescript
+ * // Before ❌
+ * if (isStandaloneMode()) return;
+ *
+ * // After ✅
+ * private frameSDK = inject(FrameSDKService);
+ * if (!this.frameSDK.sdkAvailable) return;
+ * ```
  */
 @Injectable({
   providedIn: "root",
@@ -80,10 +119,13 @@ export class FrameSDKService<T = Record<string, unknown>> {
   /**
    * Initialize the SDK
    * Should be called in ngOnInit or APP_INITIALIZER
+   *
+   * @param expectedOrigin - Expected parent origin for security validation
+   * @param timeout - Timeout for initialization in milliseconds
    */
-  async initialize(): Promise<void> {
+  async initialize(expectedOrigin?: string, timeout?: number): Promise<void> {
     try {
-      await frameSDK.initialize();
+      await frameSDK.initialize(expectedOrigin, timeout);
       this.propsSubject.next(frameSDK.props as T);
       this.isReadySubject.next(true);
       this.sdkAvailableSubject.next(true);

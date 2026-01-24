@@ -6,17 +6,14 @@ import App from "./App";
 import "./App.css";
 
 async function bootstrap() {
-  let sdkAvailable = false;
   let initialPath = window.location.pathname; // Default for standalone
 
   try {
     await frameSDK.initialize();
-    sdkAvailable = true;
     // Use pathname from props (source of truth when in shell)
     initialPath = frameSDK.props.pathname || window.location.pathname;
   } catch (error) {
     console.error("FrameSDK not available, running in standalone mode:", error);
-    sdkAvailable = false;
     // Keep window.location.pathname for standalone
   }
 
@@ -32,9 +29,11 @@ async function bootstrap() {
 
   const root = createRoot(rootElement);
   root.render(
-    <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-      <App sdkAvailable={sdkAvailable} />
-    </BrowserRouter>,
+    <React.StrictMode>
+      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+        <App />
+      </BrowserRouter>
+    </React.StrictMode>,
   );
 }
 

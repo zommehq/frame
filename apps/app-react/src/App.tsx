@@ -7,17 +7,12 @@ import type { User } from "./types";
 
 interface AppProps {
   actionCallback?: (data: any) => void;
-  sdkAvailable?: boolean;
   successCallback?: (data: any) => void;
   theme?: "dark" | "light";
   user?: User;
 }
 
-interface FrameProps {
-  sdkAvailable?: boolean;
-}
-
-function App({ sdkAvailable }: FrameProps = {}) {
+function App() {
   const location = useLocation();
   const navigate = useNavigate();
   const { props, watchProps } = useFrameSDK<AppProps>();
