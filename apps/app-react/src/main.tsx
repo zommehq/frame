@@ -32,11 +32,9 @@ async function bootstrap() {
 
   const root = createRoot(rootElement);
   root.render(
-    <React.StrictMode>
-      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-        <App sdkAvailable={sdkAvailable} />
-      </BrowserRouter>
-    </React.StrictMode>,
+    <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+      <App sdkAvailable={sdkAvailable} />
+    </BrowserRouter>,
   );
 }
 

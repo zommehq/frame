@@ -97,6 +97,11 @@ export class AppComponent implements OnInit, OnDestroy {
     const frame = frameElement as ZFrame<AngularFrameActions>;
 
     this.frames.set(frameName, frame);
+    console.log(`[shell] Frame "${frameName}" ready and registered`, {
+      hasGetStats: typeof frame.getStats === "function",
+      hasRefreshData: typeof frame.refreshData === "function",
+      hasNavigateTo: typeof frame.navigateTo === "function",
+    });
 
     // pathname attribute already handles initial route - no need to emit route-change here
   }
@@ -134,12 +139,18 @@ export class AppComponent implements OnInit, OnDestroy {
     console.error("[shell] Frame error:", customEvent.detail);
   }
 
-  onFrameRegister(_event: Event) {
-    // Frame registered actions - can be used for tracking
+  onFrameRegister(event: Event) {
+    const customEvent = event as CustomEvent;
+    const frameElement = event.target as HTMLElement;
+    const frameName = frameElement.getAttribute("name") as FrameName;
+    console.log(`[shell] Frame "${frameName}" registered functions:`, customEvent.detail);
   }
 
-  onFrameUnregister(_event: Event) {
-    // Frame unregistered actions - can be used for cleanup
+  onFrameUnregister(event: Event) {
+    const customEvent = event as CustomEvent;
+    const frameElement = event.target as HTMLElement;
+    const frameName = frameElement.getAttribute("name") as FrameName;
+    console.log(`[shell] Frame "${frameName}" unregistered functions:`, customEvent.detail);
   }
 
   // Frame action test methods
@@ -149,19 +160,43 @@ export class AppComponent implements OnInit, OnDestroy {
 
   async testGetStats() {
     const frame = this.getCurrentFrame();
-    if (!frame) return;
-    await frame.getStats();
+    if (!frame) {
+      console.warn("[shell] No frame available for getStats");
+      return;
+    }
+    try {
+      const stats = await frame.getStats();
+      console.log("[shell] Stats from frame:", stats);
+    } catch (error) {
+      console.error("[shell] Error getting stats:", error);
+    }
   }
 
   async testRefreshData() {
     const frame = this.getCurrentFrame();
-    if (!frame) return;
-    await frame.refreshData();
+    if (!frame) {
+      console.warn("[shell] No frame available for refreshData");
+      return;
+    }
+    try {
+      const result = await frame.refreshData();
+      console.log("[shell] Refresh result:", result);
+    } catch (error) {
+      console.error("[shell] Error refreshing data:", error);
+    }
   }
 
   async testNavigateTo(path: string) {
     const frame = this.getCurrentFrame();
-    if (!frame) return;
-    await frame.navigateTo(path);
+    if (!frame) {
+      console.warn("[shell] No frame available for navigateTo");
+      return;
+    }
+    try {
+      const result = await frame.navigateTo(path);
+      console.log("[shell] Navigate result:", result);
+    } catch (error) {
+      console.error("[shell] Error navigating:", error);
+    }
   }
 }
