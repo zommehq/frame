@@ -126,8 +126,9 @@ When implementing bugfixes or new features, **ALWAYS** follow this structured wo
 
 1. **Create Execution Plan**
    - Break down the work into phases if the task is non-trivial (3+ steps)
-   - Document the plan in a markdown file (e.g., `FEATURE-NAME-PLAN.md`)
+   - Document the plan in a markdown file in the `plans/` directory (e.g., `plans/FEATURE-NAME-PLAN.md`)
    - Each phase should have clear objectives and success criteria
+   - Plans are temporary and should be removed after completion
 
 2. **Create Feature Branch**
    - Always create a new branch: `feature/feature-name` or `fix/bug-name`
@@ -160,7 +161,8 @@ When implementing bugfixes or new features, **ALWAYS** follow this structured wo
 
 ```bash
 # 1. Create plan document
-# Create FEATURE-NAME-PLAN.md with phases
+mkdir -p plans
+# Create plans/FEATURE-NAME-PLAN.md with phases
 
 # 2. Create branch
 git checkout -b feature/private-fields
