@@ -2,7 +2,7 @@
 	"name": "@zomme/frame-angular",
 	"version": "1.2.0",
 	"description": "Angular wrapper for @zomme/frame - components and services for micro-frontend integration",
-	"license": "MIT",
+	"license": "Apache-2.0",
 	"author": "Zomme",
 	"repository": {
 		"type": "git",

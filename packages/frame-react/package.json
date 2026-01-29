@@ -1,7 +1,7 @@
 {
 	"name": "@zomme/frame-react",
 	"version": "1.1.0",
-	"license": "MIT",
+	"license": "Apache-2.0",
 	"type": "module",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",

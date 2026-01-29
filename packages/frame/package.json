@@ -2,7 +2,7 @@
 	"name": "@zomme/frame",
 	"version": "1.2.0",
 	"description": "Web Component for embedding micro-frontends in isolated iframes with bidirectional PostMessage communication",
-	"license": "MIT",
+	"license": "Apache-2.0",
 	"author": "Zomme",
 	"repository": {
 		"type": "git",
