@@ -1,13 +1,8 @@
-= Micro-Frontend Architecture
-:toc: left
-:toclevels: 3
-:source-highlighter: highlight.js
-:icons: font
+# Micro-Frontend Architecture
 
-== Estrutura do Projeto
+## Estrutura do Projeto
 
-[source,text]
-----
+```text
 micro-fe/
 ├── packages/
 │   └── frame/                  # Web Component + SDK compartilhado
@@ -30,70 +25,68 @@ micro-fe/
 │   ├── app-react/       # Micro-app React 18
 │   └── app-solid/       # Micro-app SolidJS
 └── package.json         # Workspace root
-----
+```
 
-== Conceitos Principais
+## Conceitos Principais
 
-=== 1. Web Component como Proxy Puro
+### 1. Web Component como Proxy Puro
 
 * `<z-frame>` encapsula iframe e comunicação
 * Zero side-effects (sem history, fetch, localStorage)
 * Interface declarativa: props/attributes → events
 * *Serialização automática de funções* via UUID tokens
 
-=== 2. SDK para Abstrair Comunicação
+### 2. SDK para Abstrair Comunicação
 
 * Apps não sabem que estão em iframe
 * API simples: `frameSDK.props`, `emit()`, `on()`
 * Transparente para qualquer framework
 * *Funções podem ser passadas bidirecionalmente*
 
-=== 3. Shell como Orquestrador
+### 3. Shell como Orquestrador
 
 * Única fonte de verdade para routing
 * Gerencia todos os micro-apps
 * Sincroniza navegação entre apps
 
-== Fluxo de Comunicação
+## Fluxo de Comunicação
 
-[source,text]
-----
+```text
 App (Angular) → frameSDK → postMessage → <z-frame> → CustomEvent → Shell
-----
+```
 
 *Exemplo de Navegação:*
 
-. User clica link em micro-app Angular (`/angular/users`)
-. Angular Router intercepta
-. SDK emite evento: `frameSDK.emit('navigate', { path: '/angular/users' })`
-. SDK envia postMessage para Web Component
-. Web Component emite DOM CustomEvent `navigate`
-. Shell escuta evento e executa `router.navigateByUrl('/angular/users')`
-. Browser URL atualiza
+1. User clica link em micro-app Angular (`/angular/users`)
+2. Angular Router intercepta
+3. SDK emite evento: `frameSDK.emit('navigate', { path: '/angular/users' })`
+4. SDK envia postMessage para Web Component
+5. Web Component emite DOM CustomEvent `navigate`
+6. Shell escuta evento e executa `router.navigateByUrl('/angular/users')`
+7. Browser URL atualiza
 
-== Function Serialization (Zoid/post-robot approach)
+## Function Serialization (Zoid/post-robot approach)
 
 Funções são serializadas automaticamente usando UUID tokens:
 
-[source,typescript]
-----
+```typescript
 // Parent passa função
 frame.onSuccess = (data) => console.log('Success:', data);
 
 // Child recebe proxy e pode chamar
 frameSDK.props.onSuccess({ status: 'ok' }); // RPC call
-----
+```
 
-=== Como funciona
+### Como funciona
 
-. *Serialização*: Funções são substituídas por tokens `{ __fn: 'uuid-123' }`
-. *Registry*: Map mantém UUID → Function
-. *Proxy*: Função proxy cria RPC call via postMessage
-. *Execução*: Lado remoto executa função original
-. *Retorno*: Resultado serializado e enviado de volta
-. *Garbage Collection*: Cleanup automático no disconnect
+1. *Serialização*: Funções são substituídas por tokens `{ __fn: 'uuid-123' }`
+2. *Registry*: Map mantém UUID → Function
+3. *Proxy*: Função proxy cria RPC call via postMessage
+4. *Execução*: Lado remoto executa função original
+5. *Retorno*: Resultado serializado e enviado de volta
+6. *Garbage Collection*: Cleanup automático no disconnect
 
-=== Características
+### Características
 
 * ✅ Suporta valores de retorno
 * ✅ Suporta Promises (async/await)
@@ -102,10 +95,9 @@ frameSDK.props.onSuccess({ status: 'ok' }); // RPC call
 * ✅ Garbage collection automático
 * ✅ Bidirecionall (parent ↔ child)
 
-=== Diagrama de Sequência
+### Diagrama de Sequência
 
-[source,text]
-----
+```text
 Parent                  postMessage              Child
   │                                               │
   ├─ frame.onSuccess = fn ──────────────────────>│
@@ -119,13 +111,13 @@ Parent                  postMessage              Child
   │  FUNCTION_RESPONSE                            │
   │  { success: true, result: ... }              │
   │                                               │
-----
+```
 
-== Transferables Support
+## Transferables Support
 
 Para melhor performance, objetos transferíveis são automaticamente detectados e transferidos (ownership transfer) ao invés de clonados:
 
-=== Objetos Suportados
+### Objetos Suportados
 
 * `ArrayBuffer`
 * `MessagePort`
@@ -135,17 +127,16 @@ Para melhor performance, objetos transferíveis são automaticamente detectados 
 * `WritableStream`
 * `TransformStream`
 
-=== Vantagens
+### Vantagens
 
 * ✅ Zero-copy transfer (não clona dados)
 * ✅ Melhor performance para dados grandes
 * ✅ Menor uso de memória
 * ✅ Detecção automática
 
-=== Exemplo
+### Exemplo
 
-[source,typescript]
-----
+```typescript
 // Child envia ArrayBuffer (1MB)
 const buffer = new ArrayBuffer(1024 * 1024);
 frameSDK.emit('large-data', { buffer });
@@ -156,14 +147,13 @@ frame.addEventListener('large-data', (e) => {
   const { buffer } = e.detail;
   processBuffer(buffer); // ownership transferido
 });
-----
+```
 
-== Ciclo de Vida
+## Ciclo de Vida
 
-=== 1. Inicialização
+### 1. Inicialização
 
-[source,text]
-----
+```text
 ┌─────────────────┐                    ┌──────────────┐
 │    z-frame      │                    │   iframe     │
 └────────┬────────┘                    └──────┬───────┘
@@ -180,12 +170,11 @@ frame.addEventListener('large-data', (e) => {
          │                                    │
          ├─ Dispatch 'ready' event            │
          │                                    │
-----
+```
 
-=== 2. Property Updates
+### 2. Property Updates
 
-[source,text]
-----
+```text
 ┌─────────────────┐                    ┌──────────────┐
 │    z-frame      │                    │   iframe     │
 └────────┬────────┘                    └──────┬───────┘
@@ -200,12 +189,11 @@ frame.addEventListener('large-data', (e) => {
          │                                    ├─ props.theme = 'dark'
          │                                    ├─ Trigger watch handlers
          │                                    │
-----
+```
 
-=== 3. Events
+### 3. Events
 
-[source,text]
-----
+```text
 ┌─────────────────┐                    ┌──────────────┐
 │    z-frame      │                    │   iframe     │
 └────────┬────────┘                    └──────┬───────┘
@@ -217,12 +205,11 @@ frame.addEventListener('large-data', (e) => {
          │                                    │
          ├─ dispatchEvent(CustomEvent)        │
          │                                    │
-----
+```
 
-=== 4. Cleanup
+### 4. Cleanup
 
-[source,text]
-----
+```text
 ┌─────────────────┐                    ┌──────────────┐
 │    z-frame      │                    │   iframe     │
 └────────┬────────┘                    └──────┬───────┘
@@ -239,45 +226,26 @@ frame.addEventListener('large-data', (e) => {
          ├─ Cleanup function manager          │
          ├─ Remove iframe                     │
          │                                    │
-----
+```
 
-== Message Protocol
+## Message Protocol
 
-=== Message Types
+### Message Types
 
-[cols="1,3"]
-|===
-| Type | Descrição
+| Type | Descrição |
+|------|-----------|
+| `__INIT__` | Parent → Child. Configuração inicial com props |
+| `__READY__` | Child → Parent. Sinaliza que está pronto |
+| `__ATTRIBUTE_CHANGE__` | Parent → Child. Mudança de prop/attribute |
+| `__EVENT__` | Parent → Child. Evento enviado via `frame.emit()` |
+| `__CUSTOM_EVENT__` | Child → Parent. Evento enviado via `frameSDK.emit()` |
+| `__FUNCTION_CALL__` | Bidirectional. Chamada de função remota |
+| `__FUNCTION_RESPONSE__` | Bidirectional. Resposta de função remota |
+| `__FUNCTION_RELEASE__` | Bidirectional. Liberar função do registry |
 
-| `__INIT__`
-| Parent → Child. Configuração inicial com props
+### Estrutura das Mensagens
 
-| `__READY__`
-| Child → Parent. Sinaliza que está pronto
-
-| `__ATTRIBUTE_CHANGE__`
-| Parent → Child. Mudança de prop/attribute
-
-| `__EVENT__`
-| Parent → Child. Evento enviado via `frame.emit()`
-
-| `__CUSTOM_EVENT__`
-| Child → Parent. Evento enviado via `frameSDK.emit()`
-
-| `__FUNCTION_CALL__`
-| Bidirectional. Chamada de função remota
-
-| `__FUNCTION_RESPONSE__`
-| Bidirectional. Resposta de função remota
-
-| `__FUNCTION_RELEASE__`
-| Bidirectional. Liberar função do registry
-|===
-
-=== Estrutura das Mensagens
-
-[source,typescript]
-----
+```typescript
 // INIT
 {
   type: '__INIT__',
@@ -311,44 +279,41 @@ frame.addEventListener('large-data', (e) => {
   result?: unknown,      // se success=true
   error?: string         // se success=false
 }
-----
+```
 
-== Security
+## Security
 
-=== Origin Validation
+### Origin Validation
 
 Todas as mensagens validam origin:
 
-[source,typescript]
-----
+```typescript
 window.addEventListener('message', (event) => {
   if (event.origin !== this.parentOrigin) return;  // ✅ Valida origin
   // Process message
 });
-----
+```
 
-=== Sandbox Attributes
+### Sandbox Attributes
 
 O iframe usa sandbox para isolamento:
 
-[source,html]
-----
+```html
 <iframe sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals">
-----
+```
 
-=== Function Timeout
+### Function Timeout
 
 Chamadas de função têm timeout de 10s para prevenir locks:
 
-[source,typescript]
-----
+```typescript
 const timeout = setTimeout(() => {
   reject(new Error(`Function call timeout: ${fnId}`));
 }, 10000);
-----
+```
 
-== Referências
+## Referências
 
-* link:../packages/frame/README.adoc[Frame Documentation]
-* link:../packages/frame/docs/concepts/architecture.adoc[Detailed Architecture]
-* link:../packages/frame/docs/advanced/function-serialization.adoc[Function Serialization]
+* [Frame Documentation](../packages/frame/README.md)
+* [Detailed Architecture](../packages/frame/docs/concepts/architecture.md)
+* [Function Serialization](../packages/frame/docs/advanced/function-serialization.md)

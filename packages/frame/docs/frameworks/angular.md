@@ -1,13 +1,12 @@
-= Angular Integration
+# Angular Integration
 
 Frame works with Angular applications.
 
-== Parent Application (Angular)
+## Parent Application (Angular)
 
-=== Enable Custom Elements
+### Enable Custom Elements
 
-[source,typescript]
-----
+```typescript
 // app.config.ts
 import { ApplicationConfig, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 
@@ -26,12 +25,11 @@ import { Component, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
   template: `...`,
 })
 export class AppComponent {}
-----
+```
 
-=== Basic Usage
+### Basic Usage
 
-[source,typescript]
-----
+```typescript
 import { Component, OnInit, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 import '@zomme/frame';
 
@@ -50,25 +48,23 @@ import '@zomme/frame';
 export class AppComponent {
   theme = 'dark';
 }
-----
+```
 
-=== Using the Angular Package
+### Using the Angular Package
 
 The `@zomme/frame-angular` package provides Angular-specific components and services for easier integration.
 
-==== Installation
+#### Installation
 
-[source,bash]
-----
+```bash
 npm install @zomme/frame-angular
-----
+```
 
-==== FrameComponent
+#### FrameComponent
 
 A standalone component that wraps the `z-frame` custom element with Angular bindings.
 
-[source,typescript]
-----
+```typescript
 import { Component } from '@angular/core';
 import { FrameComponent } from '@zomme/frame-angular';
 
@@ -88,12 +84,11 @@ import { FrameComponent } from '@zomme/frame-angular';
 export class AppComponent {
   // Component logic
 }
-----
+```
 
-==== Component Wrapper
+#### Component Wrapper
 
-[source,typescript]
-----
+```typescript
 import { Component, Input, ViewChild, ElementRef, AfterViewInit, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 import type { Frame } from '@zomme/frame';
 
@@ -116,18 +111,17 @@ export class FrameWrapperComponent implements AfterViewInit {
     if (this.theme) frame.theme = this.theme;
   }
 }
-----
+```
 
-== Frame Application (Angular)
+## Frame Application (Angular)
 
-=== Using FrameSDKService
+### Using FrameSDKService
 
 The `@zomme/frame-angular` package provides `FrameSDKService` for reactive integration with the Frame SDK.
 
-==== Service Features
+#### Service Features
 
-[source,typescript]
-----
+```typescript
 import { Component, OnInit } from '@angular/core';
 import { FrameSDKService } from '@zomme/frame-angular';
 
@@ -168,15 +162,15 @@ export class AppComponent implements OnInit {
     this.frameSDK.emit('frame:ready', { version: '1.0.0' });
   }
 }
-----
+```
 
-==== Available Observables
+#### Available Observables
 
 - `props$`: Observable of all frame properties
 - `isReady$`: Observable indicating SDK initialization status
 - `sdkAvailable$`: Observable indicating if SDK is available
 
-==== Available Methods
+#### Available Methods
 
 - `initialize()`: Initialize the SDK (called automatically)
 - `emit(event, data)`: Emit events to parent application
@@ -184,12 +178,11 @@ export class AppComponent implements OnInit {
 - `onAttr(attribute, handler)`: Listen to specific attribute changes
 - `cleanup()`: Clean up subscriptions (called automatically on destroy)
 
-=== Router Synchronization
+### Router Synchronization
 
 The `setupRouterSync` utility provides bidirectional route synchronization between the parent and frame applications.
 
-[source,typescript]
-----
+```typescript
 import { Component } from '@angular/core';
 import { Router } from '@angular/router';
 import { FrameSDKService, setupRouterSync } from '@zomme/frame-angular';
@@ -213,7 +206,7 @@ export class AppComponent {
     });
   }
 }
-----
+```
 
 The `setupRouterSync` function:
 - Syncs parent route changes to frame router
@@ -221,12 +214,11 @@ The `setupRouterSync` function:
 - Handles cleanup automatically
 - Preserves query parameters and frames
 
-=== Bootstrap with Standalone API
+### Bootstrap with Standalone API
 
 Modern Angular applications should use the standalone API with `bootstrapApplication`:
 
-[source,typescript]
-----
+```typescript
 // main.ts
 import { bootstrapApplication } from '@angular/platform-browser';
 import { provideRouter } from '@angular/router';
@@ -247,14 +239,13 @@ async function bootstrap() {
 }
 
 bootstrap();
-----
+```
 
-=== Basic Setup (Module-based - Legacy)
+### Basic Setup (Module-based - Legacy)
 
 For applications still using NgModules:
 
-[source,typescript]
-----
+```typescript
 import { platformBrowserDynamic } from '@angular/platform-browser-dynamic';
 import { AppModule } from './app/app.module';
 import { frameSDK } from '@zomme/frame/sdk';
@@ -264,10 +255,9 @@ frameSDK.initialize().then(() => {
     .bootstrapModule(AppModule)
     .catch((err) => console.error(err));
 });
-----
+```
 
-[source,typescript]
-----
+```typescript
 import { Component, OnInit } from '@angular/core';
 import { frameSDK } from '@zomme/frame/sdk';
 
@@ -295,4 +285,4 @@ export class AppComponent implements OnInit {
     this.unwatch?.();
   }
 }
-----
+```

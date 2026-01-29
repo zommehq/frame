@@ -1,32 +1,31 @@
-= Serialization Module
+# Serialization Module
 
 The serialization module provides utilities for serializing and deserializing data for communication between parent and child frames, including functions and transferable objects.
 
-== Overview
+## Overview
 
 Since functions and transferable objects cannot be serialized with standard `JSON.stringify()`, the serialization module provides:
 
 * Function serialization using UUID tokens
 * Automatic detection and collection of transferable objects
-* Circular reference handling using the https://github.com/WebReflection/flatted[flatted] library
+* Circular reference handling using the [flatted](https://github.com/WebReflection/flatted) library
 * Bidirectional serialization/deserialization
 
 The module uses the **flatted** library to handle circular references automatically, allowing complex object graphs to be serialized and deserialized while preserving their structure.
 
-== Import
+## Import
 
-[source,typescript]
-----
+```typescript
 import {
 serializeValue,
 deserializeValue,
 isTransferable
 } from '@zomme/frame';
-----
+```
 
-== Functions
+## Functions
 
-=== `isTransferable(value)`
+### `isTransferable(value)`
 
 Check if a value is a transferable object that can be transferred (not cloned) via `postMessage()`.
 
@@ -47,8 +46,7 @@ Check if a value is a transferable object that can be transferred (not cloned) v
 
 **Examples:**
 
-[source,typescript]
-----
+```typescript
 import { isTransferable } from '@zomme/frame';
 
 const buffer = new ArrayBuffer(1024);
@@ -58,24 +56,23 @@ console.log(isTransferable(buffer)); // true
 console.log(isTransferable(port));   // true
 console.log(isTransferable({}));     // false
 console.log(isTransferable(() => {})); // false
-----
+```
 
 **Performance:**
 
 Transferable objects are transferred (not copied) for better performance:
 
-[source,typescript]
-----
+```typescript
 // Transfer (fast, zero-copy)
 frame.postMessage(data, [buffer, port]);
 
 // Clone (slow, creates copies)
 frame.postMessage(data); // Same data will be cloned instead
-----
+```
 
 ---
 
-=== `serializeValue(value, functionRegistry, trackedFunctions, transferables?)`
+### `serializeValue(value, functionRegistry, trackedFunctions, transferables?)`
 
 Serialize a value for postMessage, collecting transferables and serializing functions.
 
@@ -100,8 +97,7 @@ Serialize a value for postMessage, collecting transferables and serializing func
 
 Functions are replaced with UUID tokens:
 
-[source,typescript]
-----
+```typescript
 const functionRegistry = new Map<string, Function>();
 const trackedFunctions = new Set<string>();
 
@@ -127,12 +123,11 @@ console.log(Array.from(functionRegistry.keys()));
 
 console.log(Array.from(trackedFunctions));
 // ["abc-123", "def-456"]
-----
+```
 
 **Transferable Collection:**
 
-[source,typescript]
-----
+```typescript
 const functionRegistry = new Map();
 const trackedFunctions = new Set();
 
@@ -154,14 +149,13 @@ console.log(transferables[1] instanceof MessagePort); // true
 
 // Send with transferables
 port.postMessage(serialized, transferables);
-----
+```
 
 **Circular Reference Handling:**
 
 Circular references are automatically preserved using the flatted library:
 
-[source,typescript]
-----
+```typescript
 const functionRegistry = new Map();
 const trackedFunctions = new Set();
 
@@ -178,14 +172,13 @@ console.log(serialized);
 // { name: 'obj1', ref: { name: 'obj2', ref: [Circular] } }
 // The circular reference is preserved in the serialized structure
 console.log(serialized.ref.ref === serialized); // true
-----
+```
 
 **Deeply Nested Objects:**
 
 The flatted library handles deeply nested structures efficiently:
 
-[source,typescript]
-----
+```typescript
 const functionRegistry = new Map();
 const trackedFunctions = new Set();
 
@@ -201,12 +194,11 @@ const { serialized } = serializeValue(deep, functionRegistry, trackedFunctions);
 // Successfully serializes deeply nested structures
 console.log(serialized.value); // 'root'
 console.log(serialized.next.value); // 0
-----
+```
 
 **Complex Nested Objects:**
 
-[source,typescript]
-----
+```typescript
 const functionRegistry = new Map();
 const trackedFunctions = new Set();
 
@@ -234,11 +226,11 @@ trackedFunctions
 console.log(transferables.length); // 2 (buffer + port)
 console.log(serialized.user.permissions.delete);
 // { __fn: "uuid", __meta: { name: "delete" } }
-----
+```
 
 ---
 
-=== `deserializeValue(value, createProxyFunction)`
+### `deserializeValue(value, createProxyFunction)`
 
 Deserialize a value from postMessage, creating proxy functions.
 
@@ -257,8 +249,7 @@ Deserialize a value from postMessage, creating proxy functions.
 
 **Deserializing Functions:**
 
-[source,typescript]
-----
+```typescript
 // Create proxy function creator
 const createProxyFunction = (fnId: string) => {
 return (...args) => {
@@ -283,12 +274,11 @@ console.log(typeof deserialized.onSave); // 'function'
 deserialized.onSave({ name: 'John' });
 // Calling remote function: abc-123
 // With args: [{ name: 'John' }]
-----
+```
 
 **Deserializing Arrays:**
 
-[source,typescript]
-----
+```typescript
 const createProxyFunction = (fnId) => () => console.log('Function:', fnId);
 
 const serialized = {
@@ -303,12 +293,11 @@ const deserialized = deserializeValue(serialized, createProxyFunction);
 
 console.log(deserialized.validators.length); // 3
 console.log(typeof deserialized.validators[0]); // 'function'
-----
+```
 
 **Deserializing Nested Objects:**
 
-[source,typescript]
-----
+```typescript
 const createProxyFunction = (fnId) => () => console.log('Function:', fnId);
 
 const serialized = {
@@ -329,14 +318,13 @@ const deserialized = deserializeValue(serialized, createProxyFunction);
 console.log(typeof deserialized.api.getUser);    // 'function'
 console.log(typeof deserialized.api.updateUser); // 'function'
 console.log(typeof deserialized.callbacks.onSuccess); // 'function'
-----
+```
 
-== Complete Workflow Example
+## Complete Workflow Example
 
-=== Serialization and Deserialization
+### Serialization and Deserialization
 
-[source,typescript]
-----
+```typescript
 import {
 serializeValue,
 deserializeValue
@@ -398,14 +386,13 @@ console.log(users);
 await deserialized.config.api.updateUser(123, { name: 'Updated' });
 
 deserialized.config.onError(new Error('Test error'));
-----
+```
 
-== Error Handling
+## Error Handling
 
-=== Invalid Function Registry Size
+### Invalid Function Registry Size
 
-[source,typescript]
-----
+```typescript
 const functionRegistry = new Map();
 // Simulate full registry
 for (let i = 0; i < 1000; i++) {
@@ -419,14 +406,13 @@ functionRegistry,
 trackedFunctions
 );
 // Error: Function registry limit (1000) exceeded. Cannot serialize more functions.
-----
+```
 
-=== Unsupported Object Types
+### Unsupported Object Types
 
 Non-plain objects are passed through unchanged:
 
-[source,typescript]
-----
+```typescript
 const functionRegistry = new Map();
 const trackedFunctions = new Set();
 
@@ -446,22 +432,22 @@ console.log(serialized.date === date); // true
 console.log(serialized.regex === regex); // true
 console.log(serialized.map === map); // true
 console.log(serialized.set === set); // true
-----
+```
 
-== Performance Considerations
+## Performance Considerations
 
-=== Serialization Performance
+### Serialization Performance
 
 The flatted library provides efficient serialization with minimal overhead:
 
-* *Shallow objects* (< 10 levels): ~1-2μs
-* *Medium objects* (10-50 levels): ~5-15μs
-* *Deep objects* (50+ levels): ~20-50μs
+* *Shallow objects* (< 10 levels): ~1-2us
+* *Medium objects* (10-50 levels): ~5-15us
+* *Deep objects* (50+ levels): ~20-50us
 * *Circular references*: Handled automatically with no additional overhead
 
 **Best practice:** Keep data structures reasonably flat for optimal performance, though deep nesting is supported.
 
-=== Function Registry Size
+### Function Registry Size
 
 Each function stored in registry consumes memory:
 
@@ -471,7 +457,7 @@ Each function stored in registry consumes memory:
 
 For 1000 functions: ~100-200KB memory usage.
 
-=== Transferable Performance
+### Transferable Performance
 
 Transferable objects provide significant performance benefits:
 
@@ -480,14 +466,13 @@ Transferable objects provide significant performance benefits:
 
 **Best practice:** Use transferable objects for large data (buffers, streams, ports).
 
-== Security Considerations
+## Security Considerations
 
-=== Circular Reference Handling
+### Circular Reference Handling
 
 Circular references are automatically handled by the flatted library, preserving the object graph structure:
 
-[source,typescript]
-----
+```typescript
 const obj = { name: 'test' };
 obj.self = obj; // Circular reference
 
@@ -495,14 +480,13 @@ const { serialized } = serializeValue(obj, new Map(), new Set());
 // Circular references are preserved in the serialized structure
 console.log(serialized.self === serialized); // true
 // No infinite loops occur during serialization
-----
+```
 
-=== Function Registry Limits
+### Function Registry Limits
 
 Registry size limit prevents DoS attacks:
 
-[source,typescript]
-----
+```typescript
 // An attacker tries to register 1 million functions
 for (let i = 0; i < 1000000; i++) {
 frame[`fn${i}`] = () => {};
@@ -510,14 +494,13 @@ frame[`fn${i}`] = () => {};
 
 // After 1000 functions, registration fails
 // Warning: Function registry limit (1000) exceeded
-----
+```
 
-=== No eval Usage
+### No eval Usage
 
 Functions are never evaluated from strings, preventing code injection:
 
-[source,typescript]
-----
+```typescript
 // SAFE: Functions are stored directly in registry
 frame.callback = () => console.log('Safe');
 
@@ -525,10 +508,10 @@ frame.callback = () => console.log('Safe');
 // Serialized: { __fn: "uuid", __meta: { name: "callback" } }
 
 // The function is called directly from registry, never eval'd
-----
+```
 
-== Related
+## Related
 
-* **Function Manager**: See link:./function-manager.adoc[Function Manager] for high-level function management
-* **Function Serialization**: See link:../advanced/function-serialization.adoc[Function Serialization] for usage examples
+* **Function Manager**: See [Function Manager](./function-manager.md) for high-level function management
+* **Function Serialization**: See [Function Serialization](../advanced/function-serialization.md) for usage examples
 * **Source Code**: `src/helpers/serialization.ts`

@@ -1,84 +1,80 @@
-= SDK API
+# SDK API
 
 The SDK provides APIs for frame applications to communicate with the parent.
 
-== Import
+## Import
 
-[source,typescript]
-----
+```typescript
 import { frameSDK } from '@zomme/frame/sdk';
-----
+```
 
-NOTE: The SDK is a singleton instance. Import and use directly.
+> [!NOTE]
+> The SDK is a singleton instance. Import and use directly.
 
-== Initialization
+## Initialization
 
-=== `initialize()`
+### `initialize()`
 
 Initialize the SDK. Must be called before using any other methods.
 
-[source,typescript]
-----
+```typescript
 await frameSDK.initialize();
 console.log('SDK ready');
-----
+```
 
 **Returns:** `Promise<void>` - Resolves when `__INIT__` message received
 
-IMPORTANT: Call `initialize()` at the start of your frame application, before rendering UI.
+> [!IMPORTANT]
+> Call `initialize()` at the start of your frame application, before rendering UI.
 
-== Configuration
+## Configuration
 
-=== `props`
+### `props`
 
 Access configuration and properties passed from parent via the `props` property.
 
-[source,typescript]
-----
+```typescript
 const config = frameSDK.props;
 console.log(config.name);     // "my-app"
 console.log(config.base);     // "/my-app"
 console.log(config.apiUrl);   // Custom attribute
 console.log(config.theme);    // Custom attribute
-----
+```
 
 **Type:** `FrameProps` - Configuration object with all attributes and properties
 
 Properties are automatically updated when parent changes attributes:
 
-[source,typescript]
-----
+```typescript
 // Parent changes theme
 frame.theme = 'dark';
 
 // Frame's props are updated automatically
 console.log(frameSDK.props.theme); // "dark"
-----
+```
 
-== Events
+## Events
 
-=== `emit(eventName, data?)`
+### `emit(eventName, data?)`
 
 Emit custom event to parent.
 
-[source,typescript]
-----
+```typescript
 frameSDK.emit('user-action', { type: 'click', id: 123 });
 frameSDK.emit('data-loaded');
-----
+```
 
 **Parameters:**
 * `eventName` (string) - Event name
 * `data` (unknown, optional) - Event data
 
-=== `register(name, fn)` / `register(functions)`
+### `register(name, fn)` / `register(functions)`
 
 Register functions that can be called by the parent. This is the recommended way to expose frame functions to the parent.
 
 **Overload 1: Register single function**
 
-[source,typescript]
-----
+```typescript
 const unregister = frameSDK.register('refresh', () => {
   console.log('Refreshing data');
   loadData();
@@ -86,7 +82,7 @@ const unregister = frameSDK.register('refresh', () => {
 
 // Later: cleanup
 unregister();
-----
+```
 
 **Parameters:**
 * `name` (string) - Function name for identification
@@ -96,8 +92,7 @@ unregister();
 
 **Overload 2: Register multiple functions**
 
-[source,typescript]
-----
+```typescript
 const unregister = frameSDK.register({
   refresh: () => loadData(),
   export: async (format) => {
@@ -109,7 +104,7 @@ const unregister = frameSDK.register({
 
 // Later: cleanup
 unregister();
-----
+```
 
 **Parameters:**
 * `functions` (Record<string, function>) - Object with functions to expose to parent
@@ -120,8 +115,7 @@ unregister();
 
 The parent receives registered functions via the `'register'` event:
 
-[source,typescript]
-----
+```typescript
 const frame = document.querySelector('z-frame');
 const actions = {};
 
@@ -136,14 +130,13 @@ frame.addEventListener('register', (event) => {
 // Use accumulated functions later
 await actions.export('csv');
 actions.close();
-----
+```
 
 **Cleanup:**
 
 When the cleanup function is called, an `'unregister'` event is emitted:
 
-[source,typescript]
-----
+```typescript
 frame.addEventListener('unregister', (event) => {
   console.log('Functions unregistered:', event.detail.functions);
   // Clean up cache
@@ -151,7 +144,7 @@ frame.addEventListener('unregister', (event) => {
     delete actions[name];
   }
 });
-----
+```
 
 **Features:**
 
@@ -160,14 +153,14 @@ frame.addEventListener('unregister', (event) => {
 * **Standard convention**: Always uses `'register'` event
 * **Automatic cleanup**: Cleanup also happens on `beforeunload` (when frame closes)
 
-NOTE: Cleanup is automatic when the frame unloads, so calling the unregister function is optional unless you need to unregister before unmounting.
+> [!NOTE]
+> Cleanup is automatic when the frame unloads, so calling the unregister function is optional unless you need to unregister before unmounting.
 
-=== `on(eventName, handler)`
+### `on(eventName, handler)`
 
 Listen to events from parent.
 
-[source,typescript]
-----
+```typescript
 frameSDK.on('theme-changed', (theme) => {
   console.log('New theme:', theme);
   updateTheme(theme);
@@ -176,13 +169,13 @@ frameSDK.on('theme-changed', (theme) => {
 frameSDK.on('user-updated', (user) => {
   console.log('User updated:', user);
 });
-----
+```
 
 **Parameters:**
 * `eventName` (string) - Event name
 * `handler` (function) - Event handler `(data: unknown) => void`
 
-=== `watch(props, handler)`
+### `watch(props, handler)`
 
 Watch for property changes with modern, type-safe API.
 
@@ -196,8 +189,7 @@ Watch for property changes with modern, type-safe API.
 
 **Returns:** Function to unwatch (cleanup)
 
-[source,typescript]
-----
+```typescript
 // Watch specific properties
 const unwatch = frameSDK.watch(['apiUrl', 'theme'], (changes) => {
   if ('apiUrl' in changes && changes.apiUrl) {
@@ -221,32 +213,30 @@ const unwatchAll = frameSDK.watch((changes) => {
     console.log(`${prop} changed from ${oldVal} to ${newVal}`);
   });
 });
-----
+```
 
-=== `off(eventName, handler)`
+### `off(eventName, handler)`
 
 Remove event listener.
 
-[source,typescript]
-----
+```typescript
 const handler = (data) => console.log(data);
 
 frameSDK.on('user-updated', handler);
 frameSDK.off('user-updated', handler);
-----
+```
 
 **Parameters:**
 * `eventName` (string) - Event name
 * `handler` (function) - Handler to remove
 
-== Lifecycle
+## Lifecycle
 
-=== `cleanup()`
+### `cleanup()`
 
 Clean up resources when unmounting the frame.
 
-[source,typescript]
-----
+```typescript
 // React
 useEffect(() => {
   return () => frameSDK.cleanup();
@@ -261,18 +251,18 @@ onUnmounted(() => {
 ngOnDestroy() {
   frameSDK.cleanup();
 }
-----
+```
 
 **Purpose:** Removes all event listeners, closes MessagePort, and releases function references to prevent memory leaks.
 
-IMPORTANT: Always call `cleanup()` when unmounting your frame to avoid memory leaks.
+> [!IMPORTANT]
+> Always call `cleanup()` when unmounting your frame to avoid memory leaks.
 
-== TypeScript Types
+## TypeScript Types
 
 Extend `FrameProps` for type-safe access to custom properties:
 
-[source,typescript]
-----
+```typescript
 import type { FrameProps } from '@zomme/frame/types';
 
 interface MyFrameProps extends FrameProps {
@@ -285,14 +275,13 @@ interface MyFrameProps extends FrameProps {
 const props = frameSDK.props as MyFrameProps;
 console.log(props.apiUrl);  // Type-safe
 await props.onSave({ name: 'John' }); // Type-safe function call
-----
+```
 
-== Parent-Provided Functions
+## Parent-Provided Functions
 
 The parent can pass functions as properties, which can be called from the frame:
 
-[source,typescript]
-----
+```typescript
 // Parent provides callback
 frame.onSave = async (data) => {
   await api.save(data);
@@ -302,14 +291,13 @@ frame.onSave = async (data) => {
 // Frame calls it
 const result = await frameSDK.props.onSave({ name: 'John' });
 console.log(result); // { success: true }
-----
+```
 
 **Function call timeout:** 5 seconds. If a function call doesn't respond within 5 seconds, it will throw a timeout error.
 
-== Example: Complete Setup
+## Example: Complete Setup
 
-[source,typescript]
-----
+```typescript
 import { frameSDK } from '@zomme/frame/sdk';
 
 // 1. Initialize
@@ -365,4 +353,4 @@ onUnmounted(() => frameSDK.cleanup());
 ngOnDestroy() {
   frameSDK.cleanup();
 }
-----
+```

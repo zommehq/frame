@@ -1,8 +1,8 @@
-= Logger Utility
+# Logger Utility
 
 The logger utility provides consistent log prefixes across the codebase for improved readability and debuggability.
 
-== Overview
+## Overview
 
 The logger provides structured logging methods with standardized prefixes to:
 
@@ -10,29 +10,27 @@ The logger provides structured logging methods with standardized prefixes to:
 * Distinguish between different components (z-frame vs SDK)
 * Maintain consistency in error messages
 
-== Import
+## Import
 
-[source,typescript]
-----
+```typescript
 import { createLogger, Logger } from '@zomme/frame';
-----
+```
 
-== Interface
+## Interface
 
-=== Logger
+### Logger
 
-[source,typescript]
-----
+```typescript
 interface Logger {
   error: (...args: unknown[]) => void;
   log: (...args: unknown[]) => void;
   warn: (...args: unknown[]) => void;
 }
-----
+```
 
-== Functions
+## Functions
 
-=== `createLogger(prefix)`
+### `createLogger(prefix)`
 
 Create a logger instance with a specific prefix.
 
@@ -44,8 +42,7 @@ Create a logger instance with a specific prefix.
 
 **Example:**
 
-[source,typescript]
-----
+```typescript
 import { createLogger } from '@zomme/frame';
 
 const logger = createLogger('z-frame');
@@ -58,14 +55,13 @@ logger.log('Initialization complete');
 // [z-frame] Failed to send message: Error: ...
 // [z-frame] Invalid message format: { ... }
 // [z-frame] Initialization complete
-----
+```
 
 **Usage in Components:**
 
 The logger is used internally in Frame and FrameSDK for consistent logging:
 
-[source,typescript]
-----
+```typescript
 // Example usage in your code
 import { createLogger } from '@zomme/frame';
 
@@ -85,51 +81,47 @@ class MyComponent {
     logger.warn('Invalid message format:', event.data);
   }
 }
-----
+```
 
-== Log Levels
+## Log Levels
 
-=== Error Level
+### Error Level
 
 Use for errors that prevent normal operation:
 
-[source,typescript]
-----
+```typescript
 logger.error('Failed to send message:', error);
 logger.error('MessagePort not ready');
 logger.error('Function registry limit exceeded');
-----
+```
 
-=== Warning Level
+### Warning Level
 
 Use for non-critical issues that may need attention:
 
-[source,typescript]
-----
+```typescript
 logger.warn('Invalid message format:', message);
 logger.warn('Unknown message type:', type);
 logger.warn('Ignoring duplicate INIT message');
-----
+```
 
-=== Log Level
+### Log Level
 
 Use for general information during development:
 
-[source,typescript]
-----
+```typescript
 logger.log('Initialization complete');
 logger.log('Ready message received');
 logger.log('Function registered:', fnId);
-----
+```
 
-== Best Practices
+## Best Practices
 
-=== Use Consistent Prefixes
+### Use Consistent Prefixes
 
 Use component-specific prefixes for clear attribution:
 
-[source,typescript]
-----
+```typescript
 // Good: Specific component prefix
 const logger = createLogger('z-frame');
 const sdkLogger = createLogger('frameSDK');
@@ -137,14 +129,13 @@ const serializationLogger = createLogger('serialization');
 
 // Bad: Generic prefix
 const logger = createLogger('app');
-----
+```
 
-=== Include Context
+### Include Context
 
 Add contextual information to logs:
 
-[source,typescript]
-----
+```typescript
 // Good: Include relevant context
 logger.error('Failed to send message to iframe:', error);
 logger.warn('Unknown message type:', message.type);
@@ -153,14 +144,13 @@ logger.log('Attribute changed:', attribute, 'to:', value);
 // Bad: Generic error without context
 logger.error('Error');
 logger.error('Failed');
-----
+```
 
-=== Use for Debugging
+### Use for Debugging
 
 Logs are useful for debugging issues:
 
-[source,typescript]
-----
+```typescript
 // Enable detailed logging during development
 const logger = createLogger('debug-mode');
 
@@ -171,8 +161,8 @@ logger.log('Received message:', event.data.type);
 // Trace function calls
 logger.log('Calling remote function:', fnId);
 logger.log('Function result:', result);
-----
+```
 
-== Related
+## Related
 
 * **Source Code**: `src/helpers/logger.ts`

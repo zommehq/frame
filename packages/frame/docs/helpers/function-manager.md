@@ -1,8 +1,8 @@
-= Function Manager
+# Function Manager
 
 The `FunctionManager` class manages function serialization, remote calls, and lifecycle for bidirectional RPC between parent and child frames.
 
-== Overview
+## Overview
 
 The `FunctionManager` centralizes all function-related logic:
 
@@ -13,10 +13,9 @@ The `FunctionManager` centralizes all function-related logic:
 
 Used by both `Frame` (parent) and `FrameSDK` (child).
 
-=== Architecture
+### Architecture
 
-[mermaid]
-....
+```mermaid
 graph TB
     subgraph FunctionManager["FunctionManager"]
         FR[("functionRegistry<br/>Map&lt;UUID, Function&gt;")]
@@ -40,20 +39,19 @@ graph TB
     style PC fill:#AB47BC,stroke:#7B1FA2,stroke-width:2px,color:#fff
     style FunctionManager fill:#66BB6A,stroke:#388E3C,stroke-width:2px,color:#fff
     style Memory fill:#4A90E2,stroke:#2563EB,stroke-width:2px,color:#fff
-....
+```
 
 The Function Manager maintains three core registries that work together to manage the complete lifecycle of remote function calls.
 
-== Import
+## Import
 
-[source,typescript]
-----
+```typescript
 import { FunctionManager } from '@zomme/frame';
-----
+```
 
-== Constructor
+## Constructor
 
-=== `FunctionManager(postMessage)`
+### `FunctionManager(postMessage)`
 
 Creates a new `FunctionManager` instance.
 
@@ -63,8 +61,7 @@ Creates a new `FunctionManager` instance.
 
 **Example:**
 
-[source,typescript]
-----
+```typescript
 // In Frame (parent)
 const manager = new FunctionManager((message, transferables) => {
 this._sendToIframe(message, transferables);
@@ -74,11 +71,11 @@ this._sendToIframe(message, transferables);
 const manager = new FunctionManager((message, transferables) => {
 this._sendToParent(message, transferables);
 });
-----
+```
 
-== Methods
+## Methods
 
-=== `serialize(value)`
+### `serialize(value)`
 
 Serialize a value (including functions and transferables).
 
@@ -90,8 +87,7 @@ Serialize a value (including functions and transferables).
 
 **Example:**
 
-[source,typescript]
-----
+```typescript
 const manager = new FunctionManager((msg) => console.log(msg));
 
 const props = {
@@ -109,15 +105,15 @@ console.log(serialized);
 
 console.log(manager.getTrackedFunctions());
 // ["uuid-1", "uuid-2"]
-----
+```
 
 **Internals:**
 
-Uses `serializeValue()` from link:./serialization.adoc[Serialization] for details.
+Uses `serializeValue()` from [Serialization](./serialization.md) for details.
 
 ---
 
-=== `deserialize(value)`
+### `deserialize(value)`
 
 Deserialize a value (creating proxy functions).
 
@@ -129,8 +125,7 @@ Deserialize a value (creating proxy functions).
 
 **Example:**
 
-[source,typescript]
-----
+```typescript
 const manager = new FunctionManager((msg) => console.log(msg));
 
 const serialized = {
@@ -147,15 +142,15 @@ const deserialized = manager.deserialize(serialized);
 
 // Call proxy function (will be forwarded to remote side)
 console.log(typeof deserialized.onSave); // 'function'
-----
+```
 
 **Internals:**
 
-Uses `deserializeValue()` from link:./serialization.adoc[Serialization] for details.
+Uses `deserializeValue()` from [Serialization](./serialization.md) for details.
 
 ---
 
-=== `handleFunctionCall(callId, fnId, params)`
+### `handleFunctionCall(callId, fnId, params)`
 
 Handle incoming function call from remote side.
 
@@ -175,32 +170,29 @@ Handle incoming function call from remote side.
 
 **Success Response:**
 
-[source,json]
-----
+```json
 {
 "type": "__FUNCTION_RESPONSE__",
 "callId": "call-456",
 "success": true,
 "result": { ... }
 }
-----
+```
 
 **Error Response:**
 
-[source,json]
-----
+```json
 {
 "type": "__FUNCTION_RESPONSE__",
 "callId": "call-456",
 "success": false,
 "error": "Error message"
 }
-----
+```
 
 **Example:**
 
-[source,typescript]
-----
+```typescript
 const manager = new FunctionManager((msg) => {
 console.log('Sending:', msg);
 });
@@ -225,12 +217,11 @@ await manager.handleFunctionCall(
 //   success: true,
 //   result: { id: 123, status: "updated" }
 // }
-----
+```
 
 **Error Handling:**
 
-[source,typescript]
-----
+```typescript
 // Function not found
 await manager.handleFunctionCall("call-789", "fn-unknown", []);
 // Sends error response: "Function not found: fn-unknown"
@@ -242,12 +233,11 @@ throw new Error('Something went wrong');
 
 await manager.handleFunctionCall("call-999", "fn-error", []);
 // Sends error response: "Something went wrong"
-----
+```
 
 **Nested Functions in Parameters:**
 
-[source,typescript]
-----
+```typescript
 manager._functionRegistry.set("fn-callback", (callback) => {
 // Callback is a proxy function from remote side
 callback('Result!');
@@ -260,14 +250,13 @@ await manager.handleFunctionCall(
 );
 
 // The callback is deserialized and called, sending a FUNCTION_CALL message
-----
+```
 
 ---
 
-=== Function Call Lifecycle
+### Function Call Lifecycle
 
-[mermaid]
-....
+```mermaid
 stateDiagram-v2
     [*] --> Initiated: Proxy function called
     Initiated --> Pending: Send FUNCTION_CALL message
@@ -308,11 +297,11 @@ stateDiagram-v2
         - Promise settled (resolved/rejected)
         - Entry removed from pendingCalls
     end note
-....
+```
 
 ---
 
-=== `handleFunctionResponse(callId, success, result?, error?)`
+### `handleFunctionResponse(callId, success, result?, error?)`
 
 Handle function call response from remote side.
 
@@ -332,8 +321,7 @@ Handle function call response from remote side.
 
 **Example:**
 
-[source,typescript]
-----
+```typescript
 const manager = new FunctionManager((msg) => console.log(msg));
 
 // Simulate a pending call (created by proxy function)
@@ -357,12 +345,11 @@ const result = await promise;
 console.log(result); // { data: 'Success!' }
 
 // The timeout was cleared
-----
+```
 
 **Error Response:**
 
-[source,typescript]
-----
+```typescript
 const promise = new Promise((resolve, reject) => {
 const timeout = setTimeout(() => reject(new Error('Timeout')), 5000);
 manager._pendingFunctionCalls.set("call-456", {
@@ -385,14 +372,13 @@ await promise;
 } catch (error) {
 console.log(error.message); // 'Invalid parameters'
 }
-----
+```
 
 **Timeout Handling:**
 
 If timeout elapses before response:
 
-[source,typescript]
-----
+```typescript
 const promise = new Promise((resolve, reject) => {
 const timeout = setTimeout(() => {
   manager._pendingFunctionCalls.delete("call-789");
@@ -414,11 +400,11 @@ console.log(error.message); // 'Function call timeout: fn-123'
 
 // Even if response comes later, it's ignored
 manager.handleFunctionResponse("call-789", true, { data: 'Too late' });
-----
+```
 
 ---
 
-=== `releaseFunction(fnId)`
+### `releaseFunction(fnId)`
 
 Release a function from registry.
 
@@ -433,8 +419,7 @@ Release a function from registry.
 
 **Example:**
 
-[source,typescript]
-----
+```typescript
 const manager = new FunctionManager((msg) => console.log(msg));
 
 // Register function
@@ -449,12 +434,11 @@ manager.releaseFunction("fn-1");
 
 console.log(manager._functionRegistry.has("fn-1")); // false
 console.log(manager.getTrackedFunctions()); // []
-----
+```
 
 **Cleanup on Property Change:**
 
-[source,typescript]
-----
+```typescript
 // Parent replaces function property
 frame.onSave = newCallback;
 
@@ -463,11 +447,11 @@ manager.releaseFunction("old-fn-id");
 
 // New function is registered and tracked
 const { serialized } = manager.serialize({ onSave: newCallback });
-----
+```
 
 ---
 
-=== `getTrackedFunctions()`
+### `getTrackedFunctions()`
 
 Get all tracked function IDs (for cleanup).
 
@@ -475,8 +459,7 @@ Get all tracked function IDs (for cleanup).
 
 **Example:**
 
-[source,typescript]
-----
+```typescript
 const manager = new FunctionManager((msg) => console.log(msg));
 
 // Serialize multiple functions
@@ -488,12 +471,11 @@ onValidate: () => {}
 
 console.log(manager.getTrackedFunctions());
 // ["uuid-1", "uuid-2", "uuid-3"]
-----
+```
 
 **Use Case: Cleanup on Disconnect:**
 
-[source,typescript]
-----
+```typescript
 // Before closing connection
 for (const fnId of manager.getTrackedFunctions()) {
 port.postMessage({
@@ -504,14 +486,13 @@ port.postMessage({
 
 // Then close port
 port.close();
-----
+```
 
 ---
 
-=== Method Interaction Flow
+### Method Interaction Flow
 
-[mermaid]
-....
+```mermaid
 flowchart TD
     Start([Function Property Assignment])
 
@@ -560,13 +541,13 @@ flowchart TD
     style HandleResponse fill:#FFA726,stroke:#F57C00,stroke-width:2px,color:#000
     style Cleanup fill:#EF5350,stroke:#C62828,stroke-width:2px,color:#fff
     style CreateProxy fill:#AB47BC,stroke:#7B1FA2,stroke-width:2px,color:#fff
-....
+```
 
 The diagram shows how the five main methods (`serialize`, `deserialize`, `handleFunctionCall`, `handleFunctionResponse`, `cleanup`) interact throughout the complete lifecycle of a function call.
 
 ---
 
-=== `cleanup()`
+### `cleanup()`
 
 Clean up all resources.
 
@@ -582,8 +563,7 @@ Clean up all resources.
 
 **Example:**
 
-[source,typescript]
-----
+```typescript
 const manager = new FunctionManager((msg) => console.log(msg));
 
 // Simulate some pending calls
@@ -618,12 +598,11 @@ await call1;
 } catch (error) {
 console.log(error.message); // 'FunctionManager destroyed'
 }
-----
+```
 
 **Integration with Frame Lifecycle:**
 
-[source,typescript]
-----
+```typescript
 // In ZFrame.disconnectedCallback()
 disconnectedCallback() {
 // Stop MutationObserver
@@ -646,10 +625,9 @@ this._port?.close();
 // Remove iframe
 this._iframe?.remove();
 }
-----
+```
 
-[source,typescript]
-----
+```typescript
 // In FrameSDK.cleanup()
 cleanup() {
 // Release tracked functions
@@ -669,14 +647,13 @@ this._eventListeners.clear();
 // Close port
 this._port?.close();
 }
-----
+```
 
-== Complete Workflow Example
+## Complete Workflow Example
 
-=== Parent-Side Function Call
+### Parent-Side Function Call
 
-[source,typescript]
-----
+```typescript
 import { FunctionManager } from '@zomme/frame';
 
 // 1. Create manager in Frame
@@ -714,12 +691,11 @@ if (message.type === '__FUNCTION_CALL__') {
   // - Sends FUNCTION_RESPONSE via postMessage
 }
 }
-----
+```
 
-=== Child-Side Function Call
+### Child-Side Function Call
 
-[source,typescript]
-----
+```typescript
 import { FunctionManager } from '@zomme/frame';
 
 // 1. Create manager in FrameSDK
@@ -759,11 +735,11 @@ if (message.type === '__FUNCTION_RESPONSE__') {
   // - Resolves or rejects promise
 }
 }
-----
+```
 
-== Performance Considerations
+## Performance Considerations
 
-=== Memory Usage
+### Memory Usage
 
 Each function in registry consumes memory:
 
@@ -776,7 +752,7 @@ For 1000 functions: ~100-200KB.
 
 **Best practice:** Release functions when no longer needed.
 
-=== Timeout Overhead
+### Timeout Overhead
 
 Each pending function call has a timeout timer (~1-2KB overhead):
 
@@ -786,7 +762,7 @@ Each pending function call has a timeout timer (~1-2KB overhead):
 
 **Best practice:** Cleanup promptly to prevent accumulation.
 
-=== Message Overhead
+### Message Overhead
 
 Each function call requires 2 messages:
 
@@ -797,14 +773,13 @@ Each function call requires 2 messages:
 
 **Best practice:** Batch operations to reduce message overhead.
 
-== Security Considerations
+## Security Considerations
 
-=== Origin Validation
+### Origin Validation
 
 FunctionManager relies on postMessage for communication. Always validate origin:
 
-[source,typescript]
-----
+```typescript
 // In Frame
 window.addEventListener('message', (event) => {
 if (event.origin !== this._origin) {
@@ -813,18 +788,17 @@ if (event.origin !== this._origin) {
 }
 // Handle function calls
 });
-----
+```
 
 // In FrameSDK
 await frameSDK.initialize('https://trusted-origin.com');
-----
+```
 
-=== Function Registry Limits
+### Function Registry Limits
 
 Registry size limit prevents DoS attacks:
 
-[source,typescript]
-----
+```typescript
 // Limit prevents excessive memory usage
 const FUNCTION_REGISTRY_MAX_SIZE = 1000;
 
@@ -833,14 +807,13 @@ if (functionRegistry.size >= FUNCTION_REGISTRY_MAX_SIZE) {
 console.error('Function registry limit exceeded');
 return undefined;
 }
-----
+```
 
-=== No Code Execution
+### No Code Execution
 
-Functions are called directly, never evaluated:
+Functions are called directly, never evaluated from strings:
 
-[source,typescript]
-----
+```typescript
 // SAFE: Function stored and called directly
 manager._functionRegistry.set(fnId, (data) => {
 console.log(data);
@@ -850,15 +823,14 @@ console.log(data);
 const fn = manager._functionRegistry.get(fnId);
 fn(data);
 
-// NEVER uses eval or Function constructor
-----
+// NEVER uses eval or dynamic code evaluation
+```
 
-== Error Handling Best Practices
+## Error Handling Best Practices
 
-=== Handle Timeout Errors
+### Handle Timeout Errors
 
-[source,typescript]
-----
+```typescript
 try {
 const result = await frameSDK.props.slowOperation();
 } catch (error) {
@@ -869,12 +841,11 @@ if (error.message.includes('timeout')) {
   throw error;
 }
 }
-----
+```
 
-=== Handle Function Errors
+### Handle Function Errors
 
-[source,typescript]
-----
+```typescript
 try {
 const result = await frame.remoteFunction();
 } catch (error) {
@@ -889,12 +860,11 @@ if (error.message.includes('not found')) {
   console.error('Function call failed:', error);
 }
 }
-----
+```
 
-=== Validate Function Results
+### Validate Function Results
 
-[source,typescript]
-----
+```typescript
 const result = await frame.validateData(data);
 
 if (!result || typeof result !== 'object') {
@@ -904,12 +874,12 @@ throw new Error('Invalid result type');
 if (!result.valid) {
 console.log('Validation failed:', result.errors);
 }
-----
+```
 
-== Related
+## Related
 
-* **Serialization Module**: See link:./serialization.adoc[Serialization] for low-level serialization details
-* **Function Serialization**: See link:../advanced/function-serialization.adoc[Function Serialization] for usage examples
-* **SDK**: See link:../references/sdk.adoc[SDK] for FrameSDK integration
-* **Frame**: See link:../references/frame.adoc[Frame] for Frame integration
+* **Serialization Module**: See [Serialization](./serialization.md) for low-level serialization details
+* **Function Serialization**: See [Function Serialization](../advanced/function-serialization.md) for usage examples
+* **SDK**: See [SDK](../references/sdk.md) for FrameSDK integration
+* **Frame**: See [Frame](../references/frame.md) for Frame integration
 * **Source Code**: `src/helpers/function-manager.ts`

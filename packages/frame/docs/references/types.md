@@ -1,26 +1,24 @@
-= Type Definitions
+# Type Definitions
 
 TypeScript types and interfaces for Frame.
 
-== Core Types
+## Core Types
 
-=== FrameProps
+### FrameProps
 
 Props received by the frame from parent:
 
-[source,typescript]
-----
+```typescript
 interface FrameProps {
   base: string;              // Base path for routing
   name: string;              // Frame identifier
   [key: string]: unknown;    // Dynamic props (any type)
 }
-----
+```
 
 **Usage in frames:**
 
-[source,typescript]
-----
+```typescript
 import { frameSDK } from '@zomme/frame/sdk';
 
 await frameSDK.initialize();
@@ -29,12 +27,11 @@ await frameSDK.initialize();
 console.log(frameSDK.props.name);   // "my-app"
 console.log(frameSDK.props.base);   // "/my-app"
 console.log(frameSDK.props.theme);  // Custom prop
-----
+```
 
 **Extending for type safety:**
 
-[source,typescript]
-----
+```typescript
 import type { FrameProps } from '@zomme/frame/types';
 
 interface MyFrameProps extends FrameProps {
@@ -48,32 +45,30 @@ interface MyFrameProps extends FrameProps {
 const props = frameSDK.props as MyFrameProps;
 console.log(props.apiUrl);  // Type-safe access
 await props.onSave({ name: 'John' });
-----
+```
 
-=== SerializedFunction
+### SerializedFunction
 
 Internal representation of serialized functions:
 
-[source,typescript]
-----
+```typescript
 interface SerializedFunction {
   __fn: string;       // UUID token for function
   __meta?: {
     name?: string;    // Original function name
   };
 }
-----
+```
 
 **You don't use this directly.** It's handled internally by serialization.
 
-== Message Types
+## Message Types
 
-=== MessageType
+### MessageType
 
 Union of all message type constants:
 
-[source,typescript]
-----
+```typescript
 type MessageType =
   | '__INIT__'
   | '__READY__'
@@ -83,74 +78,68 @@ type MessageType =
   | '__FUNCTION_CALL__'
   | '__FUNCTION_RESPONSE__'
   | '__FUNCTION_RELEASE__';
-----
+```
 
-=== BaseMessage
+### BaseMessage
 
 Base interface for all messages:
 
-[source,typescript]
-----
+```typescript
 interface BaseMessage {
   type: MessageType;
 }
-----
+```
 
-=== InitMessage
+### InitMessage
 
 Sent from parent to frame on initialization:
 
-[source,typescript]
-----
+```typescript
 interface InitMessage extends BaseMessage {
   type: '__INIT__';
   payload: FrameProps;  // Serialized props
 }
-----
+```
 
-=== ReadyMessage
+### ReadyMessage
 
 Sent from frame to parent when ready:
 
-[source,typescript]
-----
+```typescript
 interface ReadyMessage extends BaseMessage {
   type: '__READY__';
 }
-----
+```
 
-=== AttributeChangeMessage
+### AttributeChangeMessage
 
 Sent from parent to frame when attribute/property changes:
 
-[source,typescript]
-----
+```typescript
 interface AttributeChangeMessage extends BaseMessage {
   type: '__ATTRIBUTE_CHANGE__';
   attribute: string;   // Property name (camelCase)
   value: unknown;      // Serialized new value
 }
-----
+```
 
-=== EventMessage
+### EventMessage
 
 Sent from parent to frame to deliver event:
 
-[source,typescript]
-----
+```typescript
 interface EventMessage extends BaseMessage {
   type: '__EVENT__';
   name: string;        // Event name
   data?: unknown;      // Optional event data
 }
-----
+```
 
-=== CustomEventMessage
+### CustomEventMessage
 
 Sent from frame to parent to emit custom event:
 
-[source,typescript]
-----
+```typescript
 interface CustomEventMessage extends BaseMessage {
   type: '__CUSTOM_EVENT__';
   payload: CustomEventPayload;
@@ -160,28 +149,26 @@ interface CustomEventPayload {
   name: string;        // Event name
   data?: unknown;      // Optional event data
 }
-----
+```
 
-=== FunctionCallMessage
+### FunctionCallMessage
 
 Sent when calling a remote function:
 
-[source,typescript]
-----
+```typescript
 interface FunctionCallMessage extends BaseMessage {
   type: '__FUNCTION_CALL__';
   callId: string;      // Unique call identifier
   fnId: string;        // Function UUID
   params: unknown[];   // Serialized parameters
 }
-----
+```
 
-=== FunctionResponseMessage
+### FunctionResponseMessage
 
 Sent as response to function call:
 
-[source,typescript]
-----
+```typescript
 interface FunctionResponseMessage extends BaseMessage {
   type: '__FUNCTION_RESPONSE__';
   callId: string;      // Matches FunctionCallMessage.callId
@@ -189,31 +176,29 @@ interface FunctionResponseMessage extends BaseMessage {
   result?: unknown;    // Serialized return value (if success)
   error?: string;      // Error message (if failed)
 }
-----
+```
 
-=== FunctionReleaseMessage
+### FunctionReleaseMessage
 
 Sent to release function from registry:
 
-[source,typescript]
-----
+```typescript
 interface FunctionReleaseMessage extends BaseMessage {
   type: '__FUNCTION_RELEASE__';
   fnId: string;        // Function UUID to release
 }
-----
+```
 
-=== FunctionReleaseBatchMessage
+### FunctionReleaseBatchMessage
 
 Sent to release multiple functions from registry at once (optimization for bulk cleanup):
 
-[source,typescript]
-----
+```typescript
 interface FunctionReleaseBatchMessage extends BaseMessage {
   type: '__FUNCTION_RELEASE_BATCH__';
   fnIds: string[];     // Array of Function UUIDs to release
 }
-----
+```
 
 **Benefits:**
 * Reduces message overhead when releasing many functions
@@ -222,8 +207,7 @@ interface FunctionReleaseBatchMessage extends BaseMessage {
 
 **Example:**
 
-[source,typescript]
-----
+```typescript
 // Instead of multiple messages:
 port.postMessage({ type: '__FUNCTION_RELEASE__', fnId: 'fn-1' });
 port.postMessage({ type: '__FUNCTION_RELEASE__', fnId: 'fn-2' });
@@ -234,14 +218,13 @@ port.postMessage({
   type: '__FUNCTION_RELEASE_BATCH__',
   fnIds: ['fn-1', 'fn-2', 'fn-3']
 });
-----
+```
 
-=== Message Union
+### Message Union
 
 All message types combined:
 
-[source,typescript]
-----
+```typescript
 type Message =
   | InitMessage
   | ReadyMessage
@@ -252,23 +235,21 @@ type Message =
   | FunctionResponseMessage
   | FunctionReleaseMessage
   | FunctionReleaseBatchMessage;
-----
+```
 
-=== PostMessageFn
+### PostMessageFn
 
 Callback function type for sending messages via MessagePort.postMessage:
 
-[source,typescript]
-----
+```typescript
 type PostMessageFn = (message: unknown, transferables?: Transferable[]) => void;
-----
+```
 
 **Usage:**
 
 Used by FunctionManager to send messages to the other side (parent or child):
 
-[source,typescript]
-----
+```typescript
 import type { PostMessageFn } from '@zomme/frame/types';
 
 const postMessage: PostMessageFn = (msg, transferables = []) => {
@@ -276,16 +257,15 @@ const postMessage: PostMessageFn = (msg, transferables = []) => {
 };
 
 const manager = new FunctionManager(postMessage);
-----
+```
 
-== Constants
+## Constants
 
-=== MessageEvent
+### MessageEvent
 
 Constant values for message types:
 
-[source,typescript]
-----
+```typescript
 export const MessageEvent = {
   // Lifecycle
   INIT: '__INIT__',
@@ -304,29 +284,27 @@ export const MessageEvent = {
   FUNCTION_RELEASE: '__FUNCTION_RELEASE__',
   FUNCTION_RELEASE_BATCH: '__FUNCTION_RELEASE_BATCH__',
 } as const;
-----
+```
 
 **Usage:**
 
-[source,typescript]
-----
+```typescript
 import { MessageEvent } from '@zomme/frame/constants';
 
 if (message.type === MessageEvent.READY) {
   // Handle ready
 }
-----
+```
 
-=== Configuration Constants
+### Configuration Constants
 
-==== FUNCTION_CALL_TIMEOUT
+#### FUNCTION_CALL_TIMEOUT
 
 Timeout for remote function calls in milliseconds.
 
-[source,typescript]
-----
+```typescript
 export const FUNCTION_CALL_TIMEOUT = 5000; // 5 seconds
-----
+```
 
 **Default:** 5000ms (5 seconds)
 
@@ -334,8 +312,7 @@ export const FUNCTION_CALL_TIMEOUT = 5000; // 5 seconds
 
 **Example:**
 
-[source,typescript]
-----
+```typescript
 // This function will timeout after 5 seconds
 frame.slowOperation = async () => {
   await new Promise(resolve => setTimeout(resolve, 10000)); // 10 seconds
@@ -348,16 +325,15 @@ try {
 } catch (error) {
   console.error('Timeout:', error); // Error: Function call timeout
 }
-----
+```
 
-==== SERIALIZATION_MAX_DEPTH
+#### SERIALIZATION_MAX_DEPTH
 
 Maximum depth for object serialization to prevent stack overflow.
 
-[source,typescript]
-----
+```typescript
 export const SERIALIZATION_MAX_DEPTH = 100;
-----
+```
 
 **Default:** 100 levels
 
@@ -367,8 +343,7 @@ export const SERIALIZATION_MAX_DEPTH = 100;
 
 **Example:**
 
-[source,typescript]
-----
+```typescript
 // This deeply nested object will be truncated
 const deepObject = { level1: { level2: { /* ... 100+ levels ... */ } } };
 
@@ -383,7 +358,7 @@ const flatObject = {
 };
 
 frame.data = flatObject; // OK
-----
+```
 
 **Best Practices:**
 
@@ -391,16 +366,16 @@ frame.data = flatObject; // OK
 * Use arrays instead of deeply nested objects
 * Extract nested data into separate properties
 
-NOTE: Circular references are automatically handled by the flatted library and don't need to be avoided.
+> [!NOTE]
+> Circular references are automatically handled by the flatted library and don't need to be avoided.
 
-==== FUNCTION_REGISTRY_MAX_SIZE
+#### FUNCTION_REGISTRY_MAX_SIZE
 
 Maximum number of functions that can be registered in the function registry.
 
-[source,typescript]
-----
+```typescript
 export const FUNCTION_REGISTRY_MAX_SIZE = 1000;
-----
+```
 
 **Default:** 1000 functions
 
@@ -410,14 +385,13 @@ export const FUNCTION_REGISTRY_MAX_SIZE = 1000;
 
 **Example:**
 
-[source,typescript]
-----
+```typescript
 // This will fail after 1000 functions
 for (let i = 0; i < 2000; i++) {
   frame[`handler${i}`] = () => console.log(i);
 }
 // Warning: Function registry limit (1000) exceeded. Cannot serialize more functions.
-----
+```
 
 **Best Practices:**
 
@@ -425,14 +399,13 @@ for (let i = 0; i < 2000; i++) {
 * Use object-based APIs instead of many individual callbacks
 * Release functions when they are no longer needed
 
-==== IFRAME_LOAD_TIMEOUT
+#### IFRAME_LOAD_TIMEOUT
 
 Timeout for iframe loading in milliseconds.
 
-[source,typescript]
-----
+```typescript
 export const IFRAME_LOAD_TIMEOUT = 10000; // 10 seconds
-----
+```
 
 **Default:** 10000ms (10 seconds)
 
@@ -440,8 +413,7 @@ export const IFRAME_LOAD_TIMEOUT = 10000; // 10 seconds
 
 **Behavior:**
 
-[source,typescript]
-----
+```typescript
 // In Frame initialization
 await new Promise((resolve, reject) => {
   const timeout = setTimeout(() => {
@@ -453,16 +425,15 @@ await new Promise((resolve, reject) => {
     resolve();
   });
 });
-----
+```
 
-==== INIT_TIMEOUT
+#### INIT_TIMEOUT
 
 Timeout for receiving INIT message in milliseconds.
 
-[source,typescript]
-----
+```typescript
 export const INIT_TIMEOUT = 10000; // 10 seconds
-----
+```
 
 **Default:** 10000ms (10 seconds)
 
@@ -470,8 +441,7 @@ export const INIT_TIMEOUT = 10000; // 10 seconds
 
 **Usage:**
 
-[source,typescript]
-----
+```typescript
 // SDK initialization with timeout
 await Promise.race([
   frameSDK.initialize(),
@@ -479,14 +449,13 @@ await Promise.race([
     setTimeout(() => reject(new Error('Initialization timeout')), INIT_TIMEOUT)
   )
 ]);
-----
+```
 
-==== ERROR_MESSAGES
+#### ERROR_MESSAGES
 
 Standardized error message constants for consistent error handling.
 
-[source,typescript]
-----
+```typescript
 export const ErrorMessages = {
   ARRAY_BOUNDS: 'No MessagePort received in INIT message',
   DATA_CLONE_ERROR: 'Cannot clone message data - unsupported type',
@@ -516,12 +485,11 @@ export const ErrorMessages = {
   UNKNOWN_ERROR: 'Unknown error',
   UNKNOWN_MESSAGE_TYPE: 'Unknown message type',
 } as const;
-----
+```
 
 **Usage:**
 
-[source,typescript]
-----
+```typescript
 import { ErrorMessages } from '@zomme/frame/constants';
 
 if (error.message === ErrorMessages.FUNCTION_NOT_FOUND) {
@@ -529,14 +497,13 @@ if (error.message === ErrorMessages.FUNCTION_NOT_FOUND) {
 } else if (error.message === ErrorMessages.IFRAME_LOAD_TIMEOUT) {
   // Handle iframe load timeout
 }
-----
+```
 
-==== WARNING_MESSAGES
+#### WARNING_MESSAGES
 
 Standardized warning message constants for consistent logging.
 
-[source,typescript]
-----
+```typescript
 export const WarningMessages = {
   ALREADY_INITIALIZED: 'Already initialized, ignoring duplicate call',
   DUPLICATE_INIT: 'Ignoring duplicate INIT message',
@@ -545,29 +512,27 @@ export const WarningMessages = {
   FORBIDDEN_EVENT: 'Forbidden event name',
   RELEASE_ERROR: 'Error sending release messages',
 } as const;
-----
+```
 
 **Usage:**
 
-[source,typescript]
-----
+```typescript
 import { WarningMessages } from '@zomme/frame/constants';
 
 if (message === WarningMessages.ALREADY_INITIALIZED) {
   // Handle duplicate initialization warning
 }
-----
+```
 
-=== VALID_MESSAGE_TYPES
+### VALID_MESSAGE_TYPES
 
 Set of all valid message types for validation.
 
-[source,typescript]
-----
+```typescript
 export const VALID_MESSAGE_TYPES = new Set(Object.values(MessageEvent)) as Set<
   (typeof MessageEvent)[keyof typeof MessageEvent]
 >;
-----
+```
 
 **Purpose:** Used to reject unknown or malicious message types.
 
@@ -575,20 +540,18 @@ export const VALID_MESSAGE_TYPES = new Set(Object.values(MessageEvent)) as Set<
 
 Internal message validation:
 
-[source,typescript]
-----
+```typescript
 if (!VALID_MESSAGE_TYPES.has(message.type)) {
   console.warn(`Unknown message type (potential attack): ${message.type}`);
   return;
 }
-----
+```
 
-== Type Guards
+## Type Guards
 
 You can create type guards for message handling:
 
-[source,typescript]
-----
+```typescript
 import type { Message, InitMessage, ReadyMessage } from '@zomme/frame/types';
 import { MessageEvent } from '@zomme/frame/constants';
 
@@ -604,14 +567,13 @@ function isReadyMessage(msg: Message): msg is ReadyMessage {
 if (isInitMessage(message)) {
   console.log(message.payload.name); // Type-safe
 }
-----
+```
 
-== Example: Complete Type Setup
+## Example: Complete Type Setup
 
-=== Parent Application
+### Parent Application
 
-[source,typescript]
-----
+```typescript
 import { Frame } from '@zomme/frame';
 
 // Define expected props interface
@@ -651,12 +613,11 @@ typedFrame.onSave = async (data) => {
 typedFrame.onCancel = () => {
   router.back();
 };
-----
+```
 
-=== Frame Application
+### Frame Application
 
-[source,typescript]
-----
+```typescript
 import { frameSDK } from '@zomme/frame/sdk';
 import type { FrameProps } from '@zomme/frame/types';
 
@@ -706,4 +667,4 @@ const unwatch = frameSDK.watch(['theme'], (changes) => {
 
 // Cleanup when done
 unwatch();
-----
+```

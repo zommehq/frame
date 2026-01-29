@@ -1,105 +1,99 @@
-= `<z-frame>` API
+# `<z-frame>` API
 
 Custom element for embedding micro-frontend frames.
 
-== Attributes
+## Attributes
 
-=== Required Attributes
+### Required Attributes
 
-==== `name`
+#### `name`
 
 Frame identifier. Used as default base path if `base` not provided.
 
-[source,html]
-----
+```html
 <z-frame name="my-app"></z-frame>
-----
+```
 
-==== `src`
+#### `src`
 
 Frame URL. Must be a complete URL including protocol.
 
-[source,html]
-----
+```html
 <z-frame src="http://localhost:3000"></z-frame>
-----
+```
 
-=== Optional Attributes
+### Optional Attributes
 
-==== `base`
+#### `base`
 
 Base path for frame router. Defaults to `/${name}`.
 
-[source,html]
-----
+```html
 <z-frame base="/custom-path"></z-frame>
-----
+```
 
-==== `sandbox`
+#### `sandbox`
 
 iframe sandbox permissions. Defaults to:
 `allow-scripts allow-same-origin allow-forms allow-popups allow-modals`
 
-[source,html]
-----
+```html
 <z-frame sandbox="allow-scripts allow-same-origin"></z-frame>
-----
+```
 
-==== Dynamic Attributes
+#### Dynamic Attributes
 
 Any other attribute is passed to the frame:
 
-[source,html]
-----
+```html
 <z-frame
   api-url="https://api.com"
   theme="dark"
   user-id="123"
 ></z-frame>
-----
+```
 
-== Properties
+## Properties
 
 All attributes can be set as properties:
 
-[source,typescript]
-----
+```typescript
 const frame = document.querySelector('z-frame');
 
 // Set via property (supports objects)
 frame.userData = { name: 'John', role: 'admin' };
 frame.apiUrl = 'https://api.com';
 frame.theme = 'dark';
-----
+```
 
-NOTE: Properties support complex objects, while attributes are limited to strings.
+> [!NOTE]
+> Properties support complex objects, while attributes are limited to strings.
 
-== Methods
+## Methods
 
-=== `emit(eventName, data)`
+### `emit(eventName, data)`
 
 Send event to the frame.
 
-[source,typescript]
-----
+```typescript
 frame.emit('theme-changed', { theme: 'dark' });
 frame.emit('refresh-data');
-----
+```
 
 **Parameters:**
 * `eventName` (string) - Event name
 * `data` (unknown, optional) - Event data
 
-NOTE: The frame receives this event via `frameSDK.on(eventName, handler)`. See the SDK documentation for more details.
+> [!NOTE]
+> The frame receives this event via `frameSDK.on(eventName, handler)`. See the SDK documentation for more details.
 
-=== Dynamic Event Methods (CamelCase)
+### Dynamic Event Methods (CamelCase)
 
 The `<z-frame>` element supports dynamic camelCase methods for emitting events. These are created automatically when accessed.
 
 **Syntax:** Convert kebab-case event name to camelCase and call as a method.
 
-[source,typescript]
-----
+```typescript
 // These are all equivalent:
 frame.emit('theme-changed', { theme: 'dark' });
 frame.themeChanged({ theme: 'dark' });          // Auto-created method
@@ -109,7 +103,7 @@ frame.themeChanged({ theme: 'light' });         // Same function reference
 frame.navigate({ path: '/settings' });          // emits 'navigate'
 frame.userCreated({ id: 123, name: 'John' });  // emits 'user-created'
 frame.stateChange({ user: currentUser });      // emits 'state-change'
-----
+```
 
 **Benefits:**
 
@@ -121,15 +115,14 @@ frame.stateChange({ user: currentUser });      // emits 'state-change'
 
 Methods are created lazily and cached:
 
-[source,typescript]
-----
+```typescript
 // First access creates and caches the method
 const handler1 = frame.themeChanged;
 const handler2 = frame.themeChanged;
 
 // Same function reference
 console.log(handler1 === handler2); // true
-----
+```
 
 **Limitations:**
 
@@ -137,82 +130,75 @@ console.log(handler1 === handler2); // true
 * Property names must be accessible on the element (not conflicting with built-in properties)
 * Non-matching patterns fall through to normal property access
 
-== Events
+## Events
 
 The `<z-frame>` element emits custom events:
 
-=== `ready`
+### `ready`
 
 Fired when frame is initialized and ready.
 
-[source,typescript]
-----
+```typescript
 frame.addEventListener('ready', () => {
   console.log('Frame is ready');
 });
-----
+```
 
-=== `navigate`
+### `navigate`
 
 Fired when frame requests navigation.
 
-[source,typescript]
-----
+```typescript
 frame.addEventListener('navigate', (event) => {
   console.log(event.detail.path);     // "/app/settings"
   console.log(event.detail.replace);  // false
   console.log(event.detail.state);    // { from: 'home' }
 });
-----
+```
 
-=== `error`
+### `error`
 
 Fired when frame reports an error.
 
-[source,typescript]
-----
+```typescript
 frame.addEventListener('error', (event) => {
   console.log(event.detail.message);  // "Something went wrong"
   console.log(event.detail.stack);    // Stack trace
 });
-----
+```
 
-=== `state-change`
+### `state-change`
 
 Fired when frame notifies state change.
 
-[source,typescript]
-----
+```typescript
 frame.addEventListener('state-change', (event) => {
   console.log(event.detail);  // { user: {...}, theme: 'dark' }
 });
-----
+```
 
-=== `custom-event`
+### `custom-event`
 
 Fired for custom events from frame.
 
-[source,typescript]
-----
+```typescript
 frame.addEventListener('custom-event', (event) => {
   console.log(event.detail.name);  // "user-action"
   console.log(event.detail.data);  // { type: 'click', id: 123 }
 });
-----
+```
 
 Or listen directly by event name:
 
-[source,typescript]
-----
+```typescript
 frame.addEventListener('user-action', (event) => {
   console.log(event.detail);  // { type: 'click', id: 123 }
 });
-----
+```
 
-== TypeScript
+## TypeScript
 
-[source,typescript]
-----
+```typescript
 import type { Frame } from '@zomme/frame';
 
 const frame = document.querySelector('z-frame') as Frame;
@@ -229,12 +215,11 @@ frame.getUserData = async (id: number): Promise<UserData> => {
 };
 
 // Frame can call this function via frameSDK.props.getUserData(123)
-----
+```
 
-== Lifecycle
+## Lifecycle
 
-[source]
-----
+```
 1. Element connected to DOM (connectedCallback)
 2. Read fixed attributes (name, src, base, sandbox)
 3. Create iframe with sandbox
@@ -245,16 +230,15 @@ frame.getUserData = async (id: number): Promise<UserData> => {
 8. Setup MutationObserver for attribute changes
 9. Wait for __READY__ message from frame
 10. Element ready, bidirectional communication enabled
-----
+```
 
-== Cleanup
+## Cleanup
 
-[source]
-----
+```
 1. Element disconnected from DOM (disconnectedCallback)
 2. Stop MutationObserver
 3. Remove iframe from DOM
 4. Reject pending function calls
 5. Clear timeout timers
 6. Release function references
-----
+```

@@ -1,20 +1,18 @@
-= React Integration
+# React Integration
 
 Frame works seamlessly with React in both parent and child applications.
 
-== Parent Application (React)
+## Parent Application (React)
 
-=== Using the React Package (Recommended)
+### Using the React Package (Recommended)
 
 The `@zomme/frame-react` package provides a React component wrapper for easier integration:
 
-[source,bash]
-----
+```bash
 bun add @zomme/frame-react
-----
+```
 
-[source,tsx]
-----
+```tsx
 import { Frame } from '@zomme/frame-react';
 
 function App() {
@@ -33,7 +31,7 @@ function App() {
     />
   );
 }
-----
+```
 
 **Features:**
 - Type-safe props with full TypeScript support
@@ -41,12 +39,11 @@ function App() {
 - Event listeners via props (`onReady`, `onNavigate`, etc.)
 - No need to manually handle refs or element attributes
 
-=== Using the Web Component Directly
+### Using the Web Component Directly
 
 Alternatively, you can use the core web component directly:
 
-[source,tsx]
-----
+```tsx
 import '@zomme/frame';
 
 function App() {
@@ -59,12 +56,11 @@ function App() {
     />
   );
 }
-----
+```
 
-=== Type-Safe Component Wrapper
+### Type-Safe Component Wrapper
 
-[source,tsx]
-----
+```tsx
 import '@zomme/frame';
 import { useEffect, useRef } from 'react';
 import type { Frame } from '@zomme/frame';
@@ -90,12 +86,11 @@ export function FrameWrapper({ name, src, ...props }: FrameProps) {
 
   return <z-frame ref={ref} name={name} src={src} />;
 }
-----
+```
 
-=== Listening to Events
+### Listening to Events
 
-[source,tsx]
-----
+```tsx
 import { useEffect, useRef } from 'react';
 import type { Frame } from '@zomme/frame';
 
@@ -120,16 +115,15 @@ function App() {
 
   return <z-frame ref={frameRef} name="app" src="http://localhost:3000" />;
 }
-----
+```
 
-== Frame Application (React)
+## Frame Application (React)
 
-=== Using the React Package
+### Using the React Package
 
 The `@zomme/frame-react` package provides ready-to-use components and hooks for React applications.
 
-[source,tsx]
-----
+```tsx
 import { useFrameSDK } from '@zomme/frame-react';
 
 function App() {
@@ -143,47 +137,26 @@ function App() {
     </div>
   );
 }
-----
+```
 
-=== Hook Return Values
+### Hook Return Values
 
 The `useFrameSDK` hook returns the following fields:
 
-[cols="1,1,3"]
-|===
-|Field |Type |Description
+| Field | Type | Description |
+|-------|------|-------------|
+| `props` | `T` | Current properties passed from the parent application |
+| `emit` | `(eventName: string, data?: unknown) => void` | Function to emit events to the parent application |
+| `isReady` | `boolean` | Indicates if the SDK is fully initialized and ready to communicate |
+| `sdkAvailable` | `boolean` | Indicates if the application is running inside a frame (true) or standalone (false) |
+| `on` | `(eventName: string, handler: Function) => void` | Function to listen to events from the parent application |
+| `onAttr` | `(attrName: string, handler: Function) => void` | Function to listen to specific attribute changes (e.g., `onAttr('theme', handleThemeChange)`) |
 
-|`props`
-|`T`
-|Current properties passed from the parent application
-
-|`emit`
-|`(eventName: string, data?: unknown) => void`
-|Function to emit events to the parent application
-
-|`isReady`
-|`boolean`
-|Indicates if the SDK is fully initialized and ready to communicate
-
-|`sdkAvailable`
-|`boolean`
-|Indicates if the application is running inside a frame (true) or standalone (false)
-
-|`on`
-|`(eventName: string, handler: Function) => void`
-|Function to listen to events from the parent application
-
-|`onAttr`
-|`(attrName: string, handler: Function) => void`
-|Function to listen to specific attribute changes (e.g., `onAttr('theme', handleThemeChange)`)
-|===
-
-=== Basic Setup (Manual SDK)
+### Basic Setup (Manual SDK)
 
 You can also use the SDK directly without the React package:
 
-[source,tsx]
-----
+```tsx
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { frameSDK } from '@zomme/frame/sdk';
@@ -203,12 +176,11 @@ frameSDK.initialize().then(() => {
     </StrictMode>
   );
 });
-----
+```
 
-=== Listening to Events
+### Listening to Events
 
-[source,tsx]
-----
+```tsx
 import { useFrameSDK } from '@zomme/frame-react';
 import { useEffect } from 'react';
 
@@ -229,4 +201,4 @@ function App() {
 
   return <div data-theme={props.theme}>Content</div>;
 }
-----
+```

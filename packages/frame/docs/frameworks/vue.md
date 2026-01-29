@@ -1,22 +1,20 @@
-= Vue Integration
+# Vue Integration
 
 Frame provides official Vue 3 support with dedicated packages for both parent and child applications.
 
-== Parent Application (Vue 3)
+## Parent Application (Vue 3)
 
-=== Installation
+### Installation
 
-[source,bash]
-----
+```bash
 bun add @zomme/frame-vue
-----
+```
 
-=== Using the Frame Component
+### Using the Frame Component
 
 The `@zomme/frame-vue` package provides a ready-to-use Vue component wrapper:
 
-[source,vue]
-----
+```vue
 <script setup lang="ts">
 import { Frame } from '@zomme/frame-vue';
 
@@ -40,7 +38,7 @@ function handleNavigate(event: CustomEvent) {
     @navigate="handleNavigate"
   />
 </template>
-----
+```
 
 The `Frame` component:
 
@@ -49,12 +47,11 @@ The `Frame` component:
 * Manages lifecycle and cleanup
 * Supports all standard HTML attributes and custom properties
 
-=== Using the Web Component Directly
+### Using the Web Component Directly
 
 You can also use the native web component directly:
 
-[source,vue]
-----
+```vue
 <script setup lang="ts">
 import '@zomme/frame';
 </script>
@@ -67,14 +64,13 @@ import '@zomme/frame';
     theme="dark"
   />
 </template>
-----
+```
 
-=== Type-Safe Wrapper (Custom)
+### Type-Safe Wrapper (Custom)
 
 For advanced use cases, you can create your own wrapper:
 
-[source,vue]
-----
+```vue
 <script setup lang="ts">
 import { ref, watchEffect } from 'vue';
 import type { Frame } from '@zomme/frame';
@@ -99,31 +95,28 @@ watchEffect(() => {
 <template>
   <z-frame ref="frameRef" :name="props.name" :src="props.src" />
 </template>
-----
+```
 
-== Frame Application (Vue 3)
+## Frame Application (Vue 3)
 
-=== Installation
+### Installation
 
-[source,bash]
-----
+```bash
 bun add @zomme/frame-vue
-----
+```
 
-=== Using the useFrameSDK Composable
+### Using the useFrameSDK Composable
 
 The `useFrameSDK` composable provides a reactive way to interact with the parent frame:
 
-[source,typescript]
-----
+```typescript
 import { createApp } from 'vue';
 import App from './App.vue';
 
 createApp(App).mount('#app');
-----
+```
 
-[source,vue]
-----
+```vue
 <script setup lang="ts">
 import { useFrameSDK } from '@zomme/frame-vue';
 
@@ -162,22 +155,19 @@ function notifyParent() {
     Loading frame...
   </div>
 </template>
-----
+```
 
-=== useFrameSDK API Reference
+### useFrameSDK API Reference
 
 The `useFrameSDK` composable returns an object with the following properties and methods:
 
-==== props
+#### props
 
-[cols="1,3"]
-|===
-| Type | `T` (generic type parameter)
-| Description | Reactive object containing all props passed from the parent frame. Automatically updated when attributes change.
-|===
+| Type | Description |
+|------|-------------|
+| `T` (generic type parameter) | Reactive object containing all props passed from the parent frame. Automatically updated when attributes change. |
 
-[source,typescript]
-----
+```typescript
 interface Props {
   theme: 'light' | 'dark';
   user: { name: string };
@@ -185,70 +175,56 @@ interface Props {
 
 const { props } = useFrameSDK<Props>();
 // props.theme and props.user are reactive
-----
+```
 
-==== isReady
+#### isReady
 
-[cols="1,3"]
-|===
-| Type | `Ref<boolean>`
-| Description | Reactive boolean indicating if the SDK has finished initialization. Use this to conditionally render content.
-|===
+| Type | Description |
+|------|-------------|
+| `Ref<boolean>` | Reactive boolean indicating if the SDK has finished initialization. Use this to conditionally render content. |
 
-[source,vue]
-----
+```vue
 <template>
   <div v-if="isReady">
     Content ready to display
   </div>
 </template>
-----
+```
 
-==== sdkAvailable
+#### sdkAvailable
 
-[cols="1,3"]
-|===
-| Type | `Ref<boolean>`
-| Description | Reactive boolean indicating if the frame SDK is available. Returns `false` when running in standalone mode (outside of a parent frame).
-|===
+| Type | Description |
+|------|-------------|
+| `Ref<boolean>` | Reactive boolean indicating if the frame SDK is available. Returns `false` when running in standalone mode (outside of a parent frame). |
 
-[source,typescript]
-----
+```typescript
 const { sdkAvailable } = useFrameSDK();
 
 if (!sdkAvailable.value) {
   console.log('Running in standalone mode');
 }
-----
+```
 
-==== emit(event: string, data?: unknown)
+#### emit(event: string, data?: unknown)
 
-[cols="1,3"]
-|===
-| Parameters | `event`: Event name, `data`: Optional event payload
-| Returns | `void`
-| Description | Sends a custom event to the parent frame. When running in standalone mode, logs the event to console instead.
-|===
+| Parameters | Returns | Description |
+|------------|---------|-------------|
+| `event`: Event name, `data`: Optional event payload | `void` | Sends a custom event to the parent frame. When running in standalone mode, logs the event to console instead. |
 
-[source,typescript]
-----
+```typescript
 const { emit } = useFrameSDK();
 
 emit('save-completed', { id: 123 });
 emit('navigation-requested', { path: '/users' });
-----
+```
 
-==== on(event: string, handler: (data: unknown) => void)
+#### on(event: string, handler: (data: unknown) => void)
 
-[cols="1,3"]
-|===
-| Parameters | `event`: Event name, `handler`: Callback function
-| Returns | `() => void` (cleanup function)
-| Description | Listens to custom events from the parent frame. Returns a function to remove the listener.
-|===
+| Parameters | Returns | Description |
+|------------|---------|-------------|
+| `event`: Event name, `handler`: Callback function | `() => void` (cleanup function) | Listens to custom events from the parent frame. Returns a function to remove the listener. |
 
-[source,typescript]
-----
+```typescript
 const { on } = useFrameSDK();
 
 const unsubscribe = on('refresh', (data) => {
@@ -259,33 +235,28 @@ const unsubscribe = on('refresh', (data) => {
 onUnmounted(() => {
   unsubscribe();
 });
-----
+```
 
-==== onAttr(attrName: string, handler: (value: unknown) => void)
+#### onAttr(attrName: string, handler: (value: unknown) => void)
 
-[cols="1,3"]
-|===
-| Parameters | `attrName`: Attribute name, `handler`: Callback function
-| Returns | `() => void` (cleanup function)
-| Description | Listens to changes in a specific attribute from the parent frame. Automatically updates the `props` object and calls the handler.
-|===
+| Parameters | Returns | Description |
+|------------|---------|-------------|
+| `attrName`: Attribute name, `handler`: Callback function | `() => void` (cleanup function) | Listens to changes in a specific attribute from the parent frame. Automatically updates the `props` object and calls the handler. |
 
-[source,typescript]
-----
+```typescript
 const { onAttr } = useFrameSDK();
 
 onAttr('theme', (newTheme) => {
   console.log('Theme changed to:', newTheme);
   // props.theme is already updated
 });
-----
+```
 
-=== Using the SDK Directly
+### Using the SDK Directly
 
 For projects not using the Vue package, you can use the SDK directly:
 
-[source,typescript]
-----
+```typescript
 import { createApp } from 'vue';
 import App from './App.vue';
 import { frameSDK } from '@zomme/frame/sdk';
@@ -293,10 +264,9 @@ import { frameSDK } from '@zomme/frame/sdk';
 frameSDK.initialize().then(() => {
   createApp(App).mount('#app');
 });
-----
+```
 
-[source,vue]
-----
+```vue
 <script setup lang="ts">
 import { ref, onUnmounted } from 'vue';
 import { frameSDK } from '@zomme/frame/sdk';
@@ -320,14 +290,13 @@ onUnmounted(() => {
     <h1>Frame: {{ config.name }}</h1>
   </div>
 </template>
-----
+```
 
-=== Complete Example
+### Complete Example
 
 Parent application:
 
-[source,vue]
-----
+```vue
 <script setup lang="ts">
 import { ref } from 'vue';
 import { Frame } from '@zomme/frame-vue';
@@ -358,12 +327,11 @@ function handleUserAction(event: CustomEvent) {
     <p>User actions: {{ userCount }}</p>
   </div>
 </template>
-----
+```
 
 Frame application:
 
-[source,vue]
-----
+```vue
 <script setup lang="ts">
 import { useFrameSDK } from '@zomme/frame-vue';
 
@@ -388,4 +356,4 @@ function saveUser() {
     <button @click="saveUser">Save User</button>
   </div>
 </template>
-----
+```

@@ -1,31 +1,29 @@
-= Lifecycle
+# Lifecycle
 
 Frame has a well-defined lifecycle from creation to cleanup.
 
-== Frame Lifecycle (Parent)
+## Frame Lifecycle (Parent)
 
-=== 1. Creation
+### 1. Creation
 
 Element is created in JavaScript or HTML:
 
-[source,typescript]
-----
+```typescript
 const frame = document.createElement('z-frame');
 frame.setAttribute('name', 'my-app');
 frame.setAttribute('src', 'http://localhost:3000');
-----
+```
 
 **State:** Element exists but not initialized
 
-=== 2. Connection (connectedCallback)
+### 2. Connection (connectedCallback)
 
 Element is added to the DOM:
 
-[source,typescript]
-----
+```typescript
 document.body.appendChild(frame);
 // connectedCallback() is triggered
-----
+```
 
 **Actions:**
 
@@ -34,7 +32,7 @@ document.body.appendChild(frame);
 * Calculate `_origin` from URL
 * Call `initializeApp()`
 
-=== 3. Initialization
+### 3. Initialization
 
 **Actions:**
 
@@ -90,17 +88,16 @@ document.body.appendChild(frame);
 
 **State:** Waiting for frame to be ready
 
-=== 4. Ready
+### 4. Ready
 
 Frame sends `__READY__` message:
 
-[source,typescript]
-----
+```typescript
 case '__READY__':
   this._ready = true;
   this.emit('ready');
   break;
-----
+```
 
 **Actions:**
 
@@ -110,7 +107,7 @@ case '__READY__':
 
 **State:** Fully operational, bidirectional communication enabled
 
-=== 5. Operation
+### 5. Operation
 
 Normal operation with message handling:
 
@@ -119,15 +116,14 @@ Normal operation with message handling:
 * Send attribute changes to frame
 * Call functions provided by frame
 
-=== 6. Disconnection (disconnectedCallback)
+### 6. Disconnection (disconnectedCallback)
 
 Element is removed from DOM:
 
-[source,typescript]
-----
+```typescript
 frame.remove();
 // disconnectedCallback() is triggered
-----
+```
 
 **Actions:**
 
@@ -169,23 +165,22 @@ frame.remove();
 
 **State:** Cleaned up, resources released
 
-== Frame SDK Lifecycle (Child)
+## Frame SDK Lifecycle (Child)
 
-=== 1. Import and Initialize
+### 1. Import and Initialize
 
 Frame app imports and initializes SDK:
 
-[source,typescript]
-----
+```typescript
 import { frameSDK } from '@zomme/frame/sdk';
 
 // Must be called first
 await frameSDK.initialize();
-----
+```
 
 **State:** Waiting for `__INIT__` message
 
-=== 2. Initialization
+### 2. Initialization
 
 SDK receives `__INIT__` message:
 
@@ -234,7 +229,7 @@ SDK receives `__INIT__` message:
 
 **State:** Ready for operation
 
-=== 3. Operation
+### 3. Operation
 
 Normal operation:
 
@@ -244,7 +239,7 @@ Normal operation:
 * Call functions from parent (via props)
 * Provide functions to parent (via props or return values)
 
-=== 4. Cleanup (beforeunload)
+### 4. Cleanup (beforeunload)
 
 Browser is closing or navigating away:
 
@@ -263,12 +258,11 @@ Browser is closing or navigating away:
 
 **State:** Resources released
 
-== Lifecycle Diagram
+## Lifecycle Diagram
 
-=== Parent State Machine
+### Parent State Machine
 
-[mermaid]
-----
+```mermaid
 stateDiagram-v2
     [*] --> Created: createElement()
     Created --> Connected: appendChild()
@@ -300,12 +294,11 @@ stateDiagram-v2
         - Release functions
         - Clear registries
     end note
-----
+```
 
-=== Frame SDK State Machine
+### Frame SDK State Machine
 
-[mermaid]
-----
+```mermaid
 stateDiagram-v2
     [*] --> Importing: import frameSDK
     Importing --> Initializing: frameSDK.initialize()
@@ -335,12 +328,11 @@ stateDiagram-v2
         - Release functions
         - Send cleanup messages
     end note
-----
+```
 
-=== Complete Initialization Sequence
+### Complete Initialization Sequence
 
-[mermaid]
-----
+```mermaid
 sequenceDiagram
     participant Parent as Parent App
     participant Element as Frame Element
@@ -400,14 +392,13 @@ sequenceDiagram
     deactivate Element
     IFrame->>SDK: beforeunload event
     SDK->>SDK: Release functions
-----
+```
 
-== Timing Considerations
+## Timing Considerations
 
-=== Race Condition Window
+### Race Condition Window
 
-[mermaid]
-----
+```mermaid
 gantt
     title Frame Lifecycle Timing
     dateFormat X
@@ -434,16 +425,16 @@ gantt
     section Unsafe Window
     Unsafe operations       :crit, 20, 100
     Safe operations         :active, 100, 200
-----
+```
 
-NOTE: The red "Unsafe Window" represents the period where the frame is not yet ready. Operations during this time will fail or be queued.
+> [!NOTE]
+> The red "Unsafe Window" represents the period where the frame is not yet ready. Operations during this time will fail or be queued.
 
-=== Before Ready
+### Before Ready
 
 Operations attempted before the frame is ready will fail or be ignored:
 
-[source,typescript]
-----
+```typescript
 const frame = document.createElement('z-frame');
 frame.setAttribute('name', 'my-app');
 frame.setAttribute('src', 'http://localhost:3000');
@@ -466,14 +457,13 @@ frame.addEventListener('ready', () => {
   // Now operations will work
   frame.onSave?.(); // Works
 });
-----
+```
 
-=== Initialization Race Conditions
+### Initialization Race Conditions
 
 To avoid race conditions, always wait for the `ready` event:
 
-[source,typescript]
-----
+```typescript
 // BAD: May execute before frame is ready
 const frame = document.querySelector('z-frame');
 frame.userData = currentUser;
@@ -483,12 +473,11 @@ const frame = document.querySelector('z-frame');
 frame.addEventListener('ready', () => {
   frame.userData = currentUser;
 });
-----
+```
 
 Or use promises:
 
-[source,typescript]
-----
+```typescript
 const frame = document.querySelector('z-frame');
 
 await new Promise(resolve => {
@@ -501,14 +490,13 @@ await new Promise(resolve => {
 
 // Frame is ready
 frame.userData = currentUser;
-----
+```
 
-== Best Practices
+## Best Practices
 
-=== Initialize SDK First Thing
+### Initialize SDK First Thing
 
-[source,typescript]
-----
+```typescript
 // At the top of your frame entry point
 import { frameSDK } from '@zomme/frame/sdk';
 
@@ -516,12 +504,11 @@ await frameSDK.initialize();
 
 // Now safe to access props
 console.log('Frame name:', frameSDK.props.name);
-----
+```
 
-=== Wait for Ready in Parent
+### Wait for Ready in Parent
 
-[source,typescript]
-----
+```typescript
 frame.addEventListener('ready', () => {
   // Call functions
   frame.onInit?.();
@@ -532,28 +519,26 @@ frame.addEventListener('ready', () => {
   // Update properties
   frame.userData = user;
 });
-----
+```
 
-=== Cleanup Resources
+### Cleanup Resources
 
 Frame applications should clean up on unload:
 
-[source,typescript]
-----
+```typescript
 // Close connections
 window.addEventListener('beforeunload', () => {
   websocket.close();
   clearInterval(pollTimer);
   cancelAnimationFrame(animationId);
 });
-----
+```
 
-=== Handle Disconnection Gracefully
+### Handle Disconnection Gracefully
 
 Function calls may fail if the element is disconnected:
 
-[source,typescript]
-----
+```typescript
 try {
   const result = await frame.getData?.();
 } catch (err) {
@@ -563,4 +548,4 @@ try {
     throw err;
   }
 }
-----
+```

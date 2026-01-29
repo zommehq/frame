@@ -1,8 +1,8 @@
-= Function Serialization
+# Function Serialization
 
 Frame supports passing functions between parent and frame, enabling powerful callback patterns.
 
-== Important: Functions Are NOT Actually Serialized
+## Important: Functions Are NOT Actually Serialized
 
 Despite the name "function serialization", **functions themselves are never serialized**. This is technically impossible in JavaScript because you cannot serialize:
 
@@ -12,24 +12,14 @@ Despite the name "function serialization", **functions themselves are never seri
 
 Instead, Frame implements a **Remote Procedure Call (RPC)** system over `postMessage`:
 
-[cols="1,1", options="header"]
-|===
-| What IS Serialized | What is NOT Serialized
+| What IS Serialized | What is NOT Serialized |
+|--------------------|------------------------|
+| Function call arguments | Function code |
+| Function return values | Function closures |
+| Function reference IDs (UUIDs) | Execution context |
+| Error messages | Variable scope |
 
-| Function call arguments
-| Function code
-
-| Function return values
-| Function closures
-
-| Function reference IDs (UUIDs)
-| Execution context
-
-| Error messages
-| Variable scope
-|===
-
-== How It Really Works: RPC via postMessage
+## How It Really Works: RPC via postMessage
 
 Frame creates a **registry-based proxy system**:
 
@@ -45,10 +35,9 @@ Frame creates a **registry-based proxy system**:
 
 **Analogy**: It's like calling a restaurant for delivery. You don't get the recipe (function code), you get a menu item number (UUID). When you "call" that number with your preferences (arguments), the restaurant executes the real recipe and delivers the result.
 
-== Visual Example: What Gets Sent
+## Visual Example: What Gets Sent
 
-[source,typescript]
-----
+```typescript
 // PARENT SIDE
 const realFunction = async (data) => {
   console.log('Executing in parent:', data);
@@ -65,10 +54,9 @@ postMessage({
     saveCallback: { __fn: 'abc-123' }  // ← Only ID, NOT the function code!
   }
 });
-----
+```
 
-[source,typescript]
-----
+```typescript
 // FRAME SIDE
 // Step 3: Receive ID and create proxy
 const proxy = (...args) => {
@@ -87,10 +75,9 @@ const proxy = (...args) => {
 
 // Step 4: Use proxy as normal function
 await proxy({ name: 'John' });  // args are serialized and sent
-----
+```
 
-[source,typescript]
-----
+```typescript
 // PARENT SIDE
 // Step 5: Receive FUNCTION_CALL
 const fn = functionRegistry.get('abc-123');  // Get real function
@@ -102,10 +89,9 @@ postMessage({
   fnId: 'abc-123',
   result: { success: true }  // ← Result IS serialized
 });
-----
+```
 
-[mermaid]
-----
+```mermaid
 flowchart TD
     A[Function Assignment] --> B[Generate UUID]
     B --> C[Store in Registry]
@@ -145,14 +131,13 @@ flowchart TD
     style note1 fill:#FFF9C4,stroke:#F57F17,stroke-width:2px
     style note2 fill:#FFF9C4,stroke:#F57F17,stroke-width:2px
     style note3 fill:#FFF9C4,stroke:#F57F17,stroke-width:2px
-----
+```
 
-== Parent → Frame
+## Parent -> Frame
 
-=== Passing Functions
+### Passing Functions
 
-[source,typescript]
-----
+```typescript
 const frame = document.querySelector('z-frame');
 
 // Pass callback functions
@@ -172,12 +157,11 @@ frame.onValidate = (field, value) => {
   }
   return true;
 };
-----
+```
 
-=== Frame Calls Functions
+### Frame Calls Functions
 
-[source,typescript]
-----
+```typescript
 import { frameSDK } from '@zomme/frame/sdk';
 
 // Frame can call parent functions
@@ -190,16 +174,15 @@ console.log(isValid); // true
 
 // No parameters
 frameSDK.props.onCancel();
-----
+```
 
-== Frame → Parent
+## Frame -> Parent
 
-=== Registering Functions with `register()` (Recommended)
+### Registering Functions with `register()` (Recommended)
 
 The `register()` method provides an explicit, ergonomic API for exposing frame functions to the parent:
 
-[source,typescript]
-----
+```typescript
 import { frameSDK } from '@zomme/frame/sdk';
 
 // Register single function
@@ -224,7 +207,7 @@ onUnmount(() => {
   unregister1();
   unregister2();
 });
-----
+```
 
 **Benefits:**
 
@@ -233,10 +216,9 @@ onUnmount(() => {
 * **Type validation**: Throws error if non-function values provided
 * **Standard convention**: Uses `'register'` event consistently
 
-=== Parent Receives Registered Functions
+### Parent Receives Registered Functions
 
-[source,typescript]
-----
+```typescript
 const frame = document.querySelector('z-frame');
 const actions = {};
 
@@ -265,14 +247,13 @@ frame.addEventListener('unregister', (event) => {
     delete actions[name];
   }
 });
-----
+```
 
-=== Alternative: Using `emit()` for Custom Events
+### Alternative: Using `emit()` for Custom Events
 
 For advanced use cases or custom event names, you can still use `emit()`:
 
-[source,typescript]
-----
+```typescript
 import { frameSDK } from '@zomme/frame/sdk';
 
 // Frame emits custom event with functions
@@ -286,10 +267,9 @@ frameSDK.emit('my-custom-actions', {
     return data;
   },
 });
-----
+```
 
-[source,typescript]
-----
+```typescript
 const frame = document.querySelector('z-frame');
 
 // Parent listens to custom event
@@ -302,16 +282,15 @@ frame.addEventListener('my-custom-actions', async (event) => {
   const exportedData = await actions.export('csv');
   console.log(exportedData);
 });
-----
+```
 
-== Complex Scenarios
+## Complex Scenarios
 
-=== Nested Functions
+### Nested Functions
 
 Functions can contain other functions:
 
-[source,typescript]
-----
+```typescript
 // Parent
 frame.config = {
   api: {
@@ -324,12 +303,11 @@ frame.config = {
 // Frame
 const response = await frameSDK.props.config.api.get('/api/users');
 console.log(response);
-----
+```
 
-=== Function Arrays
+### Function Arrays
 
-[source,typescript]
-----
+```typescript
 // Parent
 frame.validators = [
   (value) => value.length > 0 || 'Required',
@@ -345,14 +323,13 @@ const errors = frameSDK.props.validators
 if (errors.length > 0) {
   console.log('Validation errors:', errors);
 }
-----
+```
 
-=== Function in Return Values
+### Function in Return Values
 
 Functions can be returned from function calls:
 
-[source,typescript]
-----
+```typescript
 // Parent
 frame.createLogger = (prefix) => {
   return (message) => {
@@ -364,18 +341,17 @@ frame.createLogger = (prefix) => {
 const logger = await frameSDK.props.createLogger('UserForm');
 logger('Form submitted'); // Logs: [UserForm] Form submitted
 logger('Validation passed'); // Logs: [UserForm] Validation passed
-----
+```
 
-== Lifecycle
+## Lifecycle
 
-=== Function Registration (Initial Setup)
+### Function Registration (Initial Setup)
 
 When a function is passed:
 
-[source,typescript]
-----
+```typescript
 frame.onSave = async (data) => { ... };
-----
+```
 
 **What happens:**
 
@@ -405,14 +381,13 @@ frame.onSave = async (data) => { ... };
    };
    ```
 
-=== RPC Function Call (Remote Execution)
+### RPC Function Call (Remote Execution)
 
 When the frame calls the proxy:
 
-[source,typescript]
-----
+```typescript
 await frameSDK.props.onSave({ name: 'John' });
-----
+```
 
 **Complete RPC flow:**
 
@@ -463,8 +438,7 @@ await frameSDK.props.onSave({ name: 'John' });
 
 **Summary**: The function **never leaves the parent**. Only **messages with IDs and arguments** travel across the iframe boundary.
 
-[mermaid]
-----
+```mermaid
 sequenceDiagram
     participant F as Frame<br/>(Iframe)
     participant FP as Proxy Function
@@ -492,9 +466,9 @@ sequenceDiagram
     end
 
     Note over F,PF: Round-trip time: ~2-5ms
-----
+```
 
-=== Function Cleanup
+### Function Cleanup
 
 Functions are released when:
 
@@ -521,12 +495,11 @@ Functions are released when:
    frame.onSave = newFunction; // Old function is released
    ```
 
-== Error Handling
+## Error Handling
 
 Errors are propagated across boundaries:
 
-[source,typescript]
-----
+```typescript
 // Parent
 frame.riskyOperation = () => {
   throw new Error('Something went wrong');
@@ -538,7 +511,7 @@ try {
 } catch (error) {
   console.error('Caught error:', error.message); // "Something went wrong"
 }
-----
+```
 
 Behind the scenes:
 
@@ -554,8 +527,7 @@ Behind the scenes:
    ```
 3. Frame promise is rejected with error
 
-[mermaid]
-----
+```mermaid
 flowchart TD
     A[Frame calls proxy] --> B[Send __FUNCTION_CALL__]
     B --> C[Parent receives message]
@@ -586,14 +558,13 @@ flowchart TD
     style P fill:#66BB6A,stroke:#388E3C,stroke-width:2px,color:#fff
     style J fill:#66BB6A,stroke:#388E3C,stroke-width:2px,color:#fff
     style L fill:#66BB6A,stroke:#388E3C,stroke-width:2px,color:#fff
-----
+```
 
-== Timeout
+## Timeout
 
 Function calls timeout after 5 seconds:
 
-[source,typescript]
-----
+```typescript
 // Parent
 frame.slowOperation = async () => {
   await new Promise((resolve) => setTimeout(resolve, 15000)); // 15 seconds
@@ -606,12 +577,11 @@ try {
 } catch (error) {
   console.error(error.message); // "Function call timeout: abc-123"
 }
-----
+```
 
 **Best practice:** For long operations, return a Promise immediately and resolve it when done:
 
-[source,typescript]
-----
+```typescript
 frame.longOperation = () => {
   // Return promise immediately
   return new Promise((resolve) => {
@@ -621,16 +591,15 @@ frame.longOperation = () => {
     }, 30000);
   });
 };
-----
+```
 
-== Performance Considerations
+## Performance Considerations
 
 * **Serialization overhead**: Each function call requires 2 messages (call + response)
 * **Latency**: PostMessage has ~1ms overhead per message
 * **Batch calls**: For multiple calls, consider batching:
 
-[source,typescript]
-----
+```typescript
 // Instead of individual calls
 await frameSDK.props.validate('name', 'John');
 await frameSDK.props.validate('email', 'john@example.com');
@@ -640,9 +609,9 @@ const result = await frameSDK.props.validateAll({
   name: 'John',
   email: 'john@example.com',
 });
-----
+```
 
-== Security
+## Security
 
 Functions are validated:
 
@@ -651,76 +620,39 @@ Functions are validated:
 * **Function ID check**: Only registered functions can be called
 * **No eval**: Functions are called directly, never evaluated from strings
 
-== What Actually Gets Serialized
+## What Actually Gets Serialized
 
 To be crystal clear about what crosses the iframe boundary:
 
-=== ✅ DOES Get Serialized (Crosses Boundary)
+### ✅ DOES Get Serialized (Crosses Boundary)
 
-[cols="1,2", options="header"]
-|===
-| Item | Example
+| Item | Example |
+|------|---------|
+| Function reference IDs (UUIDs) | `{ __fn: "abc-123" }` |
+| Function call arguments | `{ name: "John", age: 30 }` |
+| Function return values | `{ success: true, data: [...] }` |
+| Error messages | `"Validation failed: email required"` |
+| Primitive types | `string`, `number`, `boolean`, `null` |
+| Plain objects | `{ key: "value" }` |
+| Arrays | `[1, 2, 3]`, `["a", "b"]` |
+| Transferable objects | `ArrayBuffer`, `ImageBitmap` |
 
-| Function reference IDs (UUIDs)
-| `{ __fn: "abc-123" }`
+### ❌ Does NOT Get Serialized (Stays Local)
 
-| Function call arguments
-| `{ name: "John", age: 30 }`
+| Item | Why Not |
+|------|---------|
+| Function implementation code | Cannot serialize code/logic |
+| Closures and captured variables | Scoping doesn't transfer |
+| `this` binding context | Context is environment-specific |
+| Prototypes and class instances | Only plain objects work |
+| DOM nodes | Cannot be cloned across origins |
+| Functions in nested objects | These become UUID references |
+| Symbols | Not serializable |
+| `undefined` values | Converted to `null` in transfer |
 
-| Function return values
-| `{ success: true, data: [...] }`
+### What This Means in Practice
 
-| Error messages
-| `"Validation failed: email required"`
-
-| Primitive types
-| `string`, `number`, `boolean`, `null`
-
-| Plain objects
-| `{ key: "value" }`
-
-| Arrays
-| `[1, 2, 3]`, `["a", "b"]`
-
-| Transferable objects
-| `ArrayBuffer`, `ImageBitmap`
-|===
-
-=== ❌ Does NOT Get Serialized (Stays Local)
-
-[cols="1,2", options="header"]
-|===
-| Item | Why Not
-
-| Function implementation code
-| Cannot serialize code/logic
-
-| Closures and captured variables
-| Scoping doesn't transfer
-
-| `this` binding context
-| Context is environment-specific
-
-| Prototypes and class instances
-| Only plain objects work
-
-| DOM nodes
-| Cannot be cloned across origins
-
-| Functions in nested objects
-| These become UUID references
-
-| Symbols
-| Not serializable
-
-| `undefined` values
-| Converted to `null` in transfer
-|===
-
-=== What This Means in Practice
-
-[source,typescript]
-----
+```typescript
 // PARENT
 let counter = 0;  // Local variable
 
@@ -736,10 +668,9 @@ const result2 = await frameSDK.props.increment();  // 2
 // ✅ Function has access to its original closure (counter)
 // ❌ Frame does NOT have access to counter directly
 // ✅ Only the return values (1, 2) cross the boundary
-----
+```
 
-[source,typescript]
-----
+```typescript
 // PARENT
 class UserService {
   constructor(apiKey) {
@@ -766,9 +697,9 @@ await frameSDK.props.onSave({ name: 'John' });
 // ✅ Arguments { name: 'John' } are serialized and sent
 // ✅ Return value is serialized and sent back
 // ❌ Frame never sees 'apiKey' or UserService class
-----
+```
 
-== Limitations
+## Limitations
 
 Understanding what gets serialized helps explain the limitations:
 
@@ -778,7 +709,7 @@ Understanding what gets serialized helps explain the limitations:
 * **Timeout**: 5-second limit on RPC calls (not function execution itself)
 * **Argument types**: Only serializable types work (no DOM nodes, class instances, etc.)
 
-== Why Call It "Serialization" Then?
+## Why Call It "Serialization" Then?
 
 The term "function serialization" is used because:
 
@@ -805,7 +736,7 @@ But technically, it's more accurate to say:
 
 The actual function code never leaves its original context!
 
-== Best Practices
+## Best Practices
 
 1. **Use descriptive names**: `onSave`, `onValidate`, `onCancel`
 2. **Return promises**: For async operations

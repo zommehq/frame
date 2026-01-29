@@ -1,8 +1,8 @@
-= Type Guards
+# Type Guards
 
 The type-guards module provides runtime type checking and message validation utilities for safe TypeScript type narrowing.
 
-== Overview
+## Overview
 
 Type guards enable safe runtime type checking to:
 
@@ -11,10 +11,9 @@ Type guards enable safe runtime type checking to:
 * Validate message structure before processing
 * Improve code safety and maintainability
 
-== Import
+## Import
 
-[source,typescript]
-----
+```typescript
 import {
   isMessage,
   isInitMessage,
@@ -29,13 +28,13 @@ import {
   isValidEventName,
   isSafeAttributeName,
 } from '@zomme/frame';
-----
+```
 
-== Message Type Guards
+## Message Type Guards
 
 These guards narrow message types for safe property access.
 
-=== `isMessage(value)`
+### `isMessage(value)`
 
 Check if value is a valid Message object.
 
@@ -46,8 +45,7 @@ Check if value is a valid Message object.
 
 **Example:**
 
-[source,typescript]
-----
+```typescript
 import { isMessage } from '@zomme/frame';
 
 const data = event.data;
@@ -56,11 +54,11 @@ if (isMessage(data)) {
   // data is now typed as Message
   console.log(data.type);
 }
-----
+```
 
 ---
 
-=== `isInitMessage(message)`
+### `isInitMessage(message)`
 
 Check if message is an InitMessage.
 
@@ -71,8 +69,7 @@ Check if message is an InitMessage.
 
 **Example:**
 
-[source,typescript]
-----
+```typescript
 import { isInitMessage, MessageEvent } from '@zomme/frame';
 
 if (isInitMessage(message)) {
@@ -80,11 +77,11 @@ if (isInitMessage(message)) {
   console.log(message.payload.name);
   console.log(message.payload.base);
 }
-----
+```
 
 ---
 
-=== `isReadyMessage(message)`
+### `isReadyMessage(message)`
 
 Check if message is a ReadyMessage.
 
@@ -95,19 +92,18 @@ Check if message is a ReadyMessage.
 
 **Example:**
 
-[source,typescript]
-----
+```typescript
 import { isReadyMessage } from '@zomme/frame';
 
 if (isReadyMessage(message)) {
   console.log('Frame is ready');
   this._ready = true;
 }
-----
+```
 
 ---
 
-=== `isAttributeChangeMessage(message)`
+### `isAttributeChangeMessage(message)`
 
 Check if message is an AttributeChangeMessage.
 
@@ -118,8 +114,7 @@ Check if message is an AttributeChangeMessage.
 
 **Example:**
 
-[source,typescript]
-----
+```typescript
 import { isAttributeChangeMessage } from '@zomme/frame';
 
 if (isAttributeChangeMessage(message)) {
@@ -127,11 +122,11 @@ if (isAttributeChangeMessage(message)) {
   console.log('Attribute changed:', message.attribute);
   console.log('New value:', message.value);
 }
-----
+```
 
 ---
 
-=== `isEventMessage(message)`
+### `isEventMessage(message)`
 
 Check if message is an EventMessage.
 
@@ -142,8 +137,7 @@ Check if message is an EventMessage.
 
 **Example:**
 
-[source,typescript]
-----
+```typescript
 import { isEventMessage } from '@zomme/frame';
 
 if (isEventMessage(message)) {
@@ -151,11 +145,11 @@ if (isEventMessage(message)) {
   console.log('Event received:', message.name);
   this._emitLocalEvent(message.name, message.data);
 }
-----
+```
 
 ---
 
-=== `isCustomEventMessage(message)`
+### `isCustomEventMessage(message)`
 
 Check if message is a CustomEventMessage.
 
@@ -166,19 +160,18 @@ Check if message is a CustomEventMessage.
 
 **Example:**
 
-[source,typescript]
-----
+```typescript
 import { isCustomEventMessage } from '@zomme/frame';
 
 if (isCustomEventMessage(message)) {
   // message.payload.name and message.payload.data are available
   this._dispatchLocalEvent(message.payload.name, message.payload.data);
 }
-----
+```
 
 ---
 
-=== `isFunctionCallMessage(message)`
+### `isFunctionCallMessage(message)`
 
 Check if message is a FunctionCallMessage.
 
@@ -189,8 +182,7 @@ Check if message is a FunctionCallMessage.
 
 **Example:**
 
-[source,typescript]
-----
+```typescript
 import { isFunctionCallMessage } from '@zomme/frame';
 
 if (isFunctionCallMessage(message)) {
@@ -201,11 +193,11 @@ if (isFunctionCallMessage(message)) {
     message.params
   );
 }
-----
+```
 
 ---
 
-=== `isFunctionResponseMessage(message)`
+### `isFunctionResponseMessage(message)`
 
 Check if message is a FunctionResponseMessage.
 
@@ -216,8 +208,7 @@ Check if message is a FunctionResponseMessage.
 
 **Example:**
 
-[source,typescript]
-----
+```typescript
 import { isFunctionResponseMessage } from '@zomme/frame';
 
 if (isFunctionResponseMessage(message)) {
@@ -229,11 +220,11 @@ if (isFunctionResponseMessage(message)) {
     message.error
   );
 }
-----
+```
 
 ---
 
-=== `isFunctionReleaseMessage(message)`
+### `isFunctionReleaseMessage(message)`
 
 Check if message is a FunctionReleaseMessage.
 
@@ -244,19 +235,18 @@ Check if message is a FunctionReleaseMessage.
 
 **Example:**
 
-[source,typescript]
-----
+```typescript
 import { isFunctionReleaseMessage } from '@zomme/frame';
 
 if (isFunctionReleaseMessage(message)) {
   // message.fnId is available
   this._manager.releaseFunction(message.fnId);
 }
-----
+```
 
 ---
 
-=== `isFunctionReleaseBatchMessage(message)`
+### `isFunctionReleaseBatchMessage(message)`
 
 Check if message is a FunctionReleaseBatchMessage.
 
@@ -267,8 +257,7 @@ Check if message is a FunctionReleaseBatchMessage.
 
 **Example:**
 
-[source,typescript]
-----
+```typescript
 import { isFunctionReleaseBatchMessage } from '@zomme/frame';
 
 if (isFunctionReleaseBatchMessage(message)) {
@@ -277,15 +266,15 @@ if (isFunctionReleaseBatchMessage(message)) {
     this._manager.releaseFunction(fnId);
   }
 }
-----
+```
 
 ---
 
-== Security Type Guards
+## Security Type Guards
 
 These guards validate names to prevent XSS and prototype pollution attacks.
 
-=== `isValidEventName(name)`
+### `isValidEventName(name)`
 
 Check if event name is valid (prevents XSS).
 
@@ -300,8 +289,7 @@ Check if event name is valid (prevents XSS).
 
 **Example:**
 
-[source,typescript]
-----
+```typescript
 import { isValidEventName } from '@zomme/frame';
 
 if (!isValidEventName(eventName)) {
@@ -310,11 +298,11 @@ if (!isValidEventName(eventName)) {
 }
 
 this.dispatchEvent(new CustomEvent(eventName, { detail: data }));
-----
+```
 
 ---
 
-=== `isSafeAttributeName(name)`
+### `isSafeAttributeName(name)`
 
 Check if attribute name is safe (prevents prototype pollution).
 
@@ -330,8 +318,7 @@ Check if attribute name is safe (prevents prototype pollution).
 
 **Example:**
 
-[source,typescript]
-----
+```typescript
 import { isSafeAttributeName } from '@zomme/frame';
 
 if (!isSafeAttributeName(attributeName)) {
@@ -340,14 +327,13 @@ if (!isSafeAttributeName(attributeName)) {
 }
 
 Reflect.set(this.props, attributeName, value);
-----
+```
 
 ---
 
-== Complete Usage Example
+## Complete Usage Example
 
-[source,typescript]
-----
+```typescript
 import {
   isMessage,
   isInitMessage,
@@ -412,9 +398,9 @@ private _handleMessage(message: unknown) {
 
   console.warn('Unknown message type:', message.type);
 }
-----
+```
 
-== Related
+## Related
 
-* **Message Validators**: See link:./message-validators.adoc[Message Validators] for low-level message validation
+* **Message Validators**: See [Message Validators](./message-validators.md) for low-level message validation
 * **Source Code**: `src/helpers/type-guards.ts`

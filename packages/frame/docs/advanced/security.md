@@ -1,13 +1,12 @@
-= Security
+# Security
 
 Frame is designed with security as a priority, using iframe sandboxing and origin validation.
 
-== Security Layers Architecture
+## Security Layers Architecture
 
 Frame implements multiple layers of security to protect both parent and frame applications:
 
-[mermaid]
-----
+```mermaid
 graph TB
     subgraph "Layer 1: iframe Sandbox"
         A[iframe sandbox attributes]
@@ -37,7 +36,7 @@ graph TB
     style B fill:#4A90E2,stroke:#2563EB,stroke-width:2px,color:#fff
     style C fill:#66BB6A,stroke:#388E3C,stroke-width:2px,color:#fff
     style D fill:#FFA726,stroke:#F57C00,stroke-width:2px,color:#000
-----
+```
 
 Each layer provides defense-in-depth:
 
@@ -46,53 +45,39 @@ Each layer provides defense-in-depth:
 * **Layer 3 (MessageChannel Isolation):** Creates a private communication channel
 * **Layer 4 (Input Validation):** Runtime checks on all incoming data
 
-== iframe Sandbox
+## iframe Sandbox
 
-=== Default Sandbox
+### Default Sandbox
 
 Frames run in sandboxed iframes with these permissions:
 
-[source,html]
-----
+```html
 <iframe sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals">
-----
+```
 
-[cols="1,2"]
-|===
-| Permission | Purpose
+| Permission | Purpose |
+|------------|---------|
+| `allow-scripts` | Allow JavaScript execution |
+| `allow-same-origin` | Allow same-origin requests (required for PostMessage) |
+| `allow-forms` | Allow form submission |
+| `allow-popups` | Allow window.open() and target="_blank" |
+| `allow-modals` | Allow alert(), confirm(), prompt() |
 
-| `allow-scripts`
-| Allow JavaScript execution
-
-| `allow-same-origin`
-| Allow same-origin requests (required for PostMessage)
-
-| `allow-forms`
-| Allow form submission
-
-| `allow-popups`
-| Allow window.open() and target="_blank"
-
-| `allow-modals`
-| Allow alert(), confirm(), prompt()
-|===
-
-=== Custom Sandbox
+### Custom Sandbox
 
 You can restrict permissions further:
 
-[source,html]
-----
+```html
 <z-frame
   name="untrusted-app"
   src="http://localhost:3000"
   sandbox="allow-scripts"
 ></z-frame>
-----
+```
 
 **Warning:** Removing `allow-same-origin` breaks PostMessage origin validation. Only remove if the frame doesn't need to communicate with the parent.
 
-=== Sandbox Restrictions
+### Sandbox Restrictions
 
 Sandboxed iframes cannot:
 
@@ -103,16 +88,15 @@ Sandboxed iframes cannot:
 * Automatically focus elements (unless `allow-modals`)
 * Access localStorage of parent origin (unique origin)
 
-== Origin Validation
+## Origin Validation
 
-=== How It Works
+### How It Works
 
 Origin validation happens **only once during the initial INIT handshake**. After MessageChannel is established, the dedicated port provides isolation.
 
 The following sequence diagram shows the complete handshake process:
 
-[mermaid]
-----
+```mermaid
 sequenceDiagram
     participant P as Parent Application
     participant W as window.postMessage
@@ -144,10 +128,9 @@ sequenceDiagram
     end
 
     Note over P,F: MessageChannel provides isolated communication<br/>No origin checks needed on subsequent messages
-----
+```
 
-[source,typescript]
-----
+```typescript
 // Parent: Send INIT via window.postMessage (one-time only)
 iframe.contentWindow.postMessage(
   { type: '__INIT__', payload: props },
@@ -177,7 +160,7 @@ window.addEventListener('message', (event) => {
     };
   }
 }, { once: true });
-----
+```
 
 **Security guarantees:**
 
@@ -187,43 +170,41 @@ window.addEventListener('message', (event) => {
 * Malicious scripts cannot access or inject messages into the channel
 * No origin checking overhead on every message (performance + security)
 
-=== Target Origin
+### Target Origin
 
 The target origin is extracted from the `src` attribute:
 
-[source,typescript]
-----
+```typescript
 this._origin = new URL(src).origin;
 // "http://localhost:3000" -> "http://localhost:3000"
 // "https://api.example.com/app" -> "https://api.example.com"
-----
+```
 
-**Note:** Origin validation in the SDK is **optional**. The `expectedOrigin` parameter can be `undefined`, in which case no validation is performed. This is useful for development environments or when the parent origin is not known in advance.
+> [!NOTE]
+> Origin validation in the SDK is **optional**. The `expectedOrigin` parameter can be `undefined`, in which case no validation is performed. This is useful for development environments or when the parent origin is not known in advance.
 
 The INIT message is sent with explicit origin validation:
 
-[source,typescript]
-----
+```typescript
 // Parent sends INIT with explicit target origin
 iframe.contentWindow.postMessage(
   { type: '__INIT__', payload: props },
   this._origin,  // NEVER use '*'
   [channel.port2]
 );
-----
+```
 
 **Never use `postMessage(message, '*')`** - this allows any origin to receive the message and compromises security.
 
 After MessageChannel is established, all subsequent messages use the isolated port and don't need origin specification.
 
-== Content Security Policy (CSP)
+## Content Security Policy (CSP)
 
-=== Parent Application CSP
+### Parent Application CSP
 
 Recommended CSP for parent application:
 
-[source,html]
-----
+```html
 <meta http-equiv="Content-Security-Policy" content="
   default-src 'self';
   script-src 'self';
@@ -231,16 +212,15 @@ Recommended CSP for parent application:
   frame-src http://localhost:3000 http://localhost:3001;
   connect-src 'self' https://api.example.com;
 ">
-----
+```
 
 **`frame-src` must include all frame origins** you want to load.
 
-=== Frame Application CSP
+### Frame Application CSP
 
 Frame applications should also use CSP:
 
-[source,html]
-----
+```html
 <meta http-equiv="Content-Security-Policy" content="
   default-src 'self';
   script-src 'self';
@@ -248,18 +228,17 @@ Frame applications should also use CSP:
   connect-src 'self' https://api.example.com;
   frame-ancestors http://localhost:5000;
 ">
-----
+```
 
 **`frame-ancestors`** restricts which origins can embed the frame.
 
-== XSS Prevention
+## XSS Prevention
 
-=== Attribute Sanitization
+### Attribute Sanitization
 
 Frame does NOT sanitize attribute values. You must sanitize user input:
 
-[source,typescript]
-----
+```typescript
 // ❌ Bad: XSS vulnerability
 const userInput = getUserInput();
 frame.setAttribute('user-name', userInput);
@@ -268,14 +247,13 @@ frame.setAttribute('user-name', userInput);
 import DOMPurify from 'dompurify';
 const sanitized = DOMPurify.sanitize(userInput);
 frame.setAttribute('user-name', sanitized);
-----
+```
 
-=== Function Execution
+### Function Execution
 
 Functions are executed directly in their original context - they are NEVER evaluated as strings:
 
-[source,typescript]
-----
+```typescript
 // Safe: Function is called directly
 frame.onSave = (data) => {
   console.log(data);
@@ -283,43 +261,40 @@ frame.onSave = (data) => {
 
 // The function reference is stored and called directly.
 // No string evaluation or code generation is involved.
-----
+```
 
-== CORS and Same-Origin Policy
+## CORS and Same-Origin Policy
 
-=== PostMessage and CORS
+### PostMessage and CORS
 
 PostMessage **ignores CORS** - it works across origins. This is intentional for micro-frontends.
 
-=== Frame API Requests
+### Frame API Requests
 
 Frames making API requests are subject to CORS:
 
-[source,typescript]
-----
+```typescript
 // Frame at http://localhost:3000
 fetch('https://api.example.com/users')
   .then(r => r.json())
   .catch(err => {
     // CORS error if API doesn't allow localhost:3000
   });
-----
+```
 
 **Solution 1: Configure CORS on API**
 
-[source,javascript]
-----
+```javascript
 // API server
 app.use(cors({
   origin: ['http://localhost:3000', 'http://localhost:3001'],
   credentials: true,
 }));
-----
+```
 
 **Solution 2: Proxy requests through parent**
 
-[source,typescript]
-----
+```typescript
 // Parent provides API proxy
 frame.apiClient = {
   get: async (url) => {
@@ -332,29 +307,27 @@ frame.apiClient = {
 
 // Frame uses proxy
 const users = await frameSDK.props.apiClient.get('/users');
-----
+```
 
-== Sensitive Data
+## Sensitive Data
 
-=== Avoid Passing Secrets
+### Avoid Passing Secrets
 
 Never pass sensitive data via attributes:
 
-[source,typescript]
-----
+```typescript
 // ❌ Bad: Exposes API key
 frame.apiKey = 'secret-key-123';
 
 // ✅ Good: Frame has its own key
 // Frame loads key from secure storage or environment
-----
+```
 
-=== Token Storage
+### Token Storage
 
 If frames need authentication, choose one of three approaches based on your security requirements:
 
-[mermaid]
-----
+```mermaid
 flowchart TD
     Start([Frame needs authentication?])
     Start --> Q1{Can API server<br/>manage sessions?}
@@ -375,7 +348,7 @@ flowchart TD
     style Option2 fill:#4A90E2,stroke:#2563EB,stroke-width:2px,color:#fff
     style Option3 fill:#FFA726,stroke:#F57C00,stroke-width:2px,color:#000
     style Rec1 fill:#66BB6A,stroke:#388E3C,stroke-width:3px,color:#fff
-----
+```
 
 **Option 1: HTTP-only cookies** (recommended)
 
@@ -385,8 +358,7 @@ flowchart TD
 
 **Option 2: Parent-managed tokens**
 
-[source,typescript]
-----
+```typescript
 // Parent provides API client with token
 frame.apiClient = {
   get: async (url) => {
@@ -397,15 +369,14 @@ frame.apiClient = {
     return response.json();
   },
 };
-----
+```
 
 **Option 3: Frame-managed tokens**
 
 * Frame requests token from parent via function call
 * Parent returns token only after validation
 
-[source,typescript]
-----
+```typescript
 // Parent
 frame.requestToken = async (purpose) => {
   if (purpose === 'api-access' && userIsAuthenticated()) {
@@ -416,34 +387,31 @@ frame.requestToken = async (purpose) => {
 
 // Frame
 const token = await frameSDK.props.requestToken('api-access');
-----
+```
 
-== Clickjacking Protection
+## Clickjacking Protection
 
-=== X-Frame-Options
+### X-Frame-Options
 
 Frame applications should set `X-Frame-Options` to prevent embedding by unauthorized origins:
 
-[source,http]
-----
+```http
 X-Frame-Options: ALLOW-FROM http://localhost:5000
-----
+```
 
 Or use CSP `frame-ancestors`:
 
-[source,http]
-----
+```http
 Content-Security-Policy: frame-ancestors http://localhost:5000 https://app.example.com
-----
+```
 
-== Input Validation
+## Input Validation
 
-=== Validate All Inputs
+### Validate All Inputs
 
 Never trust data from the parent:
 
-[source,typescript]
-----
+```typescript
 // Frame validates all props
 if (typeof frameSDK.props.userId !== 'number') {
   throw new Error('Invalid userId');
@@ -452,14 +420,13 @@ if (typeof frameSDK.props.userId !== 'number') {
 if (frameSDK.props.userId < 1) {
   throw new Error('userId must be positive');
 }
-----
+```
 
-=== Type Checking
+### Type Checking
 
 Use TypeScript to enforce types:
 
-[source,typescript]
-----
+```typescript
 interface MyFrameProps extends FrameProps {
   apiUrl: string;
   theme: 'light' | 'dark';
@@ -471,66 +438,61 @@ const props = frameSDK.props as MyFrameProps;
 // TypeScript will catch type errors
 console.log(props.userId.toFixed(2)); // OK
 console.log(props.theme.toUpperCase()); // OK
-----
+```
 
-== Best Practices
+## Best Practices
 
-=== 1. Use HTTPS in Production
+### 1. Use HTTPS in Production
 
-[source,html]
-----
+```html
 <!-- ❌ Bad: HTTP in production -->
 <z-frame src="http://app.example.com"></z-frame>
 
 <!-- ✅ Good: HTTPS in production -->
 <z-frame src="https://app.example.com"></z-frame>
-----
+```
 
-=== 2. Validate All Messages
+### 2. Validate All Messages
 
 Both parent and frame should validate message structure:
 
-[source,typescript]
-----
+```typescript
 // Frame validates message type
 if (!message || typeof message.type !== 'string') {
   console.warn('Invalid message', message);
   return;
 }
-----
+```
 
-=== 3. Limit Sandbox Permissions
+### 3. Limit Sandbox Permissions
 
 Only grant permissions that are needed:
 
-[source,html]
-----
+```html
 <!-- If frame doesn't need forms -->
 <z-frame sandbox="allow-scripts allow-same-origin"></z-frame>
 
 <!-- If frame doesn't need popups -->
 <z-frame sandbox="allow-scripts allow-same-origin allow-forms"></z-frame>
-----
+```
 
-=== 4. Use Subresource Integrity (SRI)
+### 4. Use Subresource Integrity (SRI)
 
 If loading frames from CDN:
 
-[source,html]
-----
+```html
 <script
   src="https://cdn.example.com/frame.js"
   integrity="sha384-oqVuAfXRKap7fdgcCY5uykM6+R9GqQ8K/ux..."
   crossorigin="anonymous"
 ></script>
-----
+```
 
-=== 5. Monitor for Suspicious Activity
+### 5. Monitor for Suspicious Activity
 
 Log and monitor frame errors:
 
-[source,typescript]
-----
+```typescript
 frame.addEventListener('error', (event) => {
   // Log to security monitoring service
   securityLogger.log({
@@ -540,18 +502,17 @@ frame.addEventListener('error', (event) => {
     timestamp: Date.now(),
   });
 });
-----
+```
 
-=== 6. Regularly Update Dependencies
+### 6. Regularly Update Dependencies
 
 Keep Frame and all dependencies up to date:
 
-[source,bash]
-----
+```bash
 bun update @zomme/frame
-----
+```
 
-=== 7. Audit Third-Party Frames
+### 7. Audit Third-Party Frames
 
 Before loading third-party frames:
 
@@ -560,19 +521,18 @@ Before loading third-party frames:
 * Test in isolation
 * Monitor their network requests
 
-=== 8. Implement Timeout Limits
+### 8. Implement Timeout Limits
 
 Function calls have a 5-second timeout by default (FUNCTION_CALL_TIMEOUT = 5000):
 
-[source,typescript]
-----
+```typescript
 // This is the current default timeout
 const FUNCTION_CALL_TIMEOUT = 5000; // 5 seconds
 
 // You can adjust this in constants.ts if needed
-----
+```
 
-== Security Checklist
+## Security Checklist
 
 Before deploying to production:
 

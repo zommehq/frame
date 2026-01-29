@@ -1,8 +1,8 @@
-= Communication Protocol
+# Communication Protocol
 
 Frame uses MessageChannel API for dedicated, secure communication between parent and frame applications.
 
-== MessageChannel vs Window PostMessage
+## MessageChannel vs Window PostMessage
 
 Frame uses **MessageChannel** instead of `window.postMessage` directly for several advantages:
 
@@ -26,8 +26,7 @@ Frame uses **MessageChannel** instead of `window.postMessage` directly for sever
 
 **How it works:**
 
-[source,typescript]
-----
+```typescript
 // Parent creates MessageChannel
 const channel = new MessageChannel();
 this._port = channel.port1;
@@ -42,28 +41,26 @@ iframe.postMessage(
 // Both sides use their ports directly
 port.postMessage(message);
 port.onmessage = (event) => handleMessage(event.data);
-----
+```
 
-== Message Structure
+## Message Structure
 
 All messages follow a base structure:
 
-[source,typescript]
-----
+```typescript
 interface BaseMessage {
   type: MessageType;
   // ... type-specific fields
 }
-----
+```
 
-== Message Flow
+## Message Flow
 
-=== Complete Communication Sequence
+### Complete Communication Sequence
 
 The following diagram shows the complete bidirectional message flow between parent and frame:
 
-[mermaid]
-----
+```mermaid
 sequenceDiagram
     participant Parent as Parent Application
     participant Frame as Frame Element
@@ -117,72 +114,34 @@ sequenceDiagram
     Parent->>Element: Disconnect element
     Element->>SDK: __FUNCTION_RELEASE__
     SDK->>SDK: Clean up functions
-----
+```
 
-=== Parent → Frame
+### Parent → Frame
 
-[cols="1,2,2"]
-|===
-| Message | Purpose | When
+| Message | Purpose | When |
+|---------|---------|------|
+| `__INIT__` | Initialize frame with configuration and props | After iframe loads, before frame is ready |
+| `__ATTRIBUTE_CHANGE__` | Notify attribute or property change | When parent updates frame attributes/properties |
+| `__EVENT__` | Send event to frame | When parent emits event to frame (via `emit()`) |
+| `__FUNCTION_CALL__` | Call function provided by frame | When parent invokes a function received from frame |
+| `__FUNCTION_RESPONSE__` | Return result of function call | Response to frame's function call |
+| `__FUNCTION_RELEASE__` | Notify function cleanup | When parent disconnects or function is no longer needed |
 
-| `__INIT__`
-| Initialize frame with configuration and props
-| After iframe loads, before frame is ready
+### Frame → Parent
 
-| `__ATTRIBUTE_CHANGE__`
-| Notify attribute or property change
-| When parent updates frame attributes/properties
+| Message | Purpose | When |
+|---------|---------|------|
+| `__READY__` | Signal frame is initialized | After SDK receives `__INIT__` and completes setup |
+| `__CUSTOM_EVENT__` | Emit custom event to parent | When frame calls `frameSDK.emit()` |
+| `__FUNCTION_CALL__` | Call function provided by parent | When frame invokes a function received from parent |
+| `__FUNCTION_RESPONSE__` | Return result of function call | Response to parent's function call |
+| `__FUNCTION_RELEASE__` | Notify function cleanup | When frame unloads or function is no longer needed |
 
-| `__EVENT__`
-| Send event to frame
-| When parent emits event to frame (via `emit()`)
-
-| `__FUNCTION_CALL__`
-| Call function provided by frame
-| When parent invokes a function received from frame
-
-| `__FUNCTION_RESPONSE__`
-| Return result of function call
-| Response to frame's function call
-
-| `__FUNCTION_RELEASE__`
-| Notify function cleanup
-| When parent disconnects or function is no longer needed
-|===
-
-=== Frame → Parent
-
-[cols="1,2,2"]
-|===
-| Message | Purpose | When
-
-| `__READY__`
-| Signal frame is initialized
-| After SDK receives `__INIT__` and completes setup
-
-| `__CUSTOM_EVENT__`
-| Emit custom event to parent
-| When frame calls `frameSDK.emit()`
-
-| `__FUNCTION_CALL__`
-| Call function provided by parent
-| When frame invokes a function received from parent
-
-| `__FUNCTION_RESPONSE__`
-| Return result of function call
-| Response to parent's function call
-
-| `__FUNCTION_RELEASE__`
-| Notify function cleanup
-| When frame unloads or function is no longer needed
-|===
-
-== Origin Validation
+## Origin Validation
 
 Origin validation happens **only during the initial handshake** (INIT message via `window.postMessage`). After the MessageChannel is established, all subsequent communication uses the dedicated port.
 
-[mermaid]
-----
+```mermaid
 flowchart TD
     A[Parent sends INIT] -->|window.postMessage| B[Frame receives message]
     B --> C{Origin matches<br/>expected?}
@@ -201,12 +160,11 @@ flowchart TD
     style C fill:#EF5350,stroke:#C62828,stroke-width:2px,color:#fff
     style E fill:#66BB6A,stroke:#388E3C,stroke-width:2px,color:#fff
     style K fill:#4A90E2,stroke:#2563EB,stroke-width:2px,color:#fff
-----
+```
 
-=== Initial Handshake (INIT)
+### Initial Handshake (INIT)
 
-[source,typescript]
-----
+```typescript
 // Parent sends INIT via window.postMessage (one-time)
 iframe.contentWindow.postMessage(
   { type: '__INIT__', payload: props },
@@ -229,9 +187,9 @@ window.addEventListener('message', (event) => {
     };
   }
 }, { once: true });
-----
+```
 
-=== Why This Is Secure
+### Why This Is Secure
 
 **Origin validation on INIT:**
 
@@ -253,9 +211,9 @@ window.addEventListener('message', (event) => {
 * No need for origin checking on every message (performance win)
 * Prevents malicious scripts from injecting fake messages
 
-== Serialization
+## Serialization
 
-=== Supported Types
+### Supported Types
 
 Frame automatically serializes/deserializes:
 
@@ -264,12 +222,11 @@ Frame automatically serializes/deserializes:
 * **Functions** (bidirectional)
 * **Transferable objects**: `ArrayBuffer`, `MessagePort`, `ImageBitmap`, etc.
 
-=== Function Serialization
+### Function Serialization
 
 Functions are automatically serialized and can be passed in both directions:
 
-[source,typescript]
-----
+```typescript
 // Parent passes function to frame
 frame.onUserClick = (data) => {
   console.log('User clicked:', data);
@@ -277,7 +234,7 @@ frame.onUserClick = (data) => {
 
 // Frame receives and can call it
 frameSDK.props.onUserClick({ id: 123 });
-----
+```
 
 Behind the scenes:
 
@@ -294,8 +251,7 @@ Behind the scenes:
 
 5. Function is released on cleanup via `__FUNCTION_RELEASE__`
 
-[mermaid]
-----
+```mermaid
 flowchart LR
     A[Parent passes<br/>function] --> B[Serialize]
     B --> C[Generate UUID]
@@ -317,16 +273,16 @@ flowchart LR
     style D fill:#4A90E2,stroke:#2563EB,stroke-width:2px,color:#fff
     style I fill:#4A90E2,stroke:#2563EB,stroke-width:2px,color:#fff
     style M fill:#66BB6A,stroke:#388E3C,stroke-width:2px,color:#fff
-----
+```
 
-TIP: Functions have a 5-second timeout. Long-running operations should use promises.
+> [!TIP]
+> Functions have a 5-second timeout. Long-running operations should use promises.
 
-=== Transferable Objects
+### Transferable Objects
 
 Transferable objects are moved (not copied) for performance:
 
-[source,typescript]
-----
+```typescript
 // Create ArrayBuffer
 const buffer = new ArrayBuffer(1024 * 1024); // 1MB
 
@@ -334,7 +290,7 @@ const buffer = new ArrayBuffer(1024 * 1024); // 1MB
 frame.imageData = buffer;
 
 // buffer is now unusable in parent (transferred ownership)
-----
+```
 
 **Supported transferables:**
 
@@ -346,12 +302,11 @@ frame.imageData = buffer;
 * `WritableStream`
 * `TransformStream`
 
-=== Circular Reference Handling
+### Circular Reference Handling
 
-Circular references are automatically preserved using the https://github.com/WebReflection/flatted[flatted] library:
+Circular references are automatically preserved using the [flatted](https://github.com/WebReflection/flatted) library:
 
-[source,typescript]
-----
+```typescript
 const obj = { name: 'test' };
 obj.self = obj; // Circular reference
 
@@ -361,11 +316,11 @@ frame.data = obj;
 console.log(frameSDK.props.data.name); // "test"
 console.log(frameSDK.props.data.self === frameSDK.props.data); // true
 // The circular reference is preserved!
-----
+```
 
 The flatted library handles circular references efficiently, allowing complex object graphs to be serialized and deserialized while preserving their structure.
 
-== Message Ordering
+## Message Ordering
 
 PostMessage guarantees:
 
@@ -373,12 +328,11 @@ PostMessage guarantees:
 * **Atomicity**: Each message is delivered completely or not at all
 * **No message loss**: Messages are queued if receiver is busy
 
-== Error Handling
+## Error Handling
 
 Function call errors are propagated across boundaries:
 
-[source,typescript]
-----
+```typescript
 // Frame throws error
 frameSDK.props.onSave = () => {
   throw new Error('Save failed');
@@ -390,13 +344,14 @@ try {
 } catch (error) {
   console.error('Frame error:', error.message); // "Save failed"
 }
-----
+```
 
-== Performance Considerations
+## Performance Considerations
 
 * **Serialization cost**: Functions and complex objects have overhead
 * **Message queue**: Too many rapid messages can cause lag
 * **Payload size**: Keep messages under 1MB for best performance
 * **Use transferables**: For large binary data (images, buffers)
 
-TIP: For high-frequency updates (like mouse position), debounce or throttle messages.
+> [!TIP]
+> For high-frequency updates (like mouse position), debounce or throttle messages.

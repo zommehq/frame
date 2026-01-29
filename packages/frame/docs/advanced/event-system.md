@@ -1,15 +1,14 @@
-= Event System
+# Event System
 
 Frame provides a bidirectional event system for communication between parent and frame.
 
-== Frame → Parent Events
+## Frame -> Parent Events
 
-=== Event Emission Flow
+### Event Emission Flow
 
 The following diagram illustrates the complete flow of an event from frame to parent:
 
-[mermaid]
-----
+```mermaid
 sequenceDiagram
     participant Frame
     participant SDK as frameSDK
@@ -26,12 +25,11 @@ sequenceDiagram
     FF->>FF: dispatchEvent(event)
     FF->>Parent: Event bubbles up
     Parent->>Parent: addEventListener or<br/>on* property handler
-----
+```
 
-=== Emitting Events
+### Emitting Events
 
-[source,typescript]
-----
+```typescript
 import { frameSDK } from '@zomme/frame/sdk';
 
 // Emit event without data
@@ -45,14 +43,13 @@ frameSDK.emit('form-submitted', {
   values: { name: 'John', email: 'john@example.com' },
   timestamp: Date.now(),
 });
-----
+```
 
-=== Listening in Parent
+### Listening in Parent
 
 Events are dispatched as DOM CustomEvents:
 
-[source,typescript]
-----
+```typescript
 const frame = document.querySelector('z-frame');
 
 // Listen to specific event
@@ -65,14 +62,13 @@ frame.addEventListener('form-submitted', (event) => {
   console.log('Form values:', event.detail.values);
   console.log('Timestamp:', event.detail.timestamp);
 });
-----
+```
 
-=== Property Handlers
+### Property Handlers
 
 You can also use property handlers:
 
-[source,typescript]
-----
+```typescript
 const frame = document.querySelector('z-frame');
 
 // Property handler (on + eventName)
@@ -83,18 +79,18 @@ frame.onuserselected = (detail) => {
 frame.onformsubmitted = (detail) => {
   console.log('Form values:', detail.values);
 };
-----
+```
 
-NOTE: Property handlers normalize event names by removing `-`, `:`, `.` characters.
+> [!NOTE]
+> Property handlers normalize event names by removing `-`, `:`, `.` characters.
 
-== Parent → Frame Events
+## Parent -> Frame Events
 
-=== Bidirectional Event Flow
+### Bidirectional Event Flow
 
 The Frame architecture supports multiple communication patterns:
 
-[mermaid]
-----
+```mermaid
 graph TB
     subgraph Parent
         P[Parent App]
@@ -125,14 +121,13 @@ graph TB
     style P fill:#66BB6A,stroke:#388E3C,stroke-width:2px,color:#fff
     style FF fill:#AB47BC,stroke:#7B1FA2,stroke-width:2px,color:#fff
     style SDK fill:#4A90E2,stroke:#2563EB,stroke-width:2px,color:#fff
-----
+```
 
-=== Sending Events from Parent
+### Sending Events from Parent
 
 While not built-in, you can use parent-provided functions:
 
-[source,typescript]
-----
+```typescript
 // Parent provides event emitter via props
 frame.parentEvents = {
   emit: (eventName, data) => {
@@ -145,12 +140,11 @@ frame.parentEvents = {
 frameSDK.on('parent-event', (data) => {
   console.log('Received from parent:', data);
 });
-----
+```
 
 Better approach - use property watching:
 
-[source,typescript]
-----
+```typescript
 // Parent changes property
 frame.currentUser = { id: 123, name: 'John' };
 
@@ -165,25 +159,24 @@ const unwatch = frameSDK.watch(['currentUser'], (changes) => {
 
 // Cleanup when done
 unwatch();
-----
+```
 
-== Built-in Events
+## Built-in Events
 
-=== `ready` Event
+### `ready` Event
 
 Emitted when frame is initialized:
 
-[source,typescript]
-----
+```typescript
 frame.addEventListener('ready', () => {
   console.log('Frame is ready');
   // Safe to interact with frame now
 });
-----
+```
 
-== Event Naming
+## Event Naming
 
-=== Naming Conventions
+### Naming Conventions
 
 Use descriptive, kebab-case names:
 
@@ -191,12 +184,11 @@ Use descriptive, kebab-case names:
 * ❌ `userSelected`, `formSubmitted`, `dataLoaded` (camelCase - harder to read in HTML)
 * ❌ `click`, `submit` (too generic)
 
-=== Namespace Events
+### Namespace Events
 
 For complex applications, use namespaces:
 
-[source,typescript]
-----
+```typescript
 // User-related events
 frameSDK.emit('user:login', { userId: 123 });
 frameSDK.emit('user:logout');
@@ -210,31 +202,28 @@ frameSDK.emit('form:validation-error', { field: 'email', error: 'Invalid' });
 // Data-related events
 frameSDK.emit('data:loaded', { items: [...] });
 frameSDK.emit('data:error', { message: 'Failed to load' });
-----
+```
 
 Parent can listen with event name filtering:
 
-[source,typescript]
-----
+```typescript
 frame.addEventListener('user:login', (e) => { ... });
 frame.addEventListener('user:logout', (e) => { ... });
-----
+```
 
-== Event Data
+## Event Data
 
-=== Simple Data
+### Simple Data
 
-[source,typescript]
-----
+```typescript
 frameSDK.emit('counter-updated', 42);
 frameSDK.emit('status-changed', 'active');
 frameSDK.emit('toggle-changed', true);
-----
+```
 
-=== Complex Objects
+### Complex Objects
 
-[source,typescript]
-----
+```typescript
 frameSDK.emit('user-updated', {
   id: 123,
   name: 'John Doe',
@@ -245,14 +234,13 @@ frameSDK.emit('user-updated', {
     loginCount: 42,
   },
 });
-----
+```
 
-=== Functions in Events
+### Functions in Events
 
 Events can include functions:
 
-[source,typescript]
-----
+```typescript
 frameSDK.emit('action-registered', {
   name: 'refresh',
   execute: () => {
@@ -269,26 +257,24 @@ frame.addEventListener('action-registered', (event) => {
   // Call frame function
   execute();
 });
-----
+```
 
-=== Transferable Objects
+### Transferable Objects
 
 Events support transferable objects:
 
-[source,typescript]
-----
+```typescript
 const buffer = new ArrayBuffer(1024);
 frameSDK.emit('data-ready', { buffer });
 
 // buffer is now transferred to parent (unusable in frame)
-----
+```
 
-== Event Patterns
+## Event Patterns
 
 The Frame supports three primary communication patterns, each suited for different use cases:
 
-[mermaid]
-----
+```mermaid
 graph LR
     subgraph "Request-Response Pattern"
         direction TB
@@ -316,16 +302,16 @@ graph LR
         style F3 fill:#4A90E2,stroke:#2563EB,stroke-width:2px,color:#fff
         style P3 fill:#66BB6A,stroke:#388E3C,stroke-width:2px,color:#fff
     end
-----
+```
 
-NOTE: **Request-Response** uses events + functions, **Notification** uses events only, **Command** uses functions + events for confirmation.
+> [!NOTE]
+> **Request-Response** uses events + functions, **Notification** uses events only, **Command** uses functions + events for confirmation.
 
-=== Request-Response Pattern
+### Request-Response Pattern
 
 Frame requests data from parent:
 
-[source,typescript]
-----
+```typescript
 // Frame emits request
 frameSDK.emit('fetch-user-data', { userId: 123 });
 
@@ -346,14 +332,13 @@ frame.addEventListener('fetch-user-data', async (event) => {
   // Send response via attribute
   frame.userData = userData;
 });
-----
+```
 
-=== Notification Pattern
+### Notification Pattern
 
 Frame notifies parent of state changes:
 
-[source,typescript]
-----
+```typescript
 // Frame notifies
 frameSDK.emit('loading', true);
 
@@ -371,14 +356,13 @@ frame.addEventListener('loading', (event) => {
 frame.addEventListener('data-loaded', (event) => {
   console.log('Loaded items:', event.detail.items);
 });
-----
+```
 
-=== Command Pattern
+### Command Pattern
 
 Parent sends commands to frame:
 
-[source,typescript]
-----
+```typescript
 // Parent sends command via function
 frame.executeCommand = async (command) => {
   switch (command.type) {
@@ -397,14 +381,13 @@ frame.executeCommand = async (command) => {
 // Frame executes
 await frameSDK.props.executeCommand({ type: 'refresh' });
 await frameSDK.props.executeCommand({ type: 'save', data: {...} });
-----
+```
 
-== Error Events
+## Error Events
 
-=== Emitting Errors
+### Emitting Errors
 
-[source,typescript]
-----
+```typescript
 try {
   await riskyOperation();
 } catch (error) {
@@ -414,12 +397,11 @@ try {
     context: 'user-form',
   });
 }
-----
+```
 
-=== Handling Errors in Parent
+### Handling Errors in Parent
 
-[source,typescript]
-----
+```typescript
 frame.addEventListener('error', (event) => {
   const { message, stack, context } = event.detail;
 
@@ -435,39 +417,36 @@ frame.addEventListener('error', (event) => {
   // Show user-friendly message
   showToast('Something went wrong. Please try again.');
 });
-----
+```
 
-== Best Practices
+## Best Practices
 
-=== Use Events for Notifications
+### Use Events for Notifications
 
 Events are best for fire-and-forget notifications:
 
-[source,typescript]
-----
+```typescript
 // ✅ Good: One-way notification
 frameSDK.emit('user-clicked-button', { buttonId: 'save' });
 
 // ❌ Bad: Should use function for request-response
 frameSDK.emit('get-user-data', { userId: 123 });
 // How do you get the response?
-----
+```
 
-=== Use Functions for Request-Response
+### Use Functions for Request-Response
 
-[source,typescript]
-----
+```typescript
 // ✅ Good: Function returns response
 const userData = await frameSDK.props.getUserData(123);
 
 // ❌ Bad: Event doesn't return anything
 frameSDK.emit('get-user-data', { userId: 123 });
-----
+```
 
-=== Document Your Events
+### Document Your Events
 
-[source,typescript]
-----
+```typescript
 /**
  * Events emitted by UserForm frame:
  *
@@ -483,14 +462,13 @@ frameSDK.emit('get-user-data', { userId: 123 });
  * - error - When an error occurs
  *   detail: { message: string, context: string }
  */
-----
+```
 
-=== Namespace Your Events
+### Namespace Your Events
 
 Avoid name collisions:
 
-[source,typescript]
-----
+```typescript
 // ✅ Good: Namespaced
 frameSDK.emit('userform:submit', data);
 frameSDK.emit('userform:cancel');
@@ -498,14 +476,13 @@ frameSDK.emit('userform:cancel');
 // ❌ Bad: Generic names might conflict
 frameSDK.emit('submit', data);
 frameSDK.emit('cancel');
-----
+```
 
-=== Keep Event Data Serializable
+### Keep Event Data Serializable
 
 Avoid non-serializable objects like DOM nodes. Circular references are automatically handled:
 
-[source,typescript]
-----
+```typescript
 // ✅ Good: Simple, serializable
 frameSDK.emit('data-loaded', {
   items: [...],
@@ -521,14 +498,13 @@ frameSDK.emit('circular-data', obj); // Works fine!
 // ❌ Bad: DOM nodes cannot be serialized
 const form = document.querySelector('form');
 frameSDK.emit('form-ready', { form }); // Won't serialize
-----
+```
 
-=== Cleanup Event Listeners
+### Cleanup Event Listeners
 
 Always remove event listeners:
 
-[source,typescript]
-----
+```typescript
 const handleUserSelected = (event) => {
   console.log(event.detail);
 };
@@ -537,4 +513,4 @@ frame.addEventListener('user-selected', handleUserSelected);
 
 // Later...
 frame.removeEventListener('user-selected', handleUserSelected);
-----
+```

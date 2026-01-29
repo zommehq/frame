@@ -1,29 +1,18 @@
-= Architecture
+# Architecture
 
 Frame uses a three-layer architecture for micro-frontend communication:
 
-== Layers
+## Layers
 
-[cols="1,2,2"]
-|===
-| Layer | Component | Responsibility
+| Layer | Component | Responsibility |
+|-------|-----------|----------------|
+| Parent | Host Application | Creates and manages frame instances |
+| Bridge | `<z-frame>` Web Component | Manages iframe, handles communication, validates messages |
+| Child | Frame Application + SDK | Receives messages, exposes API, emits events |
 
-| Parent
-| Host Application
-| Creates and manages frame instances
+**Three-Layer Architecture**
 
-| Bridge
-| `<z-frame>` Web Component
-| Manages iframe, handles communication, validates messages
-
-| Child
-| Frame Application + SDK
-| Receives messages, exposes API, emits events
-|===
-
-.Three-Layer Architecture
-[mermaid]
-----
+```mermaid
 graph TB
     subgraph Parent["Layer 1: Parent Application"]
         PA[Host Application]
@@ -50,66 +39,36 @@ graph TB
     style Parent fill:#e1f5ff
     style Bridge fill:#fff4e1
     style Child fill:#e8f5e9
-----
+```
 
-== Communication Protocol
+## Communication Protocol
 
 All communication uses **PostMessage** with structured messages:
 
-[source,typescript]
-----
+```typescript
 interface BaseMessage {
   type: MessageType;
   // ... additional fields
 }
-----
+```
 
-=== Message Types
+### Message Types
 
-[cols="1,2,2"]
-|===
-| Type | Direction | Purpose
+| Type | Direction | Purpose |
+|------|-----------|---------|
+| `__INIT__` | Parent → Frame | Initialize frame with configuration and MessagePort |
+| `__READY__` | Frame → Parent | Signal frame is initialized and ready |
+| `__ATTRIBUTE_CHANGE__` | Parent → Frame | Notify attribute/property change |
+| `__EVENT__` | Parent → Frame | Send event to frame |
+| `__CUSTOM_EVENT__` | Frame → Parent | Custom event from frame |
+| `__FUNCTION_CALL__` | Bidirectional | Call a function (request) |
+| `__FUNCTION_RESPONSE__` | Bidirectional | Function call result or error (response) |
+| `__FUNCTION_RELEASE__` | Bidirectional | Release a single function reference |
+| `__FUNCTION_RELEASE_BATCH__` | Bidirectional | Release multiple function references at once |
 
-| `__INIT__`
-| Parent → Frame
-| Initialize frame with configuration and MessagePort
+**Communication Flow**
 
-| `__READY__`
-| Frame → Parent
-| Signal frame is initialized and ready
-
-| `__ATTRIBUTE_CHANGE__`
-| Parent → Frame
-| Notify attribute/property change
-
-| `__EVENT__`
-| Parent → Frame
-| Send event to frame
-
-| `__CUSTOM_EVENT__`
-| Frame → Parent
-| Custom event from frame
-
-| `__FUNCTION_CALL__`
-| Bidirectional
-| Call a function (request)
-
-| `__FUNCTION_RESPONSE__`
-| Bidirectional
-| Function call result or error (response)
-
-| `__FUNCTION_RELEASE__`
-| Bidirectional
-| Release a single function reference
-
-| `__FUNCTION_RELEASE_BATCH__`
-| Bidirectional
-| Release multiple function references at once
-|===
-
-.Communication Flow
-[mermaid]
-----
+```mermaid
 sequenceDiagram
     participant Parent as Parent Application
     participant Element as Frame Element
@@ -165,26 +124,25 @@ sequenceDiagram
         Element->>SDK: MessageChannel(__FUNCTION_RESPONSE__)
         SDK->>App: Resolve promise
     end
-----
+```
 
-== Security Model
+## Security Model
 
-=== iframe Sandbox
+### iframe Sandbox
 
 Frames run in sandboxed iframes with configurable permissions:
 
-[source,html]
-----
+```html
 <z-frame
   sandbox="allow-scripts allow-same-origin allow-forms"
 ></z-frame>
-----
+```
 
 **Default sandbox:** `allow-scripts allow-same-origin allow-forms allow-popups allow-modals`
 
-.Sandbox Security Architecture
-[mermaid]
-----
+**Sandbox Security Architecture**
+
+```mermaid
 graph TB
     subgraph Parent["Parent Application Context"]
         ParentDOM[Parent DOM]
@@ -233,32 +191,31 @@ graph TB
     style Allowed fill:#81C784,stroke:#4CAF50,stroke-width:2px,color:#000
     style Blocked fill:#EF5350,stroke:#C62828,stroke-width:2px,color:#fff
     style Channel fill:#AB47BC,stroke:#7B1FA2,stroke-width:2px,color:#fff
-----
+```
 
-=== Origin Validation
+### Origin Validation
 
 Origin validation occurs **only during the initial handshake**:
 
-[source,typescript]
-----
+```typescript
 // In SDK: validate origin when receiving __INIT__ (optional)
 if (expectedOrigin && event.origin !== expectedOrigin) {
   throw new Error(`Origin validation failed: expected ${expectedOrigin}, got ${event.origin}`);
 }
-----
+```
 
 **Important:** After the initial `__INIT__` handshake via `window.postMessage`, all subsequent communication uses the **dedicated MessageChannel port**, which is already trusted. The origin check is a one-time validation during initialization, not a continuous check on every message.
 
-=== No Shared State
+### No Shared State
 
 * Each frame runs in isolated iframe
 * No direct DOM access between parent and frame
 * No shared JavaScript context
 * Communication only via PostMessage
 
-== Attribute System
+## Attribute System
 
-=== Fixed Attributes
+### Fixed Attributes
 
 These control the frame instance:
 
@@ -267,12 +224,11 @@ These control the frame instance:
 * `base` - Base path for frame router
 * `sandbox` - iframe sandbox permissions
 
-=== Dynamic Attributes
+### Dynamic Attributes
 
 Any other attribute is passed to the frame:
 
-[source,html]
-----
+```html
 <z-frame
   name="app"
   src="http://localhost:3000"
@@ -280,12 +236,11 @@ Any other attribute is passed to the frame:
   theme="dark"
   user-id="123"
 ></z-frame>
-----
+```
 
 The frame receives:
 
-[source,json]
-----
+```json
 {
   "name": "app",
   "base": "/app",
@@ -293,27 +248,17 @@ The frame receives:
   "theme": "dark",
   "userId": "123"
 }
-----
+```
 
-== Observation Mechanisms
+## Observation Mechanisms
 
 Frame uses multiple mechanisms to detect changes:
 
-[cols="1,2,2"]
-|===
-| Mechanism | Detects | Use Case
+| Mechanism | Detects | Use Case |
+|-----------|---------|----------|
+| `MutationObserver` | `setAttribute()` calls | Framework updates via DOM |
+| `Proxy` | Property assignments | Direct property updates, complex objects |
+| `observedAttributes` | Fixed attributes (`name`, `src`, `base`, `sandbox`) | Used by Web Components API for initial setup |
 
-| `MutationObserver`
-| `setAttribute()` calls
-| Framework updates via DOM
-
-| `Proxy`
-| Property assignments
-| Direct property updates, complex objects
-
-| `observedAttributes`
-| Fixed attributes (`name`, `src`, `base`, `sandbox`)
-| Used by Web Components API for initial setup
-|===
-
-TIP: The combination of MutationObserver + Proxy ensures all **dynamic** attribute changes are captured, regardless of how they're made. The `observedAttributes` static property is used by the browser for the fixed attributes.
+> [!TIP]
+> The combination of MutationObserver + Proxy ensures all **dynamic** attribute changes are captured, regardless of how they're made. The `observedAttributes` static property is used by the browser for the fixed attributes.

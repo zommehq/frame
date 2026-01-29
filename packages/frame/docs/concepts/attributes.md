@@ -1,52 +1,36 @@
-= Attributes and Properties
+# Attributes and Properties
 
 Frame supports both HTML attributes and JavaScript properties for passing data to frames.
 
-== Attribute Types
+## Attribute Types
 
-=== Fixed Attributes
+### Fixed Attributes
 
 These control the frame instance and are read only once:
 
-[cols="1,2,1"]
-|===
-| Attribute | Purpose | Required
-
-| `name`
-| Frame identifier, used as default base path
-| Yes
-
-| `src`
-| Frame URL (must include protocol)
-| Yes
-
-| `base`
-| Base path for frame router
-| No (defaults to `/${name}`)
-
-| `sandbox`
-| iframe sandbox permissions
-| No (has secure defaults)
-|===
+| Attribute | Purpose | Required |
+|-----------|---------|----------|
+| `name` | Frame identifier, used as default base path | Yes |
+| `src` | Frame URL (must include protocol) | Yes |
+| `base` | Base path for frame router | No (defaults to `/${name}`) |
+| `sandbox` | iframe sandbox permissions | No (has secure defaults) |
 
 **Important:** Fixed attributes are **not reactive**. Changing them after initialization has no effect.
 
-[source,html]
-----
+```html
 <z-frame
   name="my-app"
   src="http://localhost:3000"
   base="/custom-path"
   sandbox="allow-scripts allow-same-origin"
 ></z-frame>
-----
+```
 
-=== Dynamic Attributes
+### Dynamic Attributes
 
 Any other attribute is passed to the frame and is **reactive**:
 
-[source,html]
-----
+```html
 <z-frame
   name="my-app"
   src="http://localhost:3000"
@@ -54,12 +38,11 @@ Any other attribute is passed to the frame and is **reactive**:
   theme="dark"
   user-id="123"
 ></z-frame>
-----
+```
 
 Frame receives (kebab-case converted to camelCase):
 
-[source,typescript]
-----
+```typescript
 {
   name: "my-app",
   base: "/my-app",
@@ -67,34 +50,31 @@ Frame receives (kebab-case converted to camelCase):
   theme: "dark",
   userId: "123"
 }
-----
+```
 
-== Properties vs Attributes
+## Properties vs Attributes
 
-=== Attributes (HTML)
+### Attributes (HTML)
 
 * Limited to **strings** only
 * Set via `setAttribute()` or HTML markup
 * Use kebab-case naming: `api-url`, `user-id`
 
-[source,html]
-----
+```html
 <z-frame api-url="https://api.example.com"></z-frame>
-----
+```
 
-[source,typescript]
-----
+```typescript
 frame.setAttribute('theme', 'dark');
-----
+```
 
-=== Properties (JavaScript)
+### Properties (JavaScript)
 
 * Support **any type**: objects, arrays, functions, etc.
 * Set via direct property assignment
 * Use camelCase naming: `apiUrl`, `userId`
 
-[source,typescript]
-----
+```typescript
 const frame = document.querySelector('z-frame');
 
 // Complex objects
@@ -107,34 +87,20 @@ frame.permissions = ['read', 'write'];
 frame.onUserClick = (data) => {
   console.log('User clicked:', data);
 };
-----
+```
 
 **Recommendation:** Use properties for complex data, attributes for simple configuration.
 
-== Attribute Name Conversion
+## Attribute Name Conversion
 
 Attribute names are automatically converted:
 
-[cols="1,1,1"]
-|===
-| HTML Attribute | Property Name | Frame Receives
-
-| `api-url`
-| `apiUrl`
-| `apiUrl`
-
-| `user-id`
-| `userId`
-| `userId`
-
-| `data-theme`
-| `dataTheme`
-| `dataTheme`
-
-| `theme`
-| `theme`
-| `theme`
-|===
+| HTML Attribute | Property Name | Frame Receives |
+|----------------|---------------|----------------|
+| `api-url` | `apiUrl` | `apiUrl` |
+| `user-id` | `userId` | `userId` |
+| `data-theme` | `dataTheme` | `dataTheme` |
+| `theme` | `theme` | `theme` |
 
 **Rules:**
 
@@ -142,12 +108,11 @@ Attribute names are automatically converted:
 2. Character after hyphen is uppercased
 3. Result is camelCase
 
-=== Conversion Pipeline
+### Conversion Pipeline
 
 The following diagram shows how attribute names are converted from HTML to JavaScript:
 
-[mermaid]
-----
+```mermaid
 flowchart TD
     A[Parent sets attribute] --> B{Contains hyphen?}
     B -->|Yes| C[api-url='...']
@@ -166,7 +131,7 @@ flowchart TD
     style I fill:#66BB6A,stroke:#388E3C,stroke-width:2px,color:#fff
     style F fill:#66BB6A,stroke:#388E3C,stroke-width:2px,color:#fff
     style J fill:#AB47BC,stroke:#7B1FA2,stroke-width:2px,color:#fff
-----
+```
 
 **Conversion Examples:**
 
@@ -175,49 +140,45 @@ flowchart TD
 * `data-theme` → Split: [`data`, `theme`] → Capitalize: [`data`, `Theme`] → Join: `dataTheme`
 * `theme` → No hyphen → Keep as-is: `theme`
 
-== Change Detection
+## Change Detection
 
 Frame uses **two mechanisms** to detect changes:
 
-=== MutationObserver (Attributes)
+### MutationObserver (Attributes)
 
 Detects changes via `setAttribute()`:
 
-[source,typescript]
-----
+```typescript
 // Detected by MutationObserver
 frame.setAttribute('theme', 'dark');
-----
+```
 
-[source]
-----
+```text
 setAttribute() → MutationObserver → __ATTRIBUTE_CHANGE__ message → Frame
-----
+```
 
-=== Proxy (Properties)
+### Proxy (Properties)
 
 Detects changes via property assignment:
 
-[source,typescript]
-----
+```typescript
 // Detected by Proxy
 frame.theme = 'dark';
 frame.userData = { name: 'John' };
-----
+```
 
-[source]
-----
+```text
 Property set → Proxy trap → __ATTRIBUTE_CHANGE__ message → Frame
-----
+```
 
-TIP: Both mechanisms work transparently. Use whichever is more convenient.
+> [!TIP]
+> Both mechanisms work transparently. Use whichever is more convenient.
 
-=== Detection Architecture
+### Detection Architecture
 
 The following diagram illustrates how both detection mechanisms work in parallel:
 
-[mermaid]
-----
+```mermaid
 flowchart TB
     subgraph Parent["Parent (Shell)"]
         A1[setAttribute'theme', 'dark']
@@ -255,7 +216,7 @@ flowchart TB
     style D fill:#66BB6A,stroke:#388E3C,stroke-width:2px,color:#fff
     style E fill:#66BB6A,stroke:#388E3C,stroke-width:2px,color:#fff
     style F fill:#66BB6A,stroke:#388E3C,stroke-width:2px,color:#fff
-----
+```
 
 **Key Points:**
 
@@ -264,12 +225,11 @@ flowchart TB
 * **Convergence:** Both paths send the same `__ATTRIBUTE_CHANGE__` message
 * **Result:** Frame receives updates regardless of how they were made
 
-== Reactive Updates
+## Reactive Updates
 
 When an attribute/property changes, the frame is notified:
 
-[source,typescript]
-----
+```typescript
 // Parent changes theme
 frame.theme = 'dark';
 
@@ -284,7 +244,7 @@ const unwatch = frameSDK.watch(['theme'], (changes) => {
 
 // Cleanup when done
 unwatch();
-----
+```
 
 **Update flow:**
 
@@ -295,12 +255,11 @@ unwatch();
 5. Frame SDK triggers watch handlers with `[newValue, oldValue]`
 6. Application code reacts to change
 
-=== Update Flow Sequence
+### Update Flow Sequence
 
 The following sequence diagram shows the complete reactive update flow:
 
-[mermaid]
-----
+```mermaid
 sequenceDiagram
     participant Parent as Parent (Shell)
     participant Observer as MutationObserver/Proxy
@@ -325,7 +284,7 @@ sequenceDiagram
     App-->>Parent: Optional: Send confirmation<br/>or trigger parent event
 
     Note over Parent,App: Bidirectional communication enabled<br/>Frame can notify parent of internal changes
-----
+```
 
 **Flow Details:**
 
@@ -337,16 +296,16 @@ sequenceDiagram
 6. **Application Response:** Frame application code handles the change
 7. **Optional Feedback:** Frame can send events back to parent if needed
 
-TIP: The frame can also emit events back to the parent using `frameSDK.emit()`, creating true bidirectional communication.
+> [!TIP]
+> The frame can also emit events back to the parent using `frameSDK.emit()`, creating true bidirectional communication.
 
-== Initial vs Dynamic Values
+## Initial vs Dynamic Values
 
-=== Initial Values
+### Initial Values
 
 Set before frame is ready:
 
-[source,typescript]
-----
+```typescript
 const frame = document.createElement('z-frame');
 frame.setAttribute('name', 'my-app');
 frame.setAttribute('src', 'http://localhost:3000');
@@ -354,47 +313,44 @@ frame.theme = 'dark';          // Queued
 frame.apiUrl = 'https://api.com'; // Queued
 
 document.body.appendChild(frame);
-----
+```
 
 These values are collected and sent in the `__INIT__` message.
 
-=== Dynamic Updates
+### Dynamic Updates
 
 Set after frame is ready:
 
-[source,typescript]
-----
+```typescript
 frame.addEventListener('ready', () => {
   // Frame is ready, updates sent immediately
   frame.theme = 'light';
   frame.permissions = ['read', 'write', 'delete'];
 });
-----
+```
 
 Each change sends an `__ATTRIBUTE_CHANGE__` message.
 
-== Best Practices
+## Best Practices
 
-=== Use Attributes for Configuration
+### Use Attributes for Configuration
 
 Simple, string-based configuration:
 
-[source,html]
-----
+```html
 <z-frame
   name="my-app"
   src="http://localhost:3000"
   environment="production"
   api-version="v2"
 ></z-frame>
-----
+```
 
-=== Use Properties for Complex Data
+### Use Properties for Complex Data
 
 Objects, arrays, functions:
 
-[source,typescript]
-----
+```typescript
 frame.config = {
   api: { baseUrl: 'https://api.com', timeout: 5000 },
   features: ['feature-a', 'feature-b'],
@@ -404,14 +360,13 @@ frame.config = {
 frame.onDataChange = (data) => {
   console.log('Data updated:', data);
 };
-----
+```
 
-=== Avoid Frequent Updates
+### Avoid Frequent Updates
 
 Debounce rapid changes:
 
-[source,typescript]
-----
+```typescript
 // BAD: Sends 1000 messages
 for (let i = 0; i < 1000; i++) {
   frame.counter = i;
@@ -423,14 +378,13 @@ const interval = setInterval(() => {
   frame.counter = counter++;
   if (counter >= 1000) clearInterval(interval);
 }, 100);
-----
+```
 
-=== Watch Specific Properties
+### Watch Specific Properties
 
 Use `watch()` for targeted property watching:
 
-[source,typescript]
-----
+```typescript
 // Watch theme changes only
 const unwatchTheme = frameSDK.watch(['theme'], (changes) => {
   if ('theme' in changes && changes.theme) {
@@ -450,14 +404,13 @@ const unwatchApi = frameSDK.watch(['apiUrl'], (changes) => {
 // Cleanup when done
 unwatchTheme();
 unwatchApi();
-----
+```
 
-== Function Properties
+## Function Properties
 
 Functions can be passed as properties for callbacks:
 
-[source,typescript]
-----
+```typescript
 // Parent provides callbacks
 frame.onSave = async (data) => {
   await api.save(data);
@@ -473,7 +426,7 @@ const result = await frameSDK.props.onSave({ name: 'John' });
 console.log(result); // { success: true }
 
 frameSDK.props.onCancel();
-----
+```
 
 **Naming convention:** Use `on*` prefix for event handlers:
 
@@ -481,4 +434,5 @@ frameSDK.props.onCancel();
 * `onUserClick`, `onDataChange`
 * `onError`, `onSuccess`
 
-TIP: Functions have a 5-second timeout. For long operations, return a Promise and resolve it when done.
+> [!TIP]
+> Functions have a 5-second timeout. For long operations, return a Promise and resolve it when done.

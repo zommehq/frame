@@ -1,11 +1,10 @@
-= Constants
+# Constants
 
 This document describes all constant values used in Frame.
 
-== Message Event Types
+## Message Event Types
 
-[source,typescript]
-----
+```typescript
 export const MessageEvent = {
   INIT: '__INIT__',
   READY: '__READY__',
@@ -17,34 +16,31 @@ export const MessageEvent = {
   FUNCTION_RELEASE: '__FUNCTION_RELEASE__',
   FUNCTION_RELEASE_BATCH: '__FUNCTION_RELEASE_BATCH__',
 } as const;
-----
+```
 
-== Configuration Constants
+## Configuration Constants
 
-=== Timing
+### Timing
 
-[source,typescript]
-----
+```typescript
 export const FUNCTION_CALL_TIMEOUT = 5000;  // 5 seconds
 export const SERIALIZATION_MAX_DEPTH = 100; // 100 levels
 export const FUNCTION_REGISTRY_MAX_SIZE = 1000; // 1000 functions
 export const IFRAME_LOAD_TIMEOUT = 10000;   // 10 seconds
 export const INIT_TIMEOUT = 10000;          // 10 seconds
-----
+```
 
-=== Valid Message Types Set
+### Valid Message Types Set
 
-[source,typescript]
-----
+```typescript
 export const VALID_MESSAGE_TYPES = new Set(Object.values(MessageEvent)) as Set<
   (typeof MessageEvent)[keyof typeof MessageEvent]
 >;
-----
+```
 
-== Error Messages
+## Error Messages
 
-[source,typescript]
-----
+```typescript
 export const ErrorMessages = {
   ARRAY_BOUNDS: 'No MessagePort received in INIT message',
   DATA_CLONE_ERROR: 'Cannot clone message data - unsupported type',
@@ -74,12 +70,11 @@ export const ErrorMessages = {
   UNKNOWN_ERROR: 'Unknown error',
   UNKNOWN_MESSAGE_TYPE: 'Unknown message type',
 } as const;
-----
+```
 
-== Warning Messages
+## Warning Messages
 
-[source,typescript]
-----
+```typescript
 export const WarningMessages = {
   ALREADY_INITIALIZED: 'Already initialized, ignoring duplicate call',
   DUPLICATE_INIT: 'Ignoring duplicate INIT message',
@@ -88,11 +83,10 @@ export const WarningMessages = {
   FORBIDDEN_EVENT: 'Forbidden event name',
   RELEASE_ERROR: 'Error sending release messages',
 } as const;
-----
+```
 
-== Import
+## Import
 
-[source,typescript]
-----
+```typescript
 import { MessageEvent, FUNCTION_CALL_TIMEOUT, ErrorMessages } from '@zomme/frame/constants';
-----
+```

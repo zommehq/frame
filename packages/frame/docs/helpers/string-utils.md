@@ -1,8 +1,8 @@
-= String Utilities
+# String Utilities
 
 Helper functions for string case conversion used internally by Frame.
 
-== Overview
+## Overview
 
 The string-utils module provides functions for converting between different string case formats (kebab-case, camelCase, etc.). These utilities are primarily used internally for:
 
@@ -10,29 +10,27 @@ The string-utils module provides functions for converting between different stri
 * Converting event names between formats
 * Normalizing property names for consistent handling
 
-== Import
+## Import
 
-[source,typescript]
-----
+```typescript
 import { kebabCase, camelCase } from '@zomme/frame';
-----
+```
 
-== Functions
+## Functions
 
-=== `kebabCase(str)`
+### `kebabCase(str)`
 
 Convert any string format to kebab-case.
 
 **Handles:**
-* camelCase → kebab-case
-* PascalCase → kebab-case
-* snake_case → kebab-case
-* Spaces → hyphens
-* Dots → hyphens
-* Already kebab-case → unchanged
+* camelCase -> kebab-case
+* PascalCase -> kebab-case
+* snake_case -> kebab-case
+* Spaces -> hyphens
+* Dots -> hyphens
+* Already kebab-case -> unchanged
 
-[source,typescript]
-----
+```typescript
 import { kebabCase } from '@zomme/frame';
 
 kebabCase('userName')   // 'user-name'
@@ -41,7 +39,7 @@ kebabCase('user_name')  // 'user-name'
 kebabCase('user.name')  // 'user-name'
 kebabCase('user name')  // 'user-name'
 kebabCase('user-name')  // 'user-name'
-----
+```
 
 **Parameters:**
 * `str` (string) - Input string in any format
@@ -57,20 +55,19 @@ kebabCase('user-name')  // 'user-name'
 
 ---
 
-=== `camelCase(str)`
+### `camelCase(str)`
 
 Convert any string format to camelCase.
 
 **Handles:**
-* kebab-case → camelCase
-* snake_case → camelCase
-* PascalCase → camelCase
-* Spaces → camelCase
-* Dots → camelCase
-* Already camelCase → unchanged
+* kebab-case -> camelCase
+* snake_case -> camelCase
+* PascalCase -> camelCase
+* Spaces -> camelCase
+* Dots -> camelCase
+* Already camelCase -> unchanged
 
-[source,typescript]
-----
+```typescript
 import { camelCase } from '@zomme/frame';
 
 camelCase('user-name')  // 'userName'
@@ -79,7 +76,7 @@ camelCase('user.name')  // 'userName'
 camelCase('user name')  // 'userName'
 camelCase('UserName')   // 'userName'
 camelCase('userName')   // 'userName'
-----
+```
 
 **Parameters:**
 * `str` (string) - Input string in any format
@@ -94,14 +91,13 @@ camelCase('userName')   // 'userName'
 
 ---
 
-== Use Cases
+## Use Cases
 
-=== Attribute Name Conversion
+### Attribute Name Conversion
 
 Frame uses these utilities to convert between HTML attribute names (kebab-case) and JavaScript property names (camelCase):
 
-[source,typescript]
-----
+```typescript
 // HTML attribute
 <z-frame api-url="https://api.com"></z-frame>
 
@@ -110,14 +106,13 @@ const propName = camelCase('api-url'); // 'apiUrl'
 
 // Frame receives
 frameSDK.props.apiUrl // 'https://api.com'
-----
+```
 
-=== Event Name Normalization
+### Event Name Normalization
 
 Convert event names for property handlers:
 
-[source,typescript]
-----
+```typescript
 // Event emitted with kebab-case
 frameSDK.emit('user-selected', { id: 123 });
 
@@ -129,74 +124,67 @@ frame.onuserselected = (data) => {
 // Internal conversion
 const handlerName = 'on' + camelCase('user-selected').replace(/^./, c => c.toLowerCase());
 // 'onuserselected'
-----
+```
 
-=== Round-Trip Conversions
+### Round-Trip Conversions
 
-[source,typescript]
-----
+```typescript
 // Convert back and forth
 const original = 'apiUrl';
 const kebab = kebabCase(original);    // 'api-url'
 const camel = camelCase(kebab);       // 'apiUrl'
 
 console.log(original === camel); // true
-----
+```
 
 ---
 
-== Edge Cases
+## Edge Cases
 
-=== Empty Strings
+### Empty Strings
 
-[source,typescript]
-----
+```typescript
 kebabCase('')  // ''
 camelCase('')  // ''
-----
+```
 
-=== Single Character
+### Single Character
 
-[source,typescript]
-----
+```typescript
 kebabCase('a')  // 'a'
 camelCase('A')  // 'a'
-----
+```
 
-=== Numbers
+### Numbers
 
-[source,typescript]
-----
+```typescript
 kebabCase('user123Name')   // 'user123-name'
 camelCase('user-123-name') // 'user123Name'
-----
+```
 
-=== Special Characters
+### Special Characters
 
-[source,typescript]
-----
+```typescript
 kebabCase('user@name')    // 'user@name'  (@ preserved)
 camelCase('user@name')    // 'username'  (@ removed)
-----
+```
 
-=== Multiple Separators
+### Multiple Separators
 
-[source,typescript]
-----
+```typescript
 kebabCase('user___name')   // 'user-name'  (collapsed)
 camelCase('user---name')   // 'userName'   (normalized)
-----
+```
 
 ---
 
-== Implementation Notes
+## Implementation Notes
 
-=== Why Two-Step Conversion for camelCase?
+### Why Two-Step Conversion for camelCase?
 
 The `camelCase` function first normalizes to kebab-case before converting to camelCase. This ensures consistent handling of mixed formats:
 
-[source,typescript]
-----
+```typescript
 // Without normalization, this would be complex
 const mixed = 'User_Name-API.url';
 
@@ -206,55 +194,52 @@ const normalized = 'user-name-api-url';
 
 // Step 2: Convert to camelCase
 const result = 'userNameApiUrl';
-----
+```
 
-=== Performance Considerations
+### Performance Considerations
 
 Both functions use regular expressions and are optimized for:
-* Common case conversions (camelCase ↔ kebab-case)
+* Common case conversions (camelCase <-> kebab-case)
 * Short strings (typical property names are 5-20 characters)
 * Frequent execution (attribute changes, event handling)
 
 **Benchmarks** (average over 1M iterations):
-* `kebabCase('userName')`: ~0.5μs
-* `camelCase('user-name')`: ~0.7μs
+* `kebabCase('userName')`: ~0.5us
+* `camelCase('user-name')`: ~0.7us
 
 ---
 
-== Best Practices
+## Best Practices
 
-=== Use Constants for Known Values
+### Use Constants for Known Values
 
-[source,typescript]
-----
-// ❌ Bad: Repeated conversions
+```typescript
+// Bad: Repeated conversions
 frame.addEventListener(kebabCase('userSelected'), handler);
 frame.removeEventListener(kebabCase('userSelected'), handler);
 
-// ✅ Good: Convert once
+// Good: Convert once
 const EVENT_NAME = kebabCase('userSelected'); // 'user-selected'
 frame.addEventListener(EVENT_NAME, handler);
 frame.removeEventListener(EVENT_NAME, handler);
-----
+```
 
-=== Validate Input
+### Validate Input
 
-[source,typescript]
-----
-// ✅ Good: Validate before conversion
+```typescript
+// Good: Validate before conversion
 function toKebabCase(str: string): string {
   if (!str || typeof str !== 'string') {
     throw new TypeError('Input must be a non-empty string');
   }
   return kebabCase(str);
 }
-----
+```
 
-=== Use Type Guards
+### Use Type Guards
 
-[source,typescript]
-----
-// ✅ Good: Type-safe property access
+```typescript
+// Good: Type-safe property access
 interface Props {
   apiUrl: string;
   userId: number;
@@ -264,12 +249,12 @@ function getPropValue<T extends Props>(obj: T, key: keyof T): T[typeof key] {
   const kebabKey = kebabCase(String(key));
   // ... conversion logic
 }
-----
+```
 
 ---
 
-== Related
+## Related
 
-* **Attributes Documentation**: See link:../concepts/attributes.adoc[Attributes] for how these utilities are used in attribute handling
-* **Event System**: See link:../advanced/event-system.adoc[Event System] for event name conversions
+* **Attributes Documentation**: See [Attributes](../concepts/attributes.md) for how these utilities are used in attribute handling
+* **Event System**: See [Event System](../advanced/event-system.md) for event name conversions
 * **Source Code**: `src/helpers/string-utils.ts`

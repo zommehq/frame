@@ -1,26 +1,25 @@
-= Message Validators
+# Message Validators
 
 The message-validators module provides low-level message structure validation utilities used by both SDK and Frame.
 
-== Overview
+## Overview
 
 This module provides shared validation logic to reduce code duplication and ensure consistent validation across components.
 
-== Import
+## Import
 
-[source,typescript]
-----
+```typescript
 import {
   isValidMessageStructure,
   hasStringType,
   isWhitelistedMessageType,
   validateMessage,
 } from '@zomme/frame';
-----
+```
 
-== Functions
+## Functions
 
-=== `isValidMessageStructure(message)`
+### `isValidMessageStructure(message)`
 
 Check if message has valid structure (is object with type property).
 
@@ -31,19 +30,18 @@ Check if message has valid structure (is object with type property).
 
 **Example:**
 
-[source,typescript]
-----
+```typescript
 import { isValidMessageStructure } from '@zomme/frame';
 
 if (isValidMessageStructure(data)) {
   // data.type is available (typed as unknown)
   console.log('Message type:', data.type);
 }
-----
+```
 
 ---
 
-=== `hasStringType(message)`
+### `hasStringType(message)`
 
 Check if message type property is a string.
 
@@ -54,19 +52,18 @@ Check if message type property is a string.
 
 **Example:**
 
-[source,typescript]
-----
+```typescript
 import { hasStringType } from '@zomme/frame';
 
 if (hasStringType(data)) {
   // data.type is now typed as string
   console.log('Message type:', data.type);
 }
-----
+```
 
 ---
 
-=== `isWhitelistedMessageType(type)`
+### `isWhitelistedMessageType(type)`
 
 Check if message type is in the whitelist of valid types.
 
@@ -77,8 +74,7 @@ Check if message type is in the whitelist of valid types.
 
 **Example:**
 
-[source,typescript]
-----
+```typescript
 import { isWhitelistedMessageType, VALID_MESSAGE_TYPES } from '@zomme/frame';
 
 if (isWhitelistedMessageType(data.type)) {
@@ -86,11 +82,11 @@ if (isWhitelistedMessageType(data.type)) {
 } else {
   console.warn('Unknown message type:', data.type);
 }
-----
+```
 
 ---
 
-=== `validateMessage(data, logPrefix)`
+### `validateMessage(data, logPrefix)`
 
 Complete message validation pipeline.
 
@@ -102,8 +98,7 @@ Complete message validation pipeline.
 
 **Example:**
 
-[source,typescript]
-----
+```typescript
 import { validateMessage } from '@zomme/frame';
 
 const message = validateMessage(event.data, '[z-frame]');
@@ -118,16 +113,15 @@ if (message) {
       break;
   }
 }
-----
+```
 
 ---
 
-== Usage in Components
+## Usage in Components
 
-=== Frame
+### Frame
 
-[source,typescript]
-----
+```typescript
 import { validateMessage } from '../helpers/message-validators';
 
 private _handleMessage(event: MessageEvent) {
@@ -142,12 +136,11 @@ private _handleMessage(event: MessageEvent) {
       break;
   }
 }
-----
+```
 
-=== FrameSDK
+### FrameSDK
 
-[source,typescript]
-----
+```typescript
 import { validateMessage } from '../helpers/message-validators';
 
 private _handleMessage(event: MessageEvent) {
@@ -162,11 +155,11 @@ private _handleMessage(event: MessageEvent) {
       break;
   }
 }
-----
+```
 
 ---
 
-== Related
+## Related
 
-* **Type Guards**: See link:./type-guards.adoc[Type Guards] for runtime type checking
+* **Type Guards**: See [Type Guards](./type-guards.md) for runtime type checking
 * **Source Code**: `src/helpers/message-validators.ts`
