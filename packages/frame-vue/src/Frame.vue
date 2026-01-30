@@ -3,47 +3,47 @@ import "@zomme/frame";
 import { onMounted, onUnmounted, ref, watch } from "vue";
 
 interface Props {
-  /** Name of the frame (used for identification) */
-  name: string;
-
   /** URL to load in the iframe */
   src: string;
 
   /** Sandbox permissions for the iframe */
   sandbox?: string;
 
-  /** Props to pass to the child frame (any complex objects) */
+  /** Additional props to pass to the frame */
   [key: string]: unknown;
 }
 
-const props = withDefaults(defineProps<Props>(), {
-  sandbox: "allow-scripts allow-same-origin",
-});
+const props = defineProps<Props>();
 
 const emit = defineEmits<{
-  ready: [event: CustomEvent];
-  navigate: [event: CustomEvent];
   error: [event: CustomEvent];
-  [key: string]: [event: CustomEvent];
+  navigate: [event: CustomEvent];
+  ready: [event: CustomEvent];
 }>();
 
 const elementRef = ref<HTMLElement>();
 const eventListeners: [string, EventListener][] = [];
 
+const syncPropsToElement = () => {
+  const element = elementRef.value;
+  if (!element) return;
+
+  Object.entries(props).forEach(([key, value]) => {
+    // Skip src/sandbox (handled by template) and event handlers
+    if (!["src", "sandbox"].includes(key) && !key.startsWith("on")) {
+      (element as any)[key] = value;
+    }
+  });
+};
+
 onMounted(() => {
   const element = elementRef.value;
   if (!element) return;
 
-  // Set props as properties on the custom element
-  Object.entries(props).forEach(([key, value]) => {
-    if (!["name", "src", "sandbox"].includes(key)) {
-      (element as any)[key] = value;
-    }
-  });
+  syncPropsToElement();
 
-  // Setup event listeners
   const addListener = (eventName: string, emitName: string) => {
-    const handler = (event: Event) => emit(emitName, event as CustomEvent);
+    const handler = (event: Event) => emit(emitName as any, event as CustomEvent);
     element.addEventListener(eventName, handler);
     eventListeners.push([eventName, handler]);
   };
@@ -57,35 +57,21 @@ onUnmounted(() => {
   const element = elementRef.value;
   if (!element) return;
 
-  // Clean up all event listeners
   eventListeners.forEach(([event, handler]) => {
     element.removeEventListener(event, handler);
   });
   eventListeners.length = 0;
 });
 
-// Watch for prop changes and update element properties
-watch(
-  () => props,
-  (newProps) => {
-    const element = elementRef.value;
-    if (!element) return;
+watch(() => props, syncPropsToElement, { deep: true });
 
-    Object.entries(newProps).forEach(([key, value]) => {
-      if (!["name", "src", "sandbox"].includes(key)) {
-        (element as any)[key] = value;
-      }
-    });
-  },
-  { deep: true },
-);
+defineExpose({ elementRef });
 </script>
 
 <template>
   <z-frame
     ref="elementRef"
-    :name="name"
-    :src="src"
-    :sandbox="sandbox"
+    :sandbox="props.sandbox ?? 'allow-scripts allow-same-origin'"
+    :src="props.src"
   />
 </template>

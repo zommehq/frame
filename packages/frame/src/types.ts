@@ -36,11 +36,9 @@ import type { MessageEvent } from "./constants";
  * ```
  */
 export interface FrameProps {
-  base: string;
-  name: string;
   pathname?: string;
-  src: string;
   sandbox?: string;
+  src: string;
   [key: string]: unknown;
 }
 

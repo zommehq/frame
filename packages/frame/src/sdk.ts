@@ -38,7 +38,7 @@ type EventHandler = (data: unknown) => void | Promise<void>;
  * await frameSDK.initialize();
  *
  * // Access props directly (functions are async via RPC)
- * console.log(frameSDK.props.name, frameSDK.props.base);
+ * console.log(frameSDK.props.theme);
  * await frameSDK.props.onSuccess({ status: 'ok' });
  *
  * // Emit events to parent
@@ -68,7 +68,6 @@ export class FrameSDK {
    *
    * @example
    * ```typescript
-   * console.log(frameSDK.props.name);      // 'my-app'
    * console.log(frameSDK.props.apiUrl);    // 'https://api.example.com'
    * frameSDK.props.onSuccess({ ok: true }); // Call function from parent
    * ```

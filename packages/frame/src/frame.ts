@@ -31,8 +31,6 @@ const logger = createLogger("z-frame");
  * @example
  * ```html
  * <z-frame
- *   name="my-app"
- *   base="/my-app"
  *   src="http://localhost:3000"
  *   api-url="https://api.example.com"
  *   theme="dark"
@@ -64,7 +62,7 @@ export class Frame extends HTMLElement {
    * Observed attributes for Web Component lifecycle
    */
   static get observedAttributes() {
-    return ["base", "name", "pathname", "sandbox", "src"];
+    return ["pathname", "sandbox", "src"];
   }
 
   /**
@@ -76,9 +74,7 @@ export class Frame extends HTMLElement {
     (instance: Frame, val?: string | null) => unknown
   > = {
     pathname: (instance) => instance.pathname,
-    base: (instance) => instance.base,
     sandbox: (instance) => instance.sandbox,
-    name: (_, val) => val,
     src: (_, val) => val,
   };
 
@@ -126,67 +122,6 @@ export class Frame extends HTMLElement {
   }
 
   /**
-   * Get frame name
-   */
-  get name(): string | null {
-    return this.getAttribute("name");
-  }
-
-  /**
-   * Get frame source URL
-   *
-   * Note: Changing src after initialization will recreate the iframe (reload the frame app)
-   */
-  get src(): string | null {
-    return this.getAttribute("src");
-  }
-
-  /**
-   * Get base path for routing
-   * Falls back to /name if base attribute not set
-   * Normalizes to start with / and removes trailing slash
-   */
-  get base(): string {
-    let base = this.getAttribute("base") || `/${this.name}`;
-
-    // Ensure starts with /
-    if (!base.startsWith("/")) {
-      base = `/${base}`;
-    }
-
-    // Remove trailing slash (but keep single "/" as is)
-    if (base.length > 1 && base.endsWith("/")) {
-      base = base.slice(0, -1);
-    }
-
-    return base;
-  }
-
-  /**
-   * Set base path (syncs to HTML attribute)
-   * Allows property binding to work
-   */
-  set base(value: string | null) {
-    if (value === null) {
-      this.removeAttribute("base");
-    } else {
-      this.setAttribute("base", value);
-    }
-  }
-
-  /**
-   * Get sandbox permissions
-   *
-   * Note: Changing sandbox after initialization will recreate the iframe (reload the frame app)
-   */
-  get sandbox(): string {
-    return (
-      this.getAttribute("sandbox") ||
-      "allow-scripts allow-same-origin allow-forms allow-popups allow-modals"
-    );
-  }
-
-  /**
    * Get pathname for initial route
    * Normalizes to always start with / and defaults to /
    */
@@ -211,6 +146,39 @@ export class Frame extends HTMLElement {
       this.removeAttribute("pathname");
     } else {
       this.setAttribute("pathname", value);
+    }
+  }
+
+  /**
+   * Get sandbox permissions
+   *
+   * Note: Changing sandbox after initialization will recreate the iframe (reload the frame app)
+   */
+  get sandbox(): string {
+    return (
+      this.getAttribute("sandbox") ||
+      "allow-scripts allow-same-origin allow-forms allow-popups allow-modals"
+    );
+  }
+
+  /**
+   * Get frame source URL
+   *
+   * Note: Changing src after initialization will recreate the iframe (reload the frame app)
+   */
+  get src(): string | null {
+    return this.getAttribute("src");
+  }
+
+  /**
+   * Set frame source URL (syncs to HTML attribute)
+   * Note: Changing src after initialization will recreate the iframe (reload the frame app)
+   */
+  set src(value: string | null) {
+    if (value === null) {
+      this.removeAttribute("src");
+    } else {
+      this.setAttribute("src", value);
     }
   }
 
@@ -291,8 +259,8 @@ export class Frame extends HTMLElement {
   attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null) {
     if (oldValue === newValue) return;
 
-    // If element is connected and we now have both name and src, initialize
-    if (this.isConnected && this.name && this.src && !this.#iframe) {
+    // If element is connected and we have src, initialize
+    if (this.isConnected && this.src && !this.#iframe) {
       try {
         this.#origin = new URL(this.src).origin;
         this._initialize();
@@ -348,8 +316,8 @@ export class Frame extends HTMLElement {
     // Defer initialization using microtask queue
     // This runs after property bindings but before the next frame
     queueMicrotask(() => {
-      // If both name and src are set and not yet initialized, do it now
-      if (this.name && this.src && !this.#iframe) {
+      // If src is set and not yet initialized, do it now
+      if (this.src && !this.#iframe) {
         try {
           this.#origin = new URL(this.src).origin;
           this._initialize();
@@ -470,11 +438,9 @@ export class Frame extends HTMLElement {
   private _collectAllProps(): Record<string, unknown> {
     // Start with all special props (use getters for normalization where needed)
     const props: Record<string, unknown> = {
-      base: this.base, // Getter - normalized
-      name: this.name, // Direct
       pathname: this.pathname, // Getter - normalized
-      src: this.src, // Direct - always included for child context
       sandbox: this.sandbox, // Getter - has default value
+      src: this.src, // Direct - always included for child context
     };
 
     // Collect custom HTML attributes (skip observed attributes already added above)
@@ -588,7 +554,7 @@ export class Frame extends HTMLElement {
     switch (type) {
       case MessageEvent.READY:
         this.#ready = true;
-        this._dispatchLocalEvent("ready", { name: this.name });
+        this._dispatchLocalEvent("ready");
         break;
 
       case MessageEvent.CUSTOM_EVENT: {
@@ -871,7 +837,7 @@ const setupPrototypeProxy = () => {
           }
           // Function not registered - reject with clear error
           return Promise.reject(
-            new Error(`Function '${prop}' not registered by child frame '${instance.name}'`),
+            new Error(`Function '${prop}' not registered by child frame '${instance.src}'`),
           );
         };
 

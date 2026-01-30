@@ -33,8 +33,8 @@ const activeApp = computed(() => {
 });
 
 // Props from store
-const _currentUser = computed(() => store.user);
-const _currentTheme = computed(() => store.theme);
+const currentUser = computed(() => store.user);
+const currentTheme = computed(() => store.theme);
 
 // Props for React (Transferable Objects)
 const metricsArrayBuffer = ref<ArrayBuffer>(new ArrayBuffer(0));
@@ -42,7 +42,7 @@ const metricsArrayBuffer = ref<ArrayBuffer>(new ArrayBuffer(0));
 // Create a function to get a fresh copy of the ArrayBuffer for each frame
 // This prevents the "ArrayBuffer already detached" error when the same buffer
 // is transferred to multiple frames
-const _getMetricsArrayBuffer = () => {
+const getMetricsArrayBuffer = () => {
   // Clone the ArrayBuffer so each frame gets its own copy
   return metricsArrayBuffer.value.slice(0);
 };
@@ -50,21 +50,21 @@ const _getMetricsArrayBuffer = () => {
 // Frame elements map
 const frameElements = new Map<string, HTMLElement>();
 
-const _handleSuccess = (data: any) => {
+const handleSuccess = (data: any) => {
   store.addNotification({
     type: "success",
     message: data.message || "Action completed",
   });
 };
 
-const _handleTaskAction = (data: any) => {
+const handleTaskAction = (data: any) => {
   if (data.action === "addTask") {
     store.addTask(data.task);
   }
 };
 
 // Callback for search (Async search function)
-const _handleSearchCallback = async (params: any) => {
+const handleSearchCallback = async (params: any) => {
   // Simulate API call
   await new Promise((resolve) => setTimeout(resolve, 800));
 
@@ -91,7 +91,7 @@ const _handleSearchCallback = async (params: any) => {
 };
 
 // Callback for saving settings (Async)
-const _handleSaveSettings = async (settings: any) => {
+const handleSaveSettings = async (settings: any) => {
   // Simulate API call
   await new Promise((resolve) => setTimeout(resolve, 1000));
 
@@ -115,7 +115,7 @@ const _handleSaveSettings = async (settings: any) => {
 };
 
 // Function to set frame refs dynamically
-const _setFrameRef = (name: string, el: any) => {
+const setFrameRef = (name: string, el: any) => {
   if (el) {
     frameElements.set(name, el);
     // Set attributes
@@ -135,12 +135,12 @@ const getFrameUrl = (appName: string): string => {
 };
 
 // Toggle theme
-const _toggleTheme = () => {
+const toggleTheme = () => {
   store.toggleTheme();
 };
 
 // Event handlers
-const _onFrameReady = (event: CustomEvent) => {
+const onFrameReady = (event: CustomEvent) => {
   // Guard against null detail
   if (!event.detail) return;
 
@@ -160,7 +160,7 @@ const _onFrameReady = (event: CustomEvent) => {
   }
 };
 
-const _onFrameNavigate = (event: CustomEvent) => {
+const onFrameNavigate = (event: CustomEvent) => {
   const { path } = event.detail;
   const frameName = (event.target as any).getAttribute("name");
 
@@ -172,7 +172,7 @@ const _onFrameNavigate = (event: CustomEvent) => {
   }
 };
 
-const _onFrameError = (event: CustomEvent) => {
+const onFrameError = (event: CustomEvent) => {
   const { error, message } = event.detail;
   const frameName = (event.target as any).getAttribute("name");
   console.error(`[Shell] Error from frame '${frameName}':`, message || error);
@@ -182,27 +182,27 @@ const _onFrameError = (event: CustomEvent) => {
   });
 };
 
-const _onActionClicked = (_event: CustomEvent) => {
+const onActionClicked = (_event: CustomEvent) => {
   // Action clicked - can be used for analytics
 };
 
-const _onThemeChanged = (event: CustomEvent) => {
+const onThemeChanged = (event: CustomEvent) => {
   const { theme } = event.detail;
   store.theme = theme;
 };
 
-const _onCounterChanged = (_event: CustomEvent) => {
+const onCounterChanged = (_event: CustomEvent) => {
   // Counter changed - can be used for tracking
 };
 
-const _onSettingsSaved = (_event: CustomEvent) => {
+const onSettingsSaved = (_event: CustomEvent) => {
   store.addNotification({
     type: "success",
     message: "Settings saved successfully!",
   });
 };
 
-const _onMetricsTransferred = (event: CustomEvent) => {
+const onMetricsTransferred = (event: CustomEvent) => {
   const { size } = event.detail;
   store.addNotification({
     type: "info",
@@ -210,7 +210,7 @@ const _onMetricsTransferred = (event: CustomEvent) => {
   });
 };
 
-const _onRequestThemeChange = (event: CustomEvent) => {
+const onRequestThemeChange = (event: CustomEvent) => {
   const { theme } = event.detail;
   store.theme = theme;
   store.addNotification({
@@ -219,14 +219,14 @@ const _onRequestThemeChange = (event: CustomEvent) => {
   });
 };
 
-const _onContactFormSubmitted = (_event: CustomEvent) => {
+const onContactFormSubmitted = (_event: CustomEvent) => {
   store.addNotification({
     type: "success",
     message: "Contact form submitted!",
   });
 };
 
-const _onCustomEvent = (_event: CustomEvent) => {
+const onCustomEvent = (_event: CustomEvent) => {
   // Custom event - can be used for analytics
 };
 

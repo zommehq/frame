@@ -2,9 +2,6 @@ import "@zomme/frame";
 import React, { useEffect, useRef } from "react";
 
 interface FrameProps {
-  /** Name of the frame (used for identification) */
-  name: string;
-
   /** URL to load in the iframe */
   src: string;
 
@@ -13,13 +10,13 @@ interface FrameProps {
 
   /** Optional HTML attributes */
   className?: string;
-  style?: React.CSSProperties;
   id?: string;
+  style?: React.CSSProperties;
 
   /** Event handlers for z-frame events */
-  onReady?: (event: CustomEvent) => void;
-  onNavigate?: (event: CustomEvent) => void;
   onError?: (event: CustomEvent) => void;
+  onNavigate?: (event: CustomEvent) => void;
+  onReady?: (event: CustomEvent) => void;
 
   /** Props to pass to the child frame (serialized automatically) */
   [key: string]: unknown;
@@ -31,7 +28,6 @@ interface FrameProps {
  * @example
  * ```tsx
  * <Frame
- *   name="my-app"
  *   src="http://localhost:3000/"
  *   user={{ id: 1, name: "John" }}
  *   theme="dark"
@@ -43,12 +39,11 @@ interface FrameProps {
 export const Frame = React.forwardRef<HTMLElement, FrameProps>(
   (
     {
-      name,
       src,
       sandbox = "allow-scripts allow-same-origin",
-      onReady,
-      onNavigate,
       onError,
+      onNavigate,
+      onReady,
       ...props
     },
     ref,
@@ -130,9 +125,8 @@ export const Frame = React.forwardRef<HTMLElement, FrameProps>(
           ref.current = el;
         }
       },
-      name,
-      src,
       sandbox,
+      src,
       ...Object.fromEntries(
         Object.entries(props).filter(
           ([key]) => !key.startsWith("on") && ["className", "style", "id"].includes(key),
