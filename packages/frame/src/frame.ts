@@ -874,12 +874,14 @@ const setupPrototypeProxy = () => {
       const instance = receiver as Frame;
 
       // Allow observed attributes (handled by attributeChangedCallback)
+      // Use receiver (the actual instance) instead of target (prototype chain)
+      // to properly invoke the setter defined on Frame.prototype
       if (
         Frame.observedAttributes.includes(prop) ||
         prop in HTMLElement.prototype ||
         prop in Frame.prototype
       ) {
-        return Reflect.set(target, prop, value, receiver);
+        return Reflect.set(receiver, prop, value, receiver);
       }
 
       // Dynamic property - create reactive getter/setter
