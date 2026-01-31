@@ -162,6 +162,18 @@ export class Frame extends HTMLElement {
   }
 
   /**
+   * Set sandbox permissions (syncs to HTML attribute)
+   * Note: Changing sandbox after initialization will recreate the iframe (reload the frame app)
+   */
+  set sandbox(value: string | null) {
+    if (value === null) {
+      this.removeAttribute("sandbox");
+    } else {
+      this.setAttribute("sandbox", value);
+    }
+  }
+
+  /**
    * Get frame source URL
    *
    * Note: Changing src after initialization will recreate the iframe (reload the frame app)
